@@ -25,12 +25,12 @@ from .builder import HOOKS
 
 
 @HOOKS.register_module()
-class AfterTrainTester(HookBase):
+class TTATester(HookBase):
     def __init__(self, test_last=False):
         self.test_last = test_last
 
     def after_train(self):
-        if self.trainer.writer is not None:
+        if is_main_process():
             self.trainer.logger.info("=> Running test after Training")
 
             cfg = self.trainer.cfg
