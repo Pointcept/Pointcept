@@ -16,8 +16,49 @@ from pointcept.utils.timer import Timer
 from pointcept.utils.comm import is_main_process, synchronize
 from pointcept.utils.cache import shared_dict
 
+from pointcept.datasets import build_dataset
+from pointcept.datasets.utils import collate_fn
+from pointcept.engines.test import TEST
+
 from .default import HookBase
 from .builder import HOOKS
+
+
+@HOOKS.register_module()
+class AfterTrainTester(HookBase):
+    def __init__(self, test_last=False):
+        self.test_last = test_last
+
+    def after_train(self):
+        if self.trainer.writer is not None:
+            self.trainer.logger.info("=> Running test after Training")
+
+            cfg = self.trainer.cfg
+            cfg.batch_size_val_per_gpu = cfg.batch_size_test
+            cfg.num_worker_per_gpu = cfg.num_worker
+
+            self.trainer.logger.info("=> Building test dataset & dataloader ...")
+            test_dataset = build_dataset(cfg.data.test)
+            test_loader = torch.utils.data.DataLoader(test_dataset,
+                                                    batch_size=cfg.batch_size_val_per_gpu,
+                                                    shuffle=False,
+                                                    num_workers=cfg.num_worker_per_gpu,
+                                                    pin_memory=True,
+                                                    collate_fn=collate_fn)
+
+            model = self.trainer.model
+            if self.test_last:
+                self.trainer.logger.info("=> Test on model_last")
+                cfg.epochs = cfg.eval_epoch
+            else:
+                self.trainer.logger.info("=> Test on model_best")
+                best_path = os.path.join(self.trainer.cfg.save_path, 'model', 'model_best.pth')
+                checkpoint = torch.load(best_path)
+                state_dict = checkpoint['state_dict']
+                model.load_state_dict(state_dict, strict=True)
+                cfg.epochs = checkpoint['epoch']
+
+            TEST.build(cfg.test)(cfg, test_loader, model)
 
 
 @HOOKS.register_module()
