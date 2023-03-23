@@ -13,7 +13,7 @@ hooks = [
     dict(type="InformationWriter"),
     dict(type="SemSegEvaluator"),
     dict(type="CheckpointSaver", save_freq=None),
-    dict(type="TTATester", test_last=False)
+    dict(type="PreciseEvaluator", test_last=False)
 ]
 
 # model settings

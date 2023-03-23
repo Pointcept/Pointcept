@@ -25,43 +25,6 @@ from .builder import HOOKS
 
 
 @HOOKS.register_module()
-class TTATester(HookBase):
-    def __init__(self, test_last=False):
-        self.test_last = test_last
-
-    def after_train(self):
-        if is_main_process():
-            self.trainer.logger.info("=> Running test after Training")
-
-            cfg = self.trainer.cfg
-            cfg.batch_size_val_per_gpu = cfg.batch_size_test
-            cfg.num_worker_per_gpu = cfg.num_worker
-
-            self.trainer.logger.info("=> Building test dataset & dataloader ...")
-            test_dataset = build_dataset(cfg.data.test)
-            test_loader = torch.utils.data.DataLoader(test_dataset,
-                                                    batch_size=cfg.batch_size_val_per_gpu,
-                                                    shuffle=False,
-                                                    num_workers=cfg.num_worker_per_gpu,
-                                                    pin_memory=True,
-                                                    collate_fn=collate_fn)
-
-            model = self.trainer.model
-            if self.test_last:
-                self.trainer.logger.info("=> Test on model_last")
-                cfg.epochs = cfg.eval_epoch
-            else:
-                self.trainer.logger.info("=> Test on model_best")
-                best_path = os.path.join(self.trainer.cfg.save_path, 'model', 'model_best.pth')
-                checkpoint = torch.load(best_path)
-                state_dict = checkpoint['state_dict']
-                model.load_state_dict(state_dict, strict=True)
-                cfg.epochs = checkpoint['epoch']
-
-            TEST.build(cfg.test)(cfg, test_loader, model)
-
-
-@HOOKS.register_module()
 class IterationTimer(HookBase):
     def __init__(self, warmup_iter=1):
         self._warmup_iter = warmup_iter
@@ -232,6 +195,42 @@ class CheckpointLoader(HookBase):
 
 
 @HOOKS.register_module()
+class PreciseEvaluator(HookBase):
+    def __init__(self, test_last=False):
+        self.test_last = test_last
+
+    def after_train(self):
+        # TODO: enable ddp precise evaluation !! Model final performance relay on precise evaluation.
+        if is_main_process():
+            self.trainer.logger.info('>>>>>>>>>>>>>>>> Start Precise Evaluation >>>>>>>>>>>>>>>>')
+            cfg = self.trainer.cfg
+            cfg.batch_size_val_per_gpu = cfg.batch_size_test
+            cfg.num_worker_per_gpu = cfg.num_worker
+
+            self.trainer.logger.info("=> Building test dataset & dataloader ...")
+            test_dataset = build_dataset(cfg.data.test)
+            test_loader = torch.utils.data.DataLoader(test_dataset,
+                                                      batch_size=cfg.batch_size_val_per_gpu,
+                                                      shuffle=False,
+                                                      num_workers=cfg.num_worker_per_gpu,
+                                                      pin_memory=True,
+                                                      collate_fn=collate_fn)
+
+            model = self.trainer.model
+            if self.test_last:
+                self.trainer.logger.info("=> Testing on model_last ...")
+                cfg.epochs = cfg.eval_epoch
+            else:
+                self.trainer.logger.info("=> Testing on model_best ...")
+                best_path = os.path.join(self.trainer.cfg.save_path, 'model', 'model_best.pth')
+                checkpoint = torch.load(best_path)
+                state_dict = checkpoint['state_dict']
+                model.load_state_dict(state_dict, strict=True)
+                cfg.epochs = checkpoint['epoch']
+            TEST.build(cfg.test)(cfg, test_loader, model)
+
+
+@HOOKS.register_module()
 class DataCacheOperator(HookBase):
     def __init__(self, data_root, split):
         self.data_root = data_root
@@ -284,7 +283,7 @@ class RuntimeProfiler(HookBase):
         from torch.profiler import profile, record_function, ProfilerActivity
 
         for i, input_dict in enumerate(self.trainer.train_loader):
-            if i == self.warm_up+1:
+            if i == self.warm_up + 1:
                 break
             for key in input_dict.keys():
                 if isinstance(input_dict[key], torch.Tensor):
@@ -302,7 +301,7 @@ class RuntimeProfiler(HookBase):
                              record_shapes=True, profile_memory=True, with_stack=True) as backward_prof:
                     with record_function("model_inference"):
                         loss.backward()
-            self.trainer.logger.info(f"Profile: [{i+1}/{self.warm_up+1}]")
+            self.trainer.logger.info(f"Profile: [{i + 1}/{self.warm_up + 1}]")
         if self.forward:
             self.trainer.logger.info(
                 "Forward profile: \n" + str(forward_prof.key_averages().table(
@@ -358,11 +357,11 @@ class RuntimeProfilerV2(HookBase):
             with record_function("model_backward"):
                 loss.backward()
             prof.step()
-            self.trainer.logger.info(f"Profile: [{i+1}/{(self.wait + self.warmup + self.active) * self.repeat}]")
+            self.trainer.logger.info(f"Profile: [{i + 1}/{(self.wait + self.warmup + self.active) * self.repeat}]")
         self.trainer.logger.info(
-                "Profile: \n" + str(prof.key_averages().table(
-                    sort_by=self.sort_by, row_limit=self.row_limit))
-            )
+            "Profile: \n" + str(prof.key_averages().table(
+                sort_by=self.sort_by, row_limit=self.row_limit))
+        )
         prof.stop()
 
         if self.interrupt:
