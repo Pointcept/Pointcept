@@ -1,0 +1,15 @@
+image/
+__pycache__
+**/build/
+**/*.egg-info/
+**/dist/
+*.so
+exp
+weights
+data
+log
+outputs/
+.vscode
+.idea
+*/.DS_Store
+**/*.out

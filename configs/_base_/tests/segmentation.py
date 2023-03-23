@@ -1,0 +1,3 @@
+test = dict(
+    type="SegmentationTest"
+)
