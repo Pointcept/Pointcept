@@ -430,8 +430,8 @@ sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-spvcnn-v1m1-0-base -n semse
 If you find _Pointcept_ useful to your research, please cite our work:
 ```
 @misc{pointcept2023,
-    title={Pointcept: A Codebase for Point Cloud Perception Research.},
-    author={Pointcept Development Team},
+    title={Pointcept: A Codebase for Point Cloud Perception Research},
+    author={Pointcept Contributors},
     howpublished = {\url{https://github.com/Pointcept/Pointcept}},
     year={2023}
 }
