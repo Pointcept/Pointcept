@@ -14,7 +14,7 @@
 - **Masked Scene Contrast: A Scalable Framework for Unsupervised 3D Representation Learning**   
 *Xiaoyang Wu, Xin Wen, Xihui Liu, Hengshuang Zhao*  
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2023  
-[ Pretrain ] [ MSC ] - [ [arXiv](https://xywu.me/404.html) ] [ [Bib](https://xywu.me/research/msc/bib.txt) ] &rarr; soon
+[ Pretrain ] [ MSC ] - [ [arXiv](https://arxiv.org/abs/2303.14191) ] [ [Bib](https://xywu.me/research/msc/bib.txt) ] &rarr; soon
 
 
 - **Understanding Imbalanced Semantic Segmentation Through Neural Collapse** (3D Part)  
