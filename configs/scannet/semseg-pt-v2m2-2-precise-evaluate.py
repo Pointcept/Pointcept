@@ -3,8 +3,7 @@ An example for enabling precise evaluation validation dataset during training.
 PLease compare with semseg-pt-v2m2-0-base.py to lean the mechanism.
 """
 
-_base_ = ["../_base_/default_runtime.py",
-          "../_base_/tests/segmentation.py"]
+_base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
 batch_size = 12  # bs: total bs in all gpus

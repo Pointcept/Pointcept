@@ -1,5 +1,4 @@
-_base_ = ["../_base_/default_runtime.py",
-          "../_base_/tests/segmentation.py"]
+_base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
 batch_size = 8  # bs: total bs in all gpus

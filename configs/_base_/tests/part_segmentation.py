@@ -1,3 +1,0 @@
-test = dict(
-    type="PartSegmentationTest"
-)

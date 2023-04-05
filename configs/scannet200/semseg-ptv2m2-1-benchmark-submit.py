@@ -1,7 +1,6 @@
 from pointcept.datasets.preprocessing.scannet.meta_data.scannet200_constants import CLASS_LABELS_200
 
-_base_ = ["../_base_/default_runtime.py",
-          "../_base_/tests/segmentation.py"]
+_base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
 batch_size = 12  # bs: total bs in all gpus

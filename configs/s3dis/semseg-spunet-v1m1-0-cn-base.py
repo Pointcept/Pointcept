@@ -1,8 +1,7 @@
 # spconv is too fast, data loading speed is bottleneck. Cache data is a better choice.
 
 
-_base_ = ["../_base_/default_runtime.py",
-          "../_base_/tests/segmentation.py"]
+_base_ = ["../_base_/default_runtime.py"]
 # misc custom setting
 batch_size = 12  # bs: total bs in all gpus
 mix_prob = 0.8

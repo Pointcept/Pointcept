@@ -21,6 +21,7 @@ max_batch_points = 1e8
 mix_prob = 0
 param_dicts = None  # example: param_dicts = [dict(keyword="block", lr_scale=0.1)]
 
+# hook
 hooks = [
     dict(type="CheckpointLoader"),
     dict(type="IterationTimer", warmup_iter=2),
@@ -28,3 +29,8 @@ hooks = [
     dict(type="SemSegEvaluator"),
     dict(type="CheckpointSaver", save_freq=None)
 ]
+
+# Tester
+test = dict(
+    type="SemSegTester"
+)

@@ -21,8 +21,8 @@ TEST = Registry("test")
 
 
 @TEST.register_module()
-class SegmentationTest(object):
-    """SegmentationTest
+class SemSegTester(object):
+    """SemSegTester
     for large outdoor point cloud
     """
 
@@ -122,17 +122,10 @@ class SegmentationTest(object):
 
 
 @TEST.register_module()
-class ClassificationTest(object):
-    """ClassificationTest
+class ClsTester(object):
+    """ClsTester
     for classification dataset (modelnet40), containing multi scales voting
     """
-
-    def __init__(self,
-                 scales=(0.9, 0.95, 1, 1.05, 1.1),
-                 shuffle=False):
-        self.scales = scales
-        self.shuffle = shuffle
-
     def __call__(self, cfg, test_loader, model):
         logger = get_root_logger()
         logger.info('>>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>')
@@ -146,37 +139,13 @@ class ClassificationTest(object):
             for key in input_dict.keys():
                 if isinstance(input_dict[key], torch.Tensor):
                     input_dict[key] = input_dict[key].cuda(non_blocking=True)
-            # move TTA aug to dataset
-            coord = input_dict["coord"]
-            feat = input_dict["feat"]
-            target = input_dict["category"]
-            offset = input_dict["offset"]
             end = time.time()
-            output = torch.zeros([offset.shape[0], cfg.data.num_classes], dtype=torch.float32).cuda()
-            for scale in self.scales:
-                coord_temp, discrete_coord_temp, feat_temp = [], [], []
-                for k in range(offset.shape[0]):
-                    if k == 0:
-                        s_k, e_k, cnt = 0, offset[0], offset[0]
-                    else:
-                        s_k, e_k, cnt = offset[k - 1], offset[k], offset[k] - offset[k - 1]
-                    coord_part, discrete_coord_part, feat_part = \
-                        coord[s_k:e_k, :], discrete_coord_part[s_k:e_k, :], feat[s_k:e_k, :]
-                    coord_part *= scale
-                    feat_part[:, :3] *= feat_part[:, :3]
-                    idx = np.arange(coord_part.shape[0])
-                    if self.shuffle:
-                        np.random.shuffle(idx)
-                    coord_temp.append(coord_part[idx]), feat_temp.append(feat_part[idx])
-                    discrete_coord_temp.append(discrete_coord_part[idx])
-                coord_temp, feat_temp = torch.cat(coord_temp, 0), torch.cat(feat_temp, 0)
-                discrete_coord_temp = torch.cat(discrete_coord_temp, 0)
-                with torch.no_grad():
-                    output_part = model(dict(coord=coord_temp, feat=feat_temp,
-                                             offset=offset, discrete_coord=discrete_coord_temp))
-                output += output_part
-            output = output.max(1)[1]
-            intersection, union, target = intersection_and_union_gpu(output, target, cfg.data.num_classes,
+            with torch.no_grad():
+                output_dict = model(input_dict)
+            output = output_dict["cls_logits"]
+            pred = output.max(1)[1]
+            label = input_dict["category"]
+            intersection, union, target = intersection_and_union_gpu(pred, label, cfg.data.num_classes,
                                                                      cfg.data.ignore_index)
             intersection, union, target = intersection.cpu().numpy(), union.cpu().numpy(), target.cpu().numpy()
             intersection_meter.update(intersection), union_meter.update(union), target_meter.update(target)
@@ -204,8 +173,8 @@ class ClassificationTest(object):
 
 
 @TEST.register_module()
-class PartSegmentationTest(object):
-    """PartSegmentationTest
+class PartSegTester(object):
+    """PartSegTester
     """
 
     def __call__(self, cfg, test_loader, model):

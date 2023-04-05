@@ -79,9 +79,10 @@ def main():
         checkpoint = torch.load(cfg.weight)
         state_dict = checkpoint['state_dict']
         new_state_dict = collections.OrderedDict()
-        for k, v in state_dict.items():
-            name = k[7:]  # module.xxx.xxx -> xxx.xxx
-            new_state_dict[name] = v
+        for name, value in state_dict.items():
+            if name.startswith("module."):
+                name = name[7:]  # module.xxx.xxx -> xxx.xxx
+            new_state_dict[name] = value
         model.load_state_dict(new_state_dict, strict=True)
         logger.info("=> loaded weight '{}' (epoch {})".format(cfg.weight, checkpoint['epoch']))
         cfg.epochs = checkpoint['epoch']  # TODO: move to self
