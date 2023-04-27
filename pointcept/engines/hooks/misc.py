@@ -76,7 +76,7 @@ class InformationWriter(HookBase):
 
     def before_train(self):
         self.trainer.comm_info["iter_info"] = ""
-        self.curr_iter = self.trainer.epoch * len(self.trainer.train_loader)
+        self.curr_iter = self.trainer.start_epoch * len(self.trainer.train_loader)
 
     def before_step(self):
         self.curr_iter += 1
