@@ -57,7 +57,7 @@ and supports the following datasets:
 
 
 ## Highlights
-- *Mar, 2023*: We released our codebase, **Pointcept**. _Pointcept_ is a highly potent tool, as evidenced by its ability to significantly augment the baseline performance of SpUnet on the ScanNet validation set, resulting in an impressive mIoU score of 75.0%. Moreover, its remarkable flexibility is manifested through its expertly designed framework, which seamlessly facilitates the integration of cutting-edge methods. We welcome new work to join the _Pointcept_ family and highly recommend reading [Quick Start](#quick-start) before starting your trail.
+- *Mar, 2023*: We released our codebase, **Pointcept**, a highly potent tool for point cloud representation learning and perception. We welcome new work to join the _Pointcept_ family and highly recommend reading [Quick Start](#quick-start) before starting your trail.
 - *Feb, 2023*: **MSC** and **CeCo** accepted by CVPR 2023. _MSC_ is a highly efficient and effective pretraining framework that facilitates cross-dataset large-scale pretraining, while _CeCo_ is a segmentation method specifically designed for long-tail datasets. Both approaches are compatible with all existing backbone models in our codebase, and we will soon make the code available for public use.
 - *Jan, 2023*: **CAC**, oral work of AAAI 2023, has expanded its 3D result with the incorporation of Pointcept. This addition will allow CAC to serve as a pluggable segmentor within our codebase.
 - *Sep, 2022*: **PTv2** accepted by NeurIPS 2022. It is a continuation of the Point Transformer. The proposed GVA theory can apply to most existing attention mechanisms, while Grid Pooling is also a practical addition to existing pooling methods.
