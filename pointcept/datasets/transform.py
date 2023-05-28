@@ -86,7 +86,7 @@ class ToTensor(object):
             return torch.FloatTensor([data])
         elif isinstance(data, np.ndarray) and np.issubdtype(data.dtype, bool):
             return torch.from_numpy(data)
-        elif isinstance(data, np.ndarray) and np.issubdtype(data.dtype, np.int):
+        elif isinstance(data, np.ndarray) and np.issubdtype(data.dtype, int):
             return torch.from_numpy(data).long()
         elif isinstance(data, np.ndarray) and np.issubdtype(data.dtype, np.floating):
             return torch.from_numpy(data).float()
@@ -705,7 +705,7 @@ class Voxelize(object):
 
     def __call__(self, data_dict):
         assert "coord" in data_dict.keys()
-        discrete_coord = np.floor(data_dict["coord"] / np.array(self.voxel_size)).astype(np.int)
+        discrete_coord = np.floor(data_dict["coord"] / np.array(self.voxel_size)).astype(int)
         min_coord = discrete_coord.min(0) * np.array(self.voxel_size)
         discrete_coord -= discrete_coord.min(0)
         key = self.hash(discrete_coord)
