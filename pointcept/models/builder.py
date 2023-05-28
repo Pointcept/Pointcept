@@ -12,5 +12,5 @@ MODULES = Registry('modules')
 
 
 def build_model(cfg):
-    """Build test_datasets."""
+    """Build models."""
     return MODELS.build(cfg)
