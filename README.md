@@ -259,9 +259,7 @@ python tools/train.py --config-file ${CONFIG_PATH} --num-gpus ${NUM_GPU} --optio
 ```
 
 ### Testing
-The validation during training only evaluate model on point clouds after grid sampling (voxelization) and testing is **needed** to achieve a precise evaluation result.
-Our testing code support TTA (test time augmentation) testing.
-(Currently only support testing on a single GPU, I might add support to multi-gpus testing in the future version.)
+During training, model evaluation is performed on point clouds after grid sampling (voxelization), providing an initial assessment of model performance. However, to obtain precise evaluation results, testing is **essential**. The testing process involves subsampling a dense point cloud into a sequence of voxelized point clouds, ensuring comprehensive coverage of all points. These sub-results are then predicted and collected to form a complete prediction of the entire point cloud. This approach yields  higher evaluation results compared to simply mapping/interpolating the prediction. In addition, our testing code supports TTA (test time augmentation) testing, which further enhances the stability of evaluation performance. (Currently only support testing on a single GPU, I might add support to multi-gpus testing in the future version.)
 
 ```bash
 # By script (Based on experiment folder created by training script)
@@ -270,7 +268,6 @@ sh scripts/test.sh -p ${INTERPRETER_PATH} -d ${DATASET_NAME} -n ${EXP_NAME} -w $
 export PYTHONPATH=./
 python tools/test.py --config-file ${CONFIG_PATH} --options save_path=${SAVE_PATH} weight=${CHECKPOINT_PATH}
 ```
-
 For example:
 ```bash
 # By script (Based on experiment folder created by training script)
@@ -280,6 +277,24 @@ sh scripts/test.sh -p python -d scannet -n semseg-ptv2m2-0-base -w model_best
 # Direct
 export PYTHONPATH=./
 python tools/test.py --config-file configs/scannet/semseg-pt-v2m2-0-base.py --options save_path=exp/scannet/semseg-ptv2m2-0-base weight=exp/scannet/semseg-ptv2m2-0-base/models/model_best.pth
+```
+
+The TTA can be disabled by replace `data.test.test_cfg.aug_transform = [...]` with:
+
+```python
+data = dict(
+    train = dict(...),
+    val = dict(...),
+    test = dict(
+        ...,
+        test_cfg = dict(
+            ...,
+            aug_transform = [
+                [dict(type="RandomRotateTargetAngle", angle=[0], axis="z", center=[0, 0, 0], p=1)]
+            ]
+        )
+    )
+)
 ```
 
 ### Offset
