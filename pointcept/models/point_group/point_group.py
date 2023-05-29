@@ -10,6 +10,7 @@ from collections import OrderedDict
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from pointgroup_ops import ballquery_batch_p, bfs_cluster
 from ..utils import offset2batch, batch2offset
@@ -30,6 +31,7 @@ class PointGroup(nn.Module):
                  cluster_closed_points=300,
                  cluster_propose_points=100,
                  cluster_min_points = 50,
+                 voxel_size = 0.02
                  ):
         super().__init__()
         if backbone is None:
@@ -45,11 +47,13 @@ class PointGroup(nn.Module):
         norm_fn = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
         self.semantic_num_classes = semantic_num_classes
         self.segment_ignore_index = segment_ignore_index
+        self.semantic_ignore_index = semantic_ignore_index
         self.instance_ignore_index = instance_ignore_index
         self.cluster_thresh = cluster_thresh
         self.cluster_closed_points = cluster_closed_points
         self.cluster_propose_points = cluster_propose_points
         self.cluster_min_points = cluster_min_points
+        self.voxel_size = voxel_size
         self.backbone = build_model(backbone)
         self.bias_head = nn.Sequential(
             nn.Linear(backbone_out_channels, backbone_out_channels),
@@ -72,24 +76,30 @@ class PointGroup(nn.Module):
         bias_pred = self.bias_head(feat)
         logit_pred = self.seg_head(feat)
 
-        if self.training:
-            # compute loss
-            seg_loss = self.ce_criteria(logit_pred, segment)
+        # compute loss
+        seg_loss = self.ce_criteria(logit_pred, segment)
 
-            mask = (instance != self.instance_ignore_index).float()
-            bias_gt = instance_center - coord
-            bias_dist = torch.sum(torch.abs(bias_pred - bias_gt), dim=-1)
-            bias_l1_loss = torch.sum(bias_dist * mask) / (torch.sum(mask) + 1e-8)
+        mask = (instance != self.instance_ignore_index).float()
+        bias_gt = instance_center - coord
+        bias_dist = torch.sum(torch.abs(bias_pred - bias_gt), dim=-1)
+        bias_l1_loss = torch.sum(bias_dist * mask) / (torch.sum(mask) + 1e-8)
 
-            bias_pred_norm = bias_pred / (torch.norm(bias_pred, p=2, dim=1, keepdim=True) + 1e-8)
-            bias_gt_norm = bias_gt / (torch.norm(bias_gt, p=2, dim=1, keepdim=True) + 1e-8)
-            cosine_similarity = - (bias_pred_norm * bias_gt_norm).sum(-1)
-            bias_cosine_loss = torch.sum(cosine_similarity * mask) / (torch.sum(mask) + 1e-8)
+        bias_pred_norm = bias_pred / (torch.norm(bias_pred, p=2, dim=1, keepdim=True) + 1e-8)
+        bias_gt_norm = bias_gt / (torch.norm(bias_gt, p=2, dim=1, keepdim=True) + 1e-8)
+        cosine_similarity = - (bias_pred_norm * bias_gt_norm).sum(-1)
+        bias_cosine_loss = torch.sum(cosine_similarity * mask) / (torch.sum(mask) + 1e-8)
 
-            loss = seg_loss + bias_l1_loss + bias_cosine_loss
-            return dict(loss=loss, seg_loss=seg_loss, bias_l1_loss=bias_l1_loss, bias_cosine_loss=bias_cosine_loss)
-        else:
+        loss = seg_loss + bias_l1_loss + bias_cosine_loss
+        return_dict = dict(
+            loss=loss,
+            seg_loss=seg_loss,
+            bias_l1_loss=bias_l1_loss,
+            bias_cosine_loss=bias_cosine_loss)
+
+        if not self.training:
             center_pred = coord + bias_pred
+            center_pred /= self.voxel_size
+            logit_pred = F.softmax(logit_pred, dim=-1)
             segment_pred = torch.max(logit_pred, 1)[1]  # [n]
             # cluster
             mask = ~ torch.concat([(segment_pred == index).unsqueeze(-1)
@@ -118,10 +128,25 @@ class PointGroup(nn.Module):
             proposals_mask = (proposals_point_num > self.cluster_propose_points)
             proposals_pred = proposals_pred[proposals_mask]
             instance_pred = instance_pred[proposals_mask]
-            instances = []
+
+            pred_scores = []
+            pred_classes = []
+            pred_masks = proposals_pred.T.detach().cpu()
             for proposal_id in range(len(proposals_pred)):
                 segment_ = proposals_pred[proposal_id]
                 confidence_ = logit_pred[segment_.bool(), instance_pred[proposal_id]].mean()
-                object_ = segment_pred[proposal_id]
-                instances.append(dict(confidence=confidence_, object=object_, segment=segment_))
-            return dict(instance_pred=instances)
+                object_ = instance_pred[proposal_id]
+                pred_scores.append(confidence_)
+                pred_classes.append(object_)
+            if len(pred_scores) > 0:
+                pred_scores = torch.stack(pred_scores).cpu()
+                pred_classes = torch.stack(pred_classes).cpu()
+            else:
+                pred_scores = torch.tensor([])
+                pred_classes = torch.tensor([])
+
+            return_dict["pred_scores"] = pred_scores
+            return_dict["pred_masks"] = pred_masks
+            return_dict["pred_classes"] = pred_classes
+
+        return return_dict

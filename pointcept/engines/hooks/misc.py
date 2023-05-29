@@ -168,7 +168,7 @@ class CheckpointSaver(HookBase):
 class CheckpointLoader(HookBase):
     def __init__(self, keywords="", replacement=None, strict=False):
         self.keywords = keywords
-        self.replacement = replacement if replacement else keywords
+        self.replacement = replacement if replacement is not None else keywords
         self.strict = strict
 
     def before_train(self):

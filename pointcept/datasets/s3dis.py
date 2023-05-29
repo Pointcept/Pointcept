@@ -70,11 +70,16 @@ class S3DISDataset(Dataset):
         name = os.path.basename(self.data_list[idx % len(self.data_list)]).split("_")[0].replace("R", " r")
         coord = data["coord"]
         color = data["color"]
+        scene_id = data_path
         if "semantic_gt" in data.keys():
             segment = data["semantic_gt"].reshape([-1])
         else:
             segment = np.ones(coord.shape[0]) * -1
-        data_dict = dict(name=name, coord=coord, color=color, segment=segment)
+        if "instance_gt" in data.keys():
+            instance = data["instance_gt"].reshape([-1])
+        else:
+            instance = np.ones(coord.shape[0]) * -1
+        data_dict = dict(name=name, coord=coord, color=color, segment=segment, instance=instance, scene_id=scene_id)
         if "normal" in data.keys():
             data_dict["normal"] = data["normal"]
         return data_dict
