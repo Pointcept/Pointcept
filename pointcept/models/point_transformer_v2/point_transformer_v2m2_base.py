@@ -411,7 +411,7 @@ class GVAPatchEmbed(nn.Module):
         return self.blocks([coord, feat, offset])
 
 
-@MODELS.register_module("PTv2m2")
+@MODELS.register_module("PT-v2m2")
 class PointTransformerV2(nn.Module):
     def __init__(self,
                  in_channels,

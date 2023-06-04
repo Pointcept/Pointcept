@@ -6,12 +6,16 @@ Please cite our work if the code is helpful to you.
 """
 
 import os
+import sys
 import weakref
 import torch
 import torch.nn as nn
 import torch.utils.data
 from functools import partial
-from collections import Iterator
+if sys.version_info >= (3, 10):
+    from collections.abc import Iterator
+else:
+    from collections import Iterator
 from tensorboardX import SummaryWriter
 
 from .defaults import create_ddp_model, worker_init_fn

@@ -41,10 +41,11 @@ IEEE International Conference on Computer Vision (**ICCV**) 2021 - Oral
 [ Backbone ] [ PTv1 ] - [ [arXiv](https://arxiv.org/abs/2012.09164) ] [ [Bib](https://hszhao.github.io/papers/iccv21_pointtransformer_bib.txt) ] &rarr; [here](#point-transformers)
 
 Additionally, **Pointcept** integrates the following excellent work: 
-[MinkUNet](https://github.com/NVIDIA/MinkowskiEngine), 
-[SpUNet](https://github.com/traveller59/spconv), 
-[Stratified Transformer](https://github.com/dvlab-research/Stratified-Transformer), 
-[Mix3d](https://github.com/kumuji/mix3d), 
+[MinkUNet](https://github.com/NVIDIA/MinkowskiEngine) ([here](#sparseunet)), 
+[SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)), 
+[Stratified Transformer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)), 
+[Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5)),
+[Point Group](https://github.com/dvlab-research/PointGroup) ([here](#point-group)),
 [PointContrast](https://github.com/facebookresearch/PointContrast), 
 [ContrastiveSceneContexts](https://github.com/facebookresearch/ContrastiveSceneContexts),
 and supports the following datasets:
@@ -104,45 +105,9 @@ TORCH_CUDA_ARCH_LIST="ARCH LIST" python  setup.py install
 # e.g. 7.5: RTX 3000; 8.0: a100 More available in: https://developer.nvidia.com/cuda-gpus
 TORCH_CUDA_ARCH_LIST="7.5 8.0" python  setup.py install
 cd ../..
-```
 
-### Optional Installation
-
-```bash
-# Open3D (Visualization)
+# Open3D (visualization, optional)
 pip install open3d
-
-# PPT
-pip install ftfy regex tqdm
-pip install git+https://github.com/openai/CLIP.git
-
-# stratified transformer
-pip install torch-points3d
-# fix dependence, caused by install torch-points3d 
-pip uninstall SharedArray
-pip install SharedArray==3.2.1
-
-cd libs/pointops2
-python setup.py install
-cd ../..
-
-# MinkowskiEngine (SparseUNet)
-# refer https://github.com/NVIDIA/MinkowskiEngine
-
-# torchsparse (SPVCNN)
-# refer https://github.com/mit-han-lab/torchsparse
-# install method without sudo apt install
-conda install google-sparsehash -c bioconda
-export C_INCLUDE_PATH=${CONDA_PREFIX}/include:$C_INCLUDE_PATH
-export CPLUS_INCLUDE_PATH=${CONDA_PREFIX}/include:CPLUS_INCLUDE_PATH
-pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git
-
-# PointGroup
-conda install -c bioconda google-sparsehash 
-cd libs/pointgroup_ops
-python setup.py build_ext --include-dirs=YOUR_ENV_PATH/include
-python setup.py install
-cd ../..
 ```
 
 ## Data Preparation
@@ -313,13 +278,14 @@ A visual illustration of batch and offset is as follows:
 </p>
 
 ## Model Zoo
-### SparseUNet
+### 1. Semantic Segmentation (Backbones)
+#### SparseUNet
 
 _Pointcept_ provides `SparseUNet` implemented by `SpConv` and `MinkowskiEngine`. The SpConv version is recommended since SpConv is easy to install and faster than MinkowskiEngine. Meanwhile, SpConv is also widely applied in outdoor perception.
 
 - **SpConv (recommend)**
 
-The SpConv version `SparseUNet` in the codebase was fully rewrite from [Li Jiang](https://llijiang.github.io/)'s code, example running script is as follows:
+The SpConv version `SparseUNet` in the codebase was fully rewrite from `MinkowskiEngine` version, example running script is as follows:
 
 ```bash
 # ScanNet val
@@ -352,7 +318,8 @@ sh scripts/train.sh -g 4 -d scannet -c semseg-spunet-v1m1-0-enable-profiler -n s
 - **MinkowskiEngine**
 
 The MinkowskiEngine version `SparseUNet` in the codebase was modified from original MinkowskiEngine repo, and example running script is as follows:
-
+1. Install MinkowskiEngine, refer https://github.com/NVIDIA/MinkowskiEngine
+2. Training with the following example scripts:
 ```bash
 # Uncomment "# from .sparse_unet import *" in "pointcept/models/__init__.py"
 # Uncomment "# from .mink_unet import *" in "pointcept/models/sparse_unet/__init__.py"
@@ -366,7 +333,7 @@ sh scripts/train.sh -g 4 -d s3dis -c semseg-minkunet34c-0-base -n semseg-minkune
 sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-minkunet34c-0-base -n semseg-minkunet34c-0-base
 ```
 
-### Point Transformers
+#### Point Transformers
 - **PTv2 mode2 (recommend)**
 
 The original PTv2 was trained on 4 * RTX a6000 (48G memory). Even enabling AMP, the memory cost of the original PTv2 is slightly larger than 24G. Considering GPUs with 24G memory are much more accessible, I tuned the PTv2 on the latest Pointcept and made it runnable on 4 * RTX 3090 machines.
@@ -415,10 +382,21 @@ sh scripts/train.sh -g 4 -d s3dis -c semseg-pt-v1-0-base -n semseg-pt-v1-0-base
 ```
 
 
-### Stratified Transformer
-1. Uncomment `# from .stratified_transformer import *` in `pointcept/models/__init__.py`.
-2. Refer [Optional Installation](installation) to install dependence.
-3. Training with the following example running scripts:
+#### Stratified Transformer
+1. Build dependance:
+```bash
+pip install torch-points3d
+# fix dependence, caused by install torch-points3d 
+pip uninstall SharedArray
+pip install SharedArray==3.2.1
+
+cd libs/pointops2
+python setup.py install
+cd ../..
+```
+2. Uncomment `# from .stratified_transformer import *` in `pointcept/models/__init__.py`.
+3. Refer [Optional Installation](installation) to install dependence.
+4. Training with the following example scripts:
 ```bash
 # stv1m1: Stratified Transformer mode1, Modified from the original Stratified Transformer code.
 # PTv2m2: Stratified Transformer mode2, My rewrite version (recommend).
@@ -433,12 +411,40 @@ sh scripts/train.sh -g 4 -d s3dis -c semseg-st-v1m2-0-refined -n semseg-st-v1m2-
 ```
 *I did not tune the parameters for Stratified Transformer and just ensured it could run.*
 
-### SPVCNN
+#### SPVCNN
 `SPVCNN` is baseline model of [SPVNAS](https://github.com/mit-han-lab/spvnas), it is also a practical baseline for outdoor dataset.
-
+1. Install torchsparse:
+```bash
+# refer https://github.com/mit-han-lab/torchsparse
+# install method without sudo apt install
+conda install google-sparsehash -c bioconda
+export C_INCLUDE_PATH=${CONDA_PREFIX}/include:$C_INCLUDE_PATH
+export CPLUS_INCLUDE_PATH=${CONDA_PREFIX}/include:CPLUS_INCLUDE_PATH
+pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git
+```
+2. Training with the following example scripts:
 ```bash
 # Semantic-KITTI
 sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-spvcnn-v1m1-0-base -n semseg-spvcnn-v1m1-0-base
+```
+
+### 2. Instance Segmentation
+#### Point Group
+[Point Group](https://github.com/dvlab-research/PointGroup) is a baseline framework for point cloud instance segmentation.
+1. Build point group library:
+```bash
+conda install -c bioconda google-sparsehash 
+cd libs/pointgroup_ops
+python setup.py build_ext --include-dirs=YOUR_ENV_PATH/include
+python setup.py install
+cd ../..
+```
+2. Training with the following example scripts:
+```bash
+# ScanNet
+sh scripts/train.sh -g 4 -d scannet -c insseg-pointgroup-v1m1-0-spunet-base -n insseg-pointgroup-v1m1-0-spunet-base
+# S3DIS
+sh scripts/train.sh -g 4 -d scannet -c insseg-pointgroup-v1m1-0-spunet-base -n insseg-pointgroup-v1m1-0-spunet-base
 ```
 
 ## Citation

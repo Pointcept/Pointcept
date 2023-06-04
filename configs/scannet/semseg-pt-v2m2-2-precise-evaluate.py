@@ -15,7 +15,7 @@ enable_amp = True
 model = dict(
     type="DefaultSegmentor",
     backbone=dict(
-        type="PTv2m2",
+        type="PT-v2m2",
         in_channels=9,
         num_classes=20,
         patch_embed_depth=1,
@@ -105,14 +105,14 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="Copy", keys_dict={"coord": "origin_coord", "segment": "origin_label"}),
+            dict(type="Copy", keys_dict={"coord": "origin_coord", "segment": "origin_segment"}),
             dict(type="Voxelize", voxel_size=0.02, hash_type="fnv", mode="train", return_min_coord=True),
             # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
             dict(type="Collect",
-                 keys=("coord", "origin_coord", "segment", "origin_label"),
+                 keys=("coord", "origin_coord", "segment", "origin_segment"),
                  feat_keys=("coord", "color", "normal"),
                  offset_keys_dict=dict(offset="coord", origin_offset="origin_coord"),)
         ],

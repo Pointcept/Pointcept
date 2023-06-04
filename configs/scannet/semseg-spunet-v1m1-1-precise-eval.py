@@ -82,7 +82,7 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="Copy", keys_dict={"coord": "origin_coord", "segment": "origin_label"}),
+            dict(type="Copy", keys_dict={"coord": "origin_coord", "segment": "origin_segment"}),
             dict(type="Voxelize", voxel_size=0.02, hash_type="fnv", mode="train", return_discrete_coord=True),
             # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),

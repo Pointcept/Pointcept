@@ -82,6 +82,7 @@ class ScanNetDataset(Dataset):
         coord = data["coord"]
         color = data["color"]
         normal = data["normal"]
+        scene_id = data["scene_id"]
         if "semantic_gt20" in data.keys():
             segment = data["semantic_gt20"].reshape([-1])
         else:
@@ -90,7 +91,7 @@ class ScanNetDataset(Dataset):
             instance = data["instance_gt"].reshape([-1])
         else:
             instance = np.ones(coord.shape[0]) * -1
-        data_dict = dict(coord=coord, normal=normal, color=color, segment=segment, instance=instance)
+        data_dict = dict(coord=coord, normal=normal, color=color, segment=segment, instance=instance, scene_id=scene_id)
         if self.la:
             sampled_index = self.la[self.get_data_name(idx)]
             mask = np.ones_like(segment).astype(np.bool)
@@ -153,6 +154,7 @@ class ScanNet200Dataset(ScanNetDataset):
         coord = data["coord"]
         color = data["color"]
         normal = data["normal"]
+        scene_id = data["scene_id"]
         if "semantic_gt200" in data.keys():
             segment = data["semantic_gt200"].reshape([-1])
         else:
@@ -161,7 +163,7 @@ class ScanNet200Dataset(ScanNetDataset):
             instance = data["instance_gt"].reshape([-1])
         else:
             instance = np.ones(coord.shape[0]) * -1
-        data_dict = dict(coord=coord, normal=normal, color=color, segment=segment, instance=instance)
+        data_dict = dict(coord=coord, normal=normal, color=color, segment=segment, instance=instance, scene_id=scene_id)
         if self.la:
             sampled_index = self.la[self.get_data_name(idx)]
             segment[sampled_index] = self.ignore_index
