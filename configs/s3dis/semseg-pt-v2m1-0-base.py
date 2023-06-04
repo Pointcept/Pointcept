@@ -3,13 +3,13 @@ _base_ = ["../_base_/default_runtime.py"]
 batch_size = 12  # bs: total bs in all gpus
 mix_prob = 0.8
 empty_cache = False
-enable_amp = True
+enable_amp = False
 
 # model settings
 model = dict(
     type="DefaultSegmentor",
     backbone=dict(
-        type="PTv2m2",
+        type="PT-v2m1",
         in_channels=6,
         num_classes=13,
         patch_embed_depth=2,
@@ -26,7 +26,7 @@ model = dict(
         dec_neighbours=(16, 16, 16),
         grid_sizes=(0.1, 0.2, 0.4),
         attn_qkv_bias=True,
-        pe_multiplier=False,
+        pe_multiplier=True,
         pe_bias=True,
         attn_drop_rate=0.,
         drop_path_rate=0.3,
@@ -42,13 +42,8 @@ model = dict(
 
 # scheduler settings
 epoch = 3000
-optimizer = dict(type="AdamW", lr=0.005, weight_decay=0.05)
-scheduler = dict(type="OneCycleLR",
-                 max_lr=optimizer["lr"],
-                 pct_start=0.05,
-                 anneal_strategy="cos",
-                 div_factor=10.0,
-                 final_div_factor=1000.0)
+optimizer = dict(type="AdamW", lr=0.006, weight_decay=0.05)
+scheduler = dict(type="MultiStepLR", milestones=[0.6, 0.8], gamma=0.1)
 
 # dataset settings
 dataset_type = "S3DISDataset"
@@ -97,7 +92,7 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="Copy", keys_dict={"coord": "origin_coord", "segment": "origin_label"}),
+            dict(type="Copy", keys_dict={"coord": "origin_coord", "segment": "origin_segment"}),
             dict(type="Voxelize", voxel_size=0.04, hash_type="fnv", mode="train",
                  keys=("coord", "color", "segment"), return_discrete_coord=True),
             dict(type="CenterShift", apply_z=False),

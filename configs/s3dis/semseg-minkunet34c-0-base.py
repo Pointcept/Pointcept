@@ -73,14 +73,14 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="Copy", keys_dict={"coord": "origin_coord", "segment": "origin_label"}),
+            dict(type="Copy", keys_dict={"coord": "origin_coord", "segment": "origin_segment"}),
             dict(type="Voxelize", voxel_size=0.05, hash_type="fnv", mode="train",
                  keys=("coord", "color", "segment"), return_discrete_coord=True),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
             dict(type="Collect",
-                 keys=("coord", "discrete_coord", "origin_coord", "segment", "origin_label"),
+                 keys=("coord", "discrete_coord", "origin_coord", "segment", "origin_segment"),
                  offset_keys_dict = dict(offset="coord", origin_offset="origin_coord"),
                  feat_keys=["coord", "color"])
         ],

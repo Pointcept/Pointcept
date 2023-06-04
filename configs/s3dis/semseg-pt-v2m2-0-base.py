@@ -3,13 +3,13 @@ _base_ = ["../_base_/default_runtime.py"]
 batch_size = 12  # bs: total bs in all gpus
 mix_prob = 0.8
 empty_cache = False
-enable_amp = False
+enable_amp = True
 
 # model settings
 model = dict(
     type="DefaultSegmentor",
     backbone=dict(
-        type="PTv2m1",
+        type="PT-v2m2",
         in_channels=6,
         num_classes=13,
         patch_embed_depth=2,
@@ -26,7 +26,7 @@ model = dict(
         dec_neighbours=(16, 16, 16),
         grid_sizes=(0.1, 0.2, 0.4),
         attn_qkv_bias=True,
-        pe_multiplier=True,
+        pe_multiplier=False,
         pe_bias=True,
         attn_drop_rate=0.,
         drop_path_rate=0.3,
@@ -92,7 +92,7 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="Copy", keys_dict={"coord": "origin_coord", "segment": "origin_label"}),
+            dict(type="Copy", keys_dict={"coord": "origin_coord", "segment": "origin_segment"}),
             dict(type="Voxelize", voxel_size=0.04, hash_type="fnv", mode="train",
                  keys=("coord", "color", "segment"), return_discrete_coord=True),
             dict(type="CenterShift", apply_z=False),

@@ -931,7 +931,7 @@ class InstanceParser(object):
         coord = data_dict["coord"]
         segment = data_dict["segment"]
         instance = data_dict["instance"]
-        mask = ~ np.concatenate([[segment == index] for index in self.segment_ignore_index]).sum(axis=0).astype(bool)
+        mask = ~ np.in1d(segment, self.segment_ignore_index)
         # mapping ignored instance to ignore index
         instance[~mask] = self.instance_ignore_index
         # reorder left instance
@@ -943,15 +943,15 @@ class InstanceParser(object):
         # TODO: optimize bbox to [start_x, start_y, start_z, length_x, length_y, length_z, theta]
         bbox = np.ones((instance_num, 6)) * self.instance_ignore_index
 
-        for id in range(instance_num):
-            mask_ = instance == id
+        for instance_id in range(instance_num):
+            mask_ = instance == instance_id
             coord_ = coord[mask_]
             bbox_min = coord_.min(0)
             bbox_max = coord_.max(0)
             bbox_center = coord_.mean(0)
 
             center[mask_] = bbox_center
-            bbox[id] = np.concatenate([bbox_min, bbox_max])
+            bbox[instance_id] = np.concatenate([bbox_min, bbox_max])
         data_dict["instance"] = instance
         data_dict["instance_center"] = center
         data_dict["bbox"] = bbox

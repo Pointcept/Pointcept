@@ -1,13 +1,10 @@
 """
-Author: Xiaoyang Wu
+Author: Xiaoyang Wu, Chengyao Wang
 Email: xiaoyang.wu.cs@gmail.com
 Point Group
 """
 
 from functools import partial
-from collections import OrderedDict
-
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -18,7 +15,7 @@ from ..utils import offset2batch, batch2offset
 from ..builder import MODELS, build_model
 
 
-@MODELS.register_module()
+@MODELS.register_module("PG-v1m1")
 class PointGroup(nn.Module):
     def __init__(self,
                  backbone=None,
@@ -30,8 +27,8 @@ class PointGroup(nn.Module):
                  cluster_thresh=1.5,
                  cluster_closed_points=300,
                  cluster_propose_points=100,
-                 cluster_min_points = 50,
-                 voxel_size = 0.02
+                 cluster_min_points=50,
+                 voxel_size=0.02
                  ):
         super().__init__()
         if backbone is None:
@@ -69,7 +66,6 @@ class PointGroup(nn.Module):
         segment = input_dict["segment"]
         instance = input_dict["instance"]
         instance_center = input_dict["instance_center"]
-        bbox = input_dict["bbox"]
         offset = input_dict["offset"]
 
         feat = self.backbone(input_dict)
@@ -148,5 +144,4 @@ class PointGroup(nn.Module):
             return_dict["pred_scores"] = pred_scores
             return_dict["pred_masks"] = pred_masks
             return_dict["pred_classes"] = pred_classes
-
         return return_dict

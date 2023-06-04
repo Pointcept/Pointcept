@@ -11,7 +11,11 @@ import os
 import shutil
 import time
 import torch
-from collections import OrderedDict, Sequence
+from collections import OrderedDict
+if sys.version_info >= (3, 10):
+    from collections.abc import Sequence
+else:
+    from collections import Sequence
 from pointcept.utils.timer import Timer
 from pointcept.utils.comm import is_main_process, synchronize
 from pointcept.utils.cache import shared_dict

@@ -469,7 +469,7 @@ class KPConvResBlock(nn.Module):
         return feats
 
 
-@MODELS.register_module("STv1m2")
+@MODELS.register_module("ST-v1m2")
 class StratifiedTransformer(nn.Module):
     def __init__(self,
                  in_channels,
