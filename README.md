@@ -41,10 +41,11 @@ IEEE International Conference on Computer Vision (**ICCV**) 2021 - Oral
 [ Backbone ] [ PTv1 ] - [ [arXiv](https://arxiv.org/abs/2012.09164) ] [ [Bib](https://hszhao.github.io/papers/iccv21_pointtransformer_bib.txt) ] &rarr; [here](#point-transformers)
 
 Additionally, **Pointcept** integrates the following excellent work: 
-[MinkUNet](https://github.com/NVIDIA/MinkowskiEngine), 
-[SpUNet](https://github.com/traveller59/spconv), 
-[Stratified Transformer](https://github.com/dvlab-research/Stratified-Transformer), 
-[Mix3d](https://github.com/kumuji/mix3d), 
+[MinkUNet](https://github.com/NVIDIA/MinkowskiEngine) ([here](#sparseunet)), 
+[SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)), 
+[Stratified Transformer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)), 
+[Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5)),
+[Point Group](https://github.com/dvlab-research/PointGroup) ([here](#point-group)),
 [PointContrast](https://github.com/facebookresearch/PointContrast), 
 [ContrastiveSceneContexts](https://github.com/facebookresearch/ContrastiveSceneContexts),
 and supports the following datasets:
@@ -298,13 +299,14 @@ A visual illustration of batch and offset is as follows:
 </p>
 
 ## Model Zoo
-### SparseUNet
+### 1. Semantic Segmentation (Backbones)
+#### SparseUNet
 
 _Pointcept_ provides `SparseUNet` implemented by `SpConv` and `MinkowskiEngine`. The SpConv version is recommended since SpConv is easy to install and faster than MinkowskiEngine. Meanwhile, SpConv is also widely applied in outdoor perception.
 
 - **SpConv (recommend)**
 
-The SpConv version `SparseUNet` in the codebase was fully rewrite from [Li Jiang](https://llijiang.github.io/)'s code, example running script is as follows:
+The SpConv version `SparseUNet` in the codebase was fully rewrite from `MinkowskiEngine` version, example running script is as follows:
 
 ```bash
 # ScanNet val
@@ -351,7 +353,7 @@ sh scripts/train.sh -g 4 -d s3dis -c semseg-minkunet34c-0-base -n semseg-minkune
 sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-minkunet34c-0-base -n semseg-minkunet34c-0-base
 ```
 
-### Point Transformers
+#### Point Transformers
 - **PTv2 mode2 (recommend)**
 
 The original PTv2 was trained on 4 * RTX a6000 (48G memory). Even enabling AMP, the memory cost of the original PTv2 is slightly larger than 24G. Considering GPUs with 24G memory are much more accessible, I tuned the PTv2 on the latest Pointcept and made it runnable on 4 * RTX 3090 machines.
@@ -400,7 +402,7 @@ sh scripts/train.sh -g 4 -d s3dis -c semseg-pt-v1-0-base -n semseg-pt-v1-0-base
 ```
 
 
-### Stratified Transformer
+#### Stratified Transformer
 1. Uncomment `# from .stratified_transformer import *` in `pointcept/models/__init__.py`.
 2. Refer [Optional Installation](installation) to install dependence.
 3. Training with the following example running scripts:
@@ -418,8 +420,18 @@ sh scripts/train.sh -g 4 -d s3dis -c semseg-st-v1m2-0-refined -n semseg-st-v1m2-
 ```
 *I did not tune the parameters for Stratified Transformer and just ensured it could run.*
 
-### SPVCNN
+#### SPVCNN
 `SPVCNN` is baseline model of [SPVNAS](https://github.com/mit-han-lab/spvnas), it is also a practical baseline for outdoor dataset.
+
+### 2. Instance Segmentation
+#### Point Group
+```bash
+# ScanNet
+sh scripts/train.sh -g 4 -d scannet -c insseg-pointgroup-v1m1-0-spunet-base -n insseg-pointgroup-v1m1-0-spunet-base
+
+# S3DIS
+sh scripts/train.sh -g 4 -d scannet -c insseg-pointgroup-v1m1-0-spunet-base -n insseg-pointgroup-v1m1-0-spunet-base
+```
 
 ```bash
 # Semantic-KITTI

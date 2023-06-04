@@ -172,9 +172,8 @@ class InsSegEvaluator(HookBase):
         instance = instance.cpu().numpy()
         void_mask = np.in1d(segment, self.segment_ignore_index)
 
-        # TODO: reshape pred masks
-        assert pred["pred_classes"].shape[0] == pred["pred_scores"].shape[0] == pred["pred_masks"].shape[1]
-        assert pred["pred_masks"].shape[0] == segment.shape[0] == instance.shape[0]
+        assert pred["pred_classes"].shape[0] == pred["pred_scores"].shape[0] == pred["pred_masks"].shape[0]
+        assert pred["pred_masks"].shape[1] == segment.shape[0] == instance.shape[0]
         # get gt instances
         gt_instances = dict()
         for i in range(self.trainer.cfg.data.num_classes):
@@ -206,11 +205,11 @@ class InsSegEvaluator(HookBase):
             if pred["pred_classes"][i] in self.segment_ignore_index:
                 continue
             pred_inst = dict()
-            pred_inst["uuid"] = uuid4()  # TODO: replace with instance id
-            pred_inst["instance_id"] = instance_id  # TODO: check usage
+            pred_inst["uuid"] = uuid4()
+            pred_inst["instance_id"] = instance_id
             pred_inst["segment_id"] = pred["pred_classes"][i]
             pred_inst["confidence"] = pred["pred_scores"][i]
-            pred_inst["mask"] = np.not_equal(pred["pred_masks"][:, i], 0)  # TODO: reshape pred mask
+            pred_inst["mask"] = np.not_equal(pred["pred_masks"][i], 0)
             pred_inst["vert_count"] = np.count_nonzero(pred_inst["mask"])
             pred_inst["void_intersection"] = np.count_nonzero(np.logical_and(void_mask, pred_inst["mask"]))
             if pred_inst["vert_count"] < self.min_region_sizes:
@@ -426,7 +425,7 @@ class InsSegEvaluator(HookBase):
                 idx, _ = pointops.knn_query(1, input_dict["coord"].float(), input_dict["offset"].int(),
                                             input_dict["origin_coord"].float(), input_dict["origin_offset"].int())
                 idx = idx.cpu().flatten().long()
-                output_dict["pred_masks"] = output_dict["pred_masks"][idx]
+                output_dict["pred_masks"] = output_dict["pred_masks"][:, idx]
                 segment = input_dict["origin_segment"]
                 instance = input_dict["origin_instance"]
 
@@ -440,7 +439,6 @@ class InsSegEvaluator(HookBase):
                                                                loss=loss.item()))
 
         loss_avg = self.trainer.storage.history("val_loss").avg
-        # TODO: move sync later
         comm.synchronize()
         scenes_sync = comm.gather(scenes, dst=0)
         scenes = [scene for scenes_ in scenes_sync for scene in scenes_]

@@ -127,7 +127,7 @@ class PointGroup(nn.Module):
 
             pred_scores = []
             pred_classes = []
-            pred_masks = proposals_pred.T.detach().cpu()
+            pred_masks = proposals_pred.detach().cpu()
             for proposal_id in range(len(proposals_pred)):
                 segment_ = proposals_pred[proposal_id]
                 confidence_ = logit_pred[segment_.bool(), instance_pred[proposal_id]].mean()
