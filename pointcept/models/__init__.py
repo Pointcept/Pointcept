@@ -6,5 +6,5 @@ from .point_transformer import *
 from .point_transformer_v2 import *
 # from .stratified_transformer import *
 # from .spvcnn import *
-from .point_group import *
+# from .point_group import *
 

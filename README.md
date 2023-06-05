@@ -45,7 +45,7 @@ Additionally, **Pointcept** integrates the following excellent work:
 [SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)), 
 [Stratified Transformer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)), 
 [Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5)),
-[Point Group](https://github.com/dvlab-research/PointGroup) ([here](#point-group)),
+[PointGroup](https://github.com/dvlab-research/PointGroup) ([here](#pointgroup)),
 [PointContrast](https://github.com/facebookresearch/PointContrast), 
 [ContrastiveSceneContexts](https://github.com/facebookresearch/ContrastiveSceneContexts),
 and supports the following datasets:
@@ -429,8 +429,8 @@ sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-spvcnn-v1m1-0-base -n semse
 ```
 
 ### 2. Instance Segmentation
-#### Point Group
-[Point Group](https://github.com/dvlab-research/PointGroup) is a baseline framework for point cloud instance segmentation.
+#### PointGroup
+[PointGroup](https://github.com/dvlab-research/PointGroup) is a baseline framework for point cloud instance segmentation.
 1. Build point group library:
 ```bash
 conda install -c bioconda google-sparsehash 
@@ -439,7 +439,8 @@ python setup.py build_ext --include-dirs=YOUR_ENV_PATH/include
 python setup.py install
 cd ../..
 ```
-2. Training with the following example scripts:
+2. Uncomment `# from .point_group import *` in `pointcept/models/__init__.py`.
+3. Training with the following example scripts:
 ```bash
 # ScanNet
 sh scripts/train.sh -g 4 -d scannet -c insseg-pointgroup-v1m1-0-spunet-base -n insseg-pointgroup-v1m1-0-spunet-base
