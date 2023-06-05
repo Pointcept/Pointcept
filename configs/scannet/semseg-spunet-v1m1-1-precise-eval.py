@@ -6,6 +6,15 @@ mix_prob = 0.8
 empty_cache = False
 enable_amp = True
 
+hooks = [
+    dict(type="CheckpointLoader"),
+    dict(type="IterationTimer", warmup_iter=2),
+    dict(type="InformationWriter"),
+    dict(type="SemSegEvaluator"),
+    dict(type="CheckpointSaver", save_freq=None),
+    dict(type="PreciseEvaluator", test_last=False)
+]
+
 # model settings
 model = dict(
     type="DefaultSegmentor",
@@ -65,7 +74,7 @@ data = dict(
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
-            dict(type="Voxelize", voxel_size=0.02, hash_type="fnv", mode="train", return_discrete_coord=True),
+            dict(type="GridSample", grid_size=0.02, hash_type="fnv", mode="train", return_discrete_coord=True),
             dict(type="SphereCrop", point_max=100000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
@@ -82,16 +91,12 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="Copy", keys_dict={"coord": "origin_coord", "segment": "origin_segment"}),
-            dict(type="Voxelize", voxel_size=0.02, hash_type="fnv", mode="train", return_discrete_coord=True),
+            dict(type="GridSample", grid_size=0.02, hash_type="fnv", mode="train", return_discrete_coord=True),
             # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
-            dict(type="Collect",
-                 keys=("coord", "discrete_coord", "segment"),
-                 feat_keys=("color", "normal"),
-                 offset_keys_dict=dict(offset="coord", origin_offset="origin_coord"))
+            dict(type="Collect", keys=("coord", "discrete_coord", "segment"), feat_keys=("color", "normal"))
         ],
         test_mode=False,
     ),
@@ -117,7 +122,7 @@ data = dict(
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
                 dict(type="ToTensor"),
-                dict(type="Collect", keys=("coord", "discrete_coord", "index"), feat_keys=("normal", "color"))
+                dict(type="Collect", keys=("coord", "discrete_coord", "index"), feat_keys=("color", "normal"))
             ],
             aug_transform=[
                 [dict(type="RandomRotateTargetAngle", angle=[0], axis="z", center=[0, 0, 0], p=1)],

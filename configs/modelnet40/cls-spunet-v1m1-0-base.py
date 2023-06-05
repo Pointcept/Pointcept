@@ -64,7 +64,7 @@ data = dict(
             # dict(type="RandomJitter", sigma=0.005, clip=0.02),
             # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
 
-            dict(type="Voxelize", voxel_size=0.01, hash_type="fnv", mode="train",
+            dict(type="GridSample", grid_size=0.01, hash_type="fnv", mode="train",
                  keys=("coord", "normal"), return_discrete_coord=True),
             # dict(type="SphereCrop", point_max=10000, mode="random"),
             # dict(type="CenterShift", apply_z=True),
@@ -81,7 +81,7 @@ data = dict(
         class_names=class_names,
         transform=[
             dict(type="NormalizeCoord"),
-            dict(type="Voxelize", voxel_size=0.01, hash_type="fnv", mode="train",
+            dict(type="GridSample", grid_size=0.01, hash_type="fnv", mode="train",
                  keys=("coord", "normal"), return_discrete_coord=True),
             dict(type="ToTensor"),
             dict(type="Collect", keys=("coord", "discrete_coord", "category"), feat_keys=["coord", "normal"])
@@ -95,7 +95,7 @@ data = dict(
         class_names=class_names,
         transform=[
             dict(type="NormalizeCoord"),
-            dict(type="Voxelize", voxel_size=0.01, hash_type="fnv", mode="train",
+            dict(type="GridSample", grid_size=0.01, hash_type="fnv", mode="train",
                  keys=("coord", "normal"), return_discrete_coord=True),
             dict(type="ToTensor"),
             dict(type="Collect", keys=("coord", "discrete_coord", "category"), feat_keys=["coord", "normal"])

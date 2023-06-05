@@ -546,10 +546,10 @@ class StratifiedTransformer(nn.Module):
 
         self.init_weights()
 
-    def forward(self, input_dict):
-        feats = input_dict["feat"]
-        coords = input_dict["coord"]
-        offset = input_dict["offset"].int()
+    def forward(self, data_dict):
+        feats = data_dict["feat"]
+        coords = data_dict["coord"]
+        offset = data_dict["offset"].int()
         batch = offset2batch(offset)
         neighbor_idx = tp.ball_query(self.kp_ball_radius, self.kp_max_neighbor,
                                      coords, coords, mode="partial_dense", batch_x=batch, batch_y=batch)[0]

@@ -302,10 +302,10 @@ class SPVCNN(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-    def forward(self, input_dict):
-        discrete_coord = input_dict["discrete_coord"]
-        feat = input_dict["feat"]
-        offset = input_dict["offset"]
+    def forward(self, data_dict):
+        discrete_coord = data_dict["discrete_coord"]
+        feat = data_dict["feat"]
+        offset = data_dict["offset"]
         batch = offset2batch(offset)
 
         # x: SparseTensor z: PointTensor

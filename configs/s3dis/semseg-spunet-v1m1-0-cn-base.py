@@ -61,7 +61,7 @@ data = dict(
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
-            dict(type="Voxelize", voxel_size=0.05, hash_type="fnv", mode="train", return_discrete_coord=True),
+            dict(type="GridSample", grid_size=0.05, hash_type="fnv", mode="train", return_discrete_coord=True),
             dict(type="SphereCrop", point_max=100000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
@@ -79,7 +79,7 @@ data = dict(
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(type="Copy", keys_dict={"coord": "origin_coord", "segment": "origin_segment"}),
-            dict(type="Voxelize", voxel_size=0.05, hash_type="fnv", mode="train", return_discrete_coord=True),
+            dict(type="GridSample", grid_size=0.05, hash_type="fnv", mode="train", return_discrete_coord=True),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),

@@ -71,8 +71,8 @@ data = dict(
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
-            dict(type="Voxelize",
-                 voxel_size=0.02,
+            dict(type="GridSample",
+                 grid_size=0.02,
                  hash_type='fnv',
                  mode='train',
                  return_discrete_coord=True,
@@ -97,8 +97,8 @@ data = dict(
             dict(type="Copy", keys_dict={
                 "coord": "origin_coord", "segment": "origin_segment", "instance": "origin_instance"
             }),
-            dict(type="Voxelize",
-                 voxel_size=0.02,
+            dict(type="GridSample",
+                 grid_size=0.02,
                  hash_type='fnv',
                  mode='train',
                  return_discrete_coord=True,
