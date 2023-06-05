@@ -223,8 +223,8 @@ class MaskedSceneContrast(nn.Module):
             normal_loss = (torch.sum(view1_normal_pred * view1_normal[view1_point_mask]) +
                            torch.sum(view2_normal_pred * view2_normal[view2_point_mask])
                            ) / (view1_normal_pred.shape[0] + view2_normal_pred.shape[0])
-            loss = loss + normal_loss
-            result_dict["normal_loss"] = normal_loss * self.reconstruct_weight
+            loss = loss + normal_loss * self.reconstruct_weight
+            result_dict["normal_loss"] = normal_loss
 
         result_dict["loss"] = loss
         return result_dict
