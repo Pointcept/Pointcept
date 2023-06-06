@@ -120,8 +120,8 @@ data = dict(
         ],
         test_mode=True,
         test_cfg=dict(
-            voxelize=dict(type="Voxelize",
-                          voxel_size=0.02,
+            voxelize=dict(type="GridSample",
+                          grid_size=0.02,
                           hash_type="fnv",
                           mode="test",
                           keys=("coord", "color", "normal")

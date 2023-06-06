@@ -1,9 +1,7 @@
-from pointcept.datasets.preprocessing.scannet.meta_data.scannet200_constants import CLASS_LABELS_200
-
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 12  # bs: total bs in all gpus
+batch_size = 48  # bs: total bs in all gpus
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -12,9 +10,11 @@ enable_amp = True
 model = dict(
     type="DefaultSegmentor",
     backbone=dict(
-        type="PointTransformer-Seg50",
-        in_channels=9,
-        num_classes=200,
+        type="SpUNet-v1m1",
+        in_channels=6,
+        num_classes=20,
+        channels=(32, 64, 128, 256, 256, 128, 96, 96),
+        layers=(2, 3, 4, 6, 2, 2, 2, 2)
     ),
     criteria=[
         dict(type="CrossEntropyLoss",
@@ -24,23 +24,27 @@ model = dict(
 )
 
 # scheduler settings
-epoch = 900
-optimizer = dict(type="AdamW", lr=0.005, weight_decay=0.02)
+epoch = 800
+optimizer = dict(type="SGD", lr=0.01, momentum=0.9, weight_decay=0.0001, nesterov=True)
 scheduler = dict(type="OneCycleLR",
-                 max_lr=optimizer["lr"],
+                 max_lr=[0.01, 0.05],
                  pct_start=0.05,
                  anneal_strategy="cos",
                  div_factor=10.0,
-                 final_div_factor=1000.0)
+                 final_div_factor=10000.0)
+param_dicts = [dict(keyword="final", lr=0.05)]
 
 # dataset settings
-dataset_type = "ScanNet200Dataset"
+dataset_type = "ScanNetDataset"
 data_root = "data/scannet"
 
 data = dict(
-    num_classes=200,
+    num_classes=20,
     ignore_index=-1,
-    names=CLASS_LABELS_200,
+    names=["wall", "floor", "cabinet", "bed", "chair",
+           "sofa", "table", "door", "window", "bookshelf",
+           "picture", "counter", "desk", "curtain", "refridgerator",
+           "shower curtain", "toilet", "sink", "bathtub", "otherfurniture"],
     train=dict(
         type=dataset_type,
         split="train",
@@ -62,15 +66,15 @@ data = dict(
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
-            dict(type="GridSample", grid_size=0.02, hash_type="fnv", mode="train", return_min_coord=True),
+            dict(type="GridSample", grid_size=0.02, hash_type="fnv", mode="train", return_discrete_coord=True),
             dict(type="SphereCrop", point_max=100000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ShufflePoint"),
             dict(type="ToTensor"),
-            dict(type="Collect", keys=("coord", "segment"), feat_keys=("coord", "normal", "color"))
+            dict(type="Collect", keys=("coord", "discrete_coord", "segment"), feat_keys=("color", "normal"))
         ],
-        test_mode=False,
+        test_mode=False
     ),
 
     val=dict(
@@ -79,12 +83,12 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="GridSample", grid_size=0.02, hash_type="fnv", mode="train", return_min_coord=True),
+            dict(type="GridSample", grid_size=0.02, hash_type="fnv", mode="train", return_discrete_coord=True),
             # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
-            dict(type="Collect", keys=("coord", "segment"), feat_keys=("coord", "normal", "color"))
+            dict(type="Collect", keys=("coord", "discrete_coord", "segment"), feat_keys=("color", "normal"))
         ],
         test_mode=False,
     ),
@@ -103,13 +107,14 @@ data = dict(
                           grid_size=0.02,
                           hash_type="fnv",
                           mode="test",
-                          keys=("coord", "normal", "color")
+                          return_discrete_coord=True,
+                          keys=("coord", "color", "normal")
                           ),
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
                 dict(type="ToTensor"),
-                dict(type="Collect", keys=("coord", "index"), feat_keys=("coord", "normal", "color"))
+                dict(type="Collect", keys=("coord", "discrete_coord", "index"), feat_keys=("color", "normal"))
             ],
             aug_transform=[
                 [dict(type="RandomRotateTargetAngle", angle=[0], axis="z", center=[0, 0, 0], p=1)],
