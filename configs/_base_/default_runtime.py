@@ -17,7 +17,6 @@ enable_amp = False
 empty_cache = False
 find_unused_parameters = False
 
-max_batch_points = 1e8
 mix_prob = 0
 param_dicts = None  # example: param_dicts = [dict(keyword="block", lr_scale=0.1)]
 

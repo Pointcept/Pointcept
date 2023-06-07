@@ -349,7 +349,6 @@ class BasicLayer(nn.Module):
             index_0_counts = index_0.bincount()
             n_max = index_0_counts.max()
             index_0_offsets = index_0_counts.cumsum(dim=-1)
-            # TODO: offsets should not append 0
             index_0_offsets = torch.cat([torch.zeros(1, dtype=torch.long).cuda(), index_0_offsets], 0)
 
             feats = blk(feats, coords, index_0, index_1, index_0_offsets, n_max)

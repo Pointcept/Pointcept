@@ -121,7 +121,6 @@ class Bottleneck(nn.Module):
 
 
 class MinkUNetBase(nn.Module):
-    # TODO: config control
     BLOCK = None
     PLANES = None
     DILATIONS = (1, 1, 1, 1, 1, 1, 1, 1)

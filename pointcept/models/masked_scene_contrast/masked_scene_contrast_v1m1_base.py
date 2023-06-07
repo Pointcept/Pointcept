@@ -84,7 +84,7 @@ class MaskedSceneContrast(nn.Module):
         patch_num = unique.shape[0]
         patch_max_point = counts.max().item()
         patch2point_map = cluster.new_zeros(patch_num, patch_max_point)
-        patch2point_mask = torch.arange(patch_max_point).cuda().unsqueeze(0) < counts.unsqueeze(-1)
+        patch2point_mask = torch.lt(torch.arange(patch_max_point).cuda().unsqueeze(0), counts.unsqueeze(-1))
         sorted_cluster_value, sorted_cluster_indices = torch.sort(cluster)
         patch2point_map[patch2point_mask] = sorted_cluster_indices
 
