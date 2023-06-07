@@ -97,7 +97,7 @@ data = dict(
             # dict(type="RandomFlip", p=0.5),
             # dict(type="RandomJitter", sigma=0.005, clip=0.02),
             # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
-            dict(type="Voxelize", voxel_size=0.05, hash_type="fnv", mode="train",
+            dict(type="GridSample", grid_size=0.05, hash_type="fnv", mode="train",
                  keys=("coord", "strength", "segment") ,return_discrete_coord=True),
             # dict(type="SphereCrop", point_max=1000000, mode="random"),
             dict(type="CenterShift", apply_z=False),
@@ -114,7 +114,7 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="PointClip", point_cloud_range=(-80, -80, -3, 80, 80, 1)),
-            dict(type="Voxelize", voxel_size=0.05, hash_type="fnv", mode="train",
+            dict(type="GridSample", grid_size=0.05, hash_type="fnv", mode="train",
                  keys=("coord", "strength", "segment"), return_discrete_coord=True),
             # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="ToTensor"),
@@ -133,8 +133,8 @@ data = dict(
         ],
         test_mode=True,
         test_cfg=dict(
-            voxelize=dict(type="Voxelize",
-                          voxel_size=0.05,
+            voxelize=dict(type="GridSample",
+                          grid_size=0.05,
                           hash_type="fnv",
                           mode="test",
                           return_discrete_coord=True,

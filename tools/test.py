@@ -6,8 +6,6 @@ Please cite our work if the code is helpful to you.
 """
 
 import os
-import random
-import numpy as np
 import argparse
 import collections
 

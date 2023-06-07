@@ -15,7 +15,7 @@ import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 
-from pointcept.datasets.transform import Voxelize
+from pointcept.datasets.transform import GridSample
 
 
 def voxelize_parser(data_path, dataset_root, output_root, voxel_size):
@@ -23,7 +23,7 @@ def voxelize_parser(data_path, dataset_root, output_root, voxel_size):
     out_path = data_path.replace(dataset_root, output_root)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     data = torch.load(data_path)
-    data = Voxelize(voxel_size=voxel_size, hash_type="fnv", mode='train', keys=data.keys())(data)
+    data = GridSample(grid_size=voxel_size, hash_type="fnv", mode='train', keys=data.keys())(data)
     torch.save(data, out_path)
 
 

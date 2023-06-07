@@ -121,7 +121,6 @@ class Bottleneck(nn.Module):
 
 
 class MinkUNetBase(nn.Module):
-    # TODO: config control
     BLOCK = None
     PLANES = None
     DILATIONS = (1, 1, 1, 1, 1, 1, 1, 1)
@@ -253,10 +252,10 @@ class MinkUNetBase(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, input_dict):
-        discrete_coord = input_dict["discrete_coord"]
-        feat = input_dict["feat"]
-        offset = input_dict["offset"]
+    def forward(self, data_dict):
+        discrete_coord = data_dict["discrete_coord"]
+        feat = data_dict["feat"]
+        offset = data_dict["offset"]
         batch = offset2batch(offset)
         in_field = ME.TensorField(feat,
                                   coordinates=torch.cat([batch.unsqueeze(-1).int(), discrete_coord.int()], dim=1),

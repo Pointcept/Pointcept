@@ -1,7 +1,7 @@
 """
-ScanNet Pair Dataset (Point Contrstive Frame-level twin)
+ScanNet Pair Dataset (Frame-level contrastive view)
 
-Refer Point Contrast
+Refer PointContrast
 
 Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.

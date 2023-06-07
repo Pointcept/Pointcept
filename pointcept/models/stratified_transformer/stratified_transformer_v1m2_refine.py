@@ -349,7 +349,6 @@ class BasicLayer(nn.Module):
             index_0_counts = index_0.bincount()
             n_max = index_0_counts.max()
             index_0_offsets = index_0_counts.cumsum(dim=-1)
-            # TODO: offsets should not append 0
             index_0_offsets = torch.cat([torch.zeros(1, dtype=torch.long).cuda(), index_0_offsets], 0)
 
             feats = blk(feats, coords, index_0, index_1, index_0_offsets, n_max)
@@ -546,10 +545,10 @@ class StratifiedTransformer(nn.Module):
 
         self.init_weights()
 
-    def forward(self, input_dict):
-        feats = input_dict["feat"]
-        coords = input_dict["coord"]
-        offset = input_dict["offset"].int()
+    def forward(self, data_dict):
+        feats = data_dict["feat"]
+        coords = data_dict["coord"]
+        offset = data_dict["offset"].int()
         batch = offset2batch(offset)
         neighbor_idx = tp.ball_query(self.kp_ball_radius, self.kp_max_neighbor,
                                      coords, coords, mode="partial_dense", batch_x=batch, batch_y=batch)[0]

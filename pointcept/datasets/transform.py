@@ -687,15 +687,15 @@ class ElasticDistortion(object):
 
 
 @TRANSFORMS.register_module()
-class Voxelize(object):
+class GridSample(object):
     def __init__(self,
-                 voxel_size=0.05,
+                 grid_size=0.05,
                  hash_type="fnv",
                  mode='train',
                  keys=("coord", "normal", "color", "segment"),
                  return_discrete_coord=False,
                  return_min_coord=False):
-        self.voxel_size = voxel_size
+        self.grid_size = grid_size
         self.hash = self.fnv_hash_vec if hash_type == "fnv" else self.ravel_hash_vec
         assert mode in ["train", "test"]
         self.mode = mode
@@ -705,8 +705,8 @@ class Voxelize(object):
 
     def __call__(self, data_dict):
         assert "coord" in data_dict.keys()
-        discrete_coord = np.floor(data_dict["coord"] / np.array(self.voxel_size)).astype(int)
-        min_coord = discrete_coord.min(0) * np.array(self.voxel_size)
+        discrete_coord = np.floor(data_dict["coord"] / np.array(self.grid_size)).astype(int)
+        min_coord = discrete_coord.min(0) * np.array(self.grid_size)
         discrete_coord -= discrete_coord.min(0)
         key = self.hash(discrete_coord)
         idx_sort = np.argsort(key)
@@ -901,7 +901,7 @@ class CropBoundary(object):
 
 
 @TRANSFORMS.register_module()
-class ViewGenerator(object):
+class ContrastiveViewsGenerator(object):
     def __init__(self, view_keys=("coord", "normal", "color"), view_trans_cfg=None):
         self.view_keys = view_keys
         self.view_trans = Compose(view_trans_cfg)

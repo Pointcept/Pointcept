@@ -17,7 +17,6 @@ enable_amp = False
 empty_cache = False
 find_unused_parameters = False
 
-max_batch_points = 1e8
 mix_prob = 0
 param_dicts = None  # example: param_dicts = [dict(keyword="block", lr_scale=0.1)]
 
@@ -27,7 +26,8 @@ hooks = [
     dict(type="IterationTimer", warmup_iter=2),
     dict(type="InformationWriter"),
     dict(type="SemSegEvaluator"),
-    dict(type="CheckpointSaver", save_freq=None)
+    dict(type="CheckpointSaver", save_freq=None),
+    dict(type="PreciseEvaluator", test_last=False)
 ]
 
 # Tester
