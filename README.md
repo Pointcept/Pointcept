@@ -14,7 +14,7 @@
 - **Masked Scene Contrast: A Scalable Framework for Unsupervised 3D Representation Learning**   
 *Xiaoyang Wu, Xin Wen, Xihui Liu, Hengshuang Zhao*  
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2023  
-[ Pretrain ] [ MSC ] - [ [arXiv](https://arxiv.org/abs/2303.14191) ] [ [Bib](https://xywu.me/research/msc/bib.txt) ] &rarr; soon
+[ Pretrain ] [ MSC ] - [ [arXiv](https://arxiv.org/abs/2303.14191) ] [ [Bib](https://xywu.me/research/msc/bib.txt) ] &rarr; [here](#masked-scene-contrast)
 
 
 - **Understanding Imbalanced Semantic Segmentation Through Neural Collapse** (3D Part)  
@@ -447,6 +447,23 @@ sh scripts/train.sh -g 4 -d scannet -c insseg-pointgroup-v1m1-0-spunet-base -n i
 # S3DIS
 sh scripts/train.sh -g 4 -d scannet -c insseg-pointgroup-v1m1-0-spunet-base -n insseg-pointgroup-v1m1-0-spunet-base
 ```
+
+### 3. Pre-training
+#### Masked Scene Contrast
+1. Pre-training with the following example scripts:
+```bash
+# ScanNet
+sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m1-0-spunet-base -n pretrain-msc-v1m1-0-spunet-base
+```
+2. Fine-tuning with the following example scripts:  
+enable PointGroup ([here](#pointgroup)) before fine-tuning on instance segmentation task.
+```bash
+# ScanNet20 Semantic Segmentation
+sh scripts/train.sh -g 8 -d scannet -w exp/scannet/pretrain-msc-v1m1-0-spunet-base/model/model_last.pth -c semseg-spunet-v1m1-4-ft -n semseg-msc-v1m1-0f-spunet-base
+# ScanNet20 Instance Segmentation (enable PointGroup before running the script)
+sh scripts/train.sh -g 4 -d scannet -w exp/scannet/pretrain-msc-v1m1-0-spunet-base/model/model_last.pth -c insseg-pointgroup-v1m1-0-spunet-base -n insseg-msc-v1m1-0f-pointgroup-spunet-base
+```
+
 
 ## Citation
 If you find _Pointcept_ useful to your research, please cite our work:

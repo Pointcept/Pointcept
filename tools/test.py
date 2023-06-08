@@ -83,7 +83,7 @@ def main():
             new_state_dict[name] = value
         model.load_state_dict(new_state_dict, strict=True)
         logger.info("=> loaded weight '{}' (epoch {})".format(cfg.weight, checkpoint['epoch']))
-        cfg.epochs = checkpoint['epoch']  # TODO: move to self
+        cfg.test_epoch = checkpoint['epoch']  # TODO: move to self
     else:
         raise RuntimeError("=> no checkpoint found at '{}'".format(cfg.weight))
     TEST.build(cfg.test)(cfg, test_loader, model)

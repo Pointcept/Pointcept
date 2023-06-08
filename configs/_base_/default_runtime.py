@@ -8,7 +8,7 @@ save_path = "exp/default"
 num_worker = 16  # total worker in all gpu
 batch_size = 16  # total batch size in all gpu
 batch_size_val = None  # auto adapt to bs 1 for each gpu
-batch_size_test = 1
+batch_size_test = None  # auto adapt to bs 1 for each gpu
 epoch = 100  # total epoch, data loop = epoch // eval_epoch
 eval_epoch = 100  # sche total eval & checkpoint epoch
 
@@ -27,7 +27,7 @@ hooks = [
     dict(type="InformationWriter"),
     dict(type="SemSegEvaluator"),
     dict(type="CheckpointSaver", save_freq=None),
-    dict(type="PreciseEvaluator", test_last=False)
+    dict(type="PreciseEvaluator", test_last=True)
 ]
 
 # Tester

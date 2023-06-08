@@ -18,7 +18,7 @@ if sys.version_info >= (3, 10):
 else:
     from collections import Sequence
 from pointcept.utils.timer import Timer
-from pointcept.utils.comm import is_main_process, synchronize
+from pointcept.utils.comm import is_main_process, synchronize, get_world_size
 from pointcept.utils.cache import shared_dict
 
 from pointcept.datasets import build_dataset
@@ -205,34 +205,35 @@ class PreciseEvaluator(HookBase):
         self.test_last = test_last
 
     def after_train(self):
-        # TODO: enable ddp precise evaluation !! Model final performance relay on precise evaluation.
-        if is_main_process():
-            self.trainer.logger.info('>>>>>>>>>>>>>>>> Start Precise Evaluation >>>>>>>>>>>>>>>>')
-            cfg = self.trainer.cfg
-            cfg.batch_size_val_per_gpu = cfg.batch_size_test
-            cfg.num_worker_per_gpu = cfg.num_worker
+        self.trainer.logger.info('>>>>>>>>>>>>>>>> Start Precise Evaluation >>>>>>>>>>>>>>>>')
+        cfg = self.trainer.cfg
+        tester = TEST.build(cfg.test)
+        self.trainer.logger.info("=> Building test dataset & dataloader ...")
+        test_dataset = build_dataset(cfg.data.test)
+        if get_world_size() > 1:
+            test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
+        else:
+            test_sampler = None
+        test_loader = torch.utils.data.DataLoader(test_dataset,
+                                                  batch_size=cfg.batch_size_test_per_gpu,
+                                                  shuffle=False,
+                                                  num_workers=cfg.batch_size_test_per_gpu,
+                                                  pin_memory=True,
+                                                  sampler=test_sampler,
+                                                  collate_fn=tester.collate_fn)
 
-            self.trainer.logger.info("=> Building test dataset & dataloader ...")
-            test_dataset = build_dataset(cfg.data.test)
-            test_loader = torch.utils.data.DataLoader(test_dataset,
-                                                      batch_size=cfg.batch_size_val_per_gpu,
-                                                      shuffle=False,
-                                                      num_workers=cfg.num_worker_per_gpu,
-                                                      pin_memory=True,
-                                                      collate_fn=collate_fn)
-
-            model = self.trainer.model
-            if self.test_last:
-                self.trainer.logger.info("=> Testing on model_last ...")
-                cfg.epochs = cfg.eval_epoch
-            else:
-                self.trainer.logger.info("=> Testing on model_best ...")
-                best_path = os.path.join(self.trainer.cfg.save_path, 'model', 'model_best.pth')
-                checkpoint = torch.load(best_path)
-                state_dict = checkpoint['state_dict']
-                model.load_state_dict(state_dict, strict=True)
-                cfg.epochs = checkpoint['epoch']
-            TEST.build(cfg.test)(cfg, test_loader, model)
+        model = self.trainer.model
+        if self.test_last:
+            self.trainer.logger.info("=> Testing on model_last ...")
+            cfg.test_epoch = cfg.eval_epoch
+        else:
+            self.trainer.logger.info("=> Testing on model_best ...")
+            best_path = os.path.join(self.trainer.cfg.save_path, 'model', 'model_best.pth')
+            checkpoint = torch.load(best_path)
+            state_dict = checkpoint['state_dict']
+            model.load_state_dict(state_dict, strict=True)
+            cfg.test_epoch = checkpoint['epoch']
+        tester(cfg, test_loader, model)
 
 
 @HOOKS.register_module()

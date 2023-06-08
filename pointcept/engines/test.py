@@ -5,17 +5,17 @@ Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
-
 import os
 import time
 import numpy as np
-import pickle
 import torch
 import torch.nn.functional as F
-from ..utils.registry import Registry
-from ..utils.logger import get_root_logger
-from ..utils.misc import AverageMeter, intersection_and_union, intersection_and_union_gpu, make_dirs
-from ..datasets.utils import collate_fn
+
+from pointcept.utils.registry import Registry
+from pointcept.utils.logger import get_root_logger
+from pointcept.utils.misc import AverageMeter, intersection_and_union, intersection_and_union_gpu, make_dirs
+from pointcept.datasets.utils import collate_fn
+import pointcept.utils.comm as comm
 
 TEST = Registry("test")
 
@@ -27,6 +27,7 @@ class SemSegTester(object):
     """
 
     def __call__(self, cfg, test_loader, model):
+        assert test_loader.batch_size == 1
         test_dataset = test_loader.dataset
         logger = get_root_logger()
         logger.info('>>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>')
@@ -37,27 +38,26 @@ class SemSegTester(object):
         target_meter = AverageMeter()
         model.eval()
 
-        save_path = os.path.join(cfg.save_path, "result", "test_epoch{}".format(cfg.epochs))
+        save_path = os.path.join(cfg.save_path, "result", "test_epoch{}".format(cfg.test_epoch))
         make_dirs(save_path)
         if "ScanNet" in cfg.dataset_type:
             sub_path = os.path.join(save_path, "submit")
             make_dirs(sub_path)
-        pred_save, label_save = [], []
-        for idx in range(len(test_dataset)):
+        for idx, data_dict in enumerate(test_loader):
             end = time.time()
-            data_name = test_dataset.get_data_name(idx)
+            data_dict = data_dict[0]  # current assume batch size is 1
+            fragment_list = data_dict.pop("fragment_list")
+            segment = data_dict.pop("segment")
+            data_name = data_dict.pop("name")
             pred_save_path = os.path.join(save_path, '{}_pred.npy'.format(data_name))
-            label_save_path = os.path.join(save_path, '{}_label.npy'.format(data_name))
-            if os.path.isfile(pred_save_path) and os.path.isfile(label_save_path):
-                logger.info('{}/{}: {}, loaded pred and label.'.format(idx + 1, len(test_dataset), data_name))
-                pred, label = np.load(pred_save_path), np.load(label_save_path)
+            if os.path.isfile(pred_save_path):
+                logger.info('{}/{}: {}, loaded pred and label.'.format(idx + 1, len(test_loader), data_name))
+                pred = np.load(pred_save_path)
             else:
-                data_dict_list, label = test_dataset[idx]
-                pred = torch.zeros((label.size, cfg.data.num_classes)).cuda()
-                batch_num = int(np.ceil(len(data_dict_list) / cfg.batch_size_test))
-                for i in range(batch_num):
-                    s_i, e_i = i * cfg.batch_size_test, min((i + 1) * cfg.batch_size_test, len(data_dict_list))
-                    input_dict = collate_fn(data_dict_list[s_i:e_i])
+                pred = torch.zeros((segment.size, cfg.data.num_classes)).cuda()
+                for i in range(len(fragment_list)):
+                    s_i, e_i = i * cfg.batch_size_test, min((i + 1) * cfg.batch_size_test, len(fragment_list))
+                    input_dict = collate_fn(fragment_list[s_i:e_i])
                     for key in input_dict.keys():
                         if isinstance(input_dict[key], torch.Tensor):
                             input_dict[key] = input_dict[key].cuda(non_blocking=True)
@@ -72,11 +72,10 @@ class SemSegTester(object):
                         pred[idx_part[bs: be], :] += pred_part[bs: be]
                         bs = be
                     logger.info('Test: {}/{}-{data_name}, Batch: {batch_idx}/{batch_num}'.format(
-                        idx + 1, len(test_dataset), data_name=data_name, batch_idx=i, batch_num=batch_num))
+                        idx + 1, len(test_dataset), data_name=data_name, batch_idx=i, batch_num=len(fragment_list)))
                 pred = pred.max(1)[1].data.cpu().numpy()
                 np.save(pred_save_path, pred)
-                np.save(label_save_path, label)
-            intersection, union, target = intersection_and_union(pred, label, cfg.data.num_classes,
+            intersection, union, target = intersection_and_union(pred, segment, cfg.data.num_classes,
                                                                  cfg.data.ignore_index)
             intersection_meter.update(intersection)
             union_meter.update(union)
@@ -94,25 +93,27 @@ class SemSegTester(object):
             logger.info('Test: {} [{}/{}]-{} '
                         'Batch {batch_time.val:.3f} ({batch_time.avg:.3f}) '
                         'Accuracy {acc:.4f} ({m_acc:.4f}) '
-                        'mIoU {iou:.4f} ({m_iou:.4f})'.format(data_name, idx + 1, len(test_dataset), label.size,
+                        'mIoU {iou:.4f} ({m_iou:.4f})'.format(data_name, idx + 1, len(test_dataset), segment.size,
                                                               batch_time=batch_time, acc=acc, m_acc=m_acc,
                                                               iou=iou, m_iou=m_iou))
-            pred_save.append(pred)
-            label_save.append(label)
             if "ScanNet" in cfg.dataset_type:
                 np.savetxt(os.path.join(save_path, "submit", '{}.txt'.format(data_name)),
                            test_dataset.class2id[pred].reshape([-1, 1]), fmt="%d")
 
-        with open(os.path.join(save_path, "pred.pickle"), 'wb') as handle:
-            pickle.dump({'pred': pred_save}, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        with open(os.path.join(save_path, "label.pickle"), 'wb') as handle:
-            pickle.dump({'label': label_save}, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        comm.synchronize()
+        intersection_meter_sync = comm.gather(intersection_meter, dst=0)
+        union_meter_sync = comm.gather(union_meter, dst=0)
+        target_meter_sync = comm.gather(target_meter, dst=0)
 
-        iou_class = intersection_meter.sum / (union_meter.sum + 1e-10)
-        accuracy_class = intersection_meter.sum / (target_meter.sum + 1e-10)
+        intersection = np.sum([meter.sum for meter in intersection_meter_sync], axis=0)
+        union = np.sum([meter.sum for meter in union_meter_sync], axis=0)
+        target = np.sum([meter.sum for meter in target_meter_sync], axis=0)
+
+        iou_class = intersection / (union + 1e-10)
+        accuracy_class = intersection / (target + 1e-10)
         mIoU = np.mean(iou_class)
         mAcc = np.mean(accuracy_class)
-        allAcc = sum(intersection_meter.sum) / (sum(target_meter.sum) + 1e-10)
+        allAcc = sum(intersection) / (sum(target) + 1e-10)
 
         logger.info('Val result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}'.format(mIoU, mAcc, allAcc))
         for i in range(cfg.data.num_classes):
@@ -120,12 +121,17 @@ class SemSegTester(object):
                 idx=i, name=cfg.data.names[i], iou=iou_class[i], accuracy=accuracy_class[i]))
         logger.info('<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<')
 
+    @staticmethod
+    def collate_fn(batch):
+        return batch
+
 
 @TEST.register_module()
 class ClsTester(object):
     """ClsTester
     for classification dataset (modelnet40), containing multi scales voting
     """
+
     def __call__(self, cfg, test_loader, model):
         logger = get_root_logger()
         logger.info('>>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>')
@@ -171,6 +177,10 @@ class ClsTester(object):
                 idx=i, name=cfg.data.names[i], iou=iou_class[i], accuracy=accuracy_class[i]))
         logger.info('<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<')
 
+    @staticmethod
+    def collate_fn(batch):
+        return collate_fn(batch)
+
 
 @TEST.register_module()
 class PartSegTester(object):
@@ -188,7 +198,7 @@ class PartSegTester(object):
         iou_category, iou_count = np.zeros(num_categories), np.zeros(num_categories)
         model.eval()
 
-        save_path = os.path.join(cfg.save_path, "result", "test_epoch{}".format(cfg.epochs))
+        save_path = os.path.join(cfg.save_path, "result", "test_epoch{}".format(cfg.test_epoch))
         make_dirs(save_path)
 
         for idx in range(len(test_dataset)):
@@ -244,3 +254,7 @@ class PartSegTester(object):
                 iou_cat=iou_category[i] / (iou_count[i] + 1e-10),
                 iou_count=int(iou_count[i])))
         logger.info('<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<')
+
+    @staticmethod
+    def collate_fn(batch):
+        return collate_fn(batch)
