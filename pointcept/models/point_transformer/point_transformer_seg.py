@@ -23,8 +23,7 @@ class PointTransformerLayer(nn.Module):
         self.out_planes = out_planes
         self.share_planes = share_planes
         self.nsample = nsample
-        self.linear_q = nn.Linear(in_planes, mid_planes)
-        self.linear_k = nn.Linear(in_planes, mid_planes)
+        self.linear_qk = nn.Linear(in_planes, mid_planes*2)
         self.linear_v = nn.Linear(in_planes, out_planes)
         self.linear_p = nn.Sequential(nn.Linear(3, 3),
                                       LayerNorm1d(3),
@@ -40,7 +39,7 @@ class PointTransformerLayer(nn.Module):
         
     def forward(self, pxo) -> torch.Tensor:
         p, x, o = pxo  # (n, 3), (n, c), (b)
-        x_q, x_k, x_v = self.linear_q(x), self.linear_k(x), self.linear_v(x)
+        x_q, x_k, x_v = self.linear_qk(x).tensor_split(2, dim=-1), self.linear_v(x)
         x_k, idx = pointops.knn_query_and_group(x_k, p, o, new_xyz=p, new_offset=o,
                                                 nsample=self.nsample, with_xyz=True)
         x_v, _ = pointops.knn_query_and_group(x_v, p, o, new_xyz=p, new_offset=o,
