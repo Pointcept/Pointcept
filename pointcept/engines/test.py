@@ -9,6 +9,7 @@ import os
 import time
 import numpy as np
 import torch
+import torch.distributed as dist
 import torch.nn.functional as F
 
 from pointcept.utils.registry import Registry
@@ -56,7 +57,8 @@ class SemSegTester(object):
             else:
                 pred = torch.zeros((segment.size, cfg.data.num_classes)).cuda()
                 for i in range(len(fragment_list)):
-                    s_i, e_i = i * cfg.batch_size_test, min((i + 1) * cfg.batch_size_test, len(fragment_list))
+                    fragment_batch_size = 1
+                    s_i, e_i = i * fragment_batch_size, min((i + 1) * fragment_batch_size, len(fragment_list))
                     input_dict = collate_fn(fragment_list[s_i:e_i])
                     for key in input_dict.keys():
                         if isinstance(input_dict[key], torch.Tensor):
@@ -72,7 +74,7 @@ class SemSegTester(object):
                         pred[idx_part[bs: be], :] += pred_part[bs: be]
                         bs = be
                     logger.info('Test: {}/{}-{data_name}, Batch: {batch_idx}/{batch_num}'.format(
-                        idx + 1, len(test_dataset), data_name=data_name, batch_idx=i, batch_num=len(fragment_list)))
+                        idx + 1, len(test_loader), data_name=data_name, batch_idx=i, batch_num=len(fragment_list)))
                 pred = pred.max(1)[1].data.cpu().numpy()
                 np.save(pred_save_path, pred)
             intersection, union, target = intersection_and_union(pred, segment, cfg.data.num_classes,
@@ -93,33 +95,35 @@ class SemSegTester(object):
             logger.info('Test: {} [{}/{}]-{} '
                         'Batch {batch_time.val:.3f} ({batch_time.avg:.3f}) '
                         'Accuracy {acc:.4f} ({m_acc:.4f}) '
-                        'mIoU {iou:.4f} ({m_iou:.4f})'.format(data_name, idx + 1, len(test_dataset), segment.size,
+                        'mIoU {iou:.4f} ({m_iou:.4f})'.format(data_name, idx + 1, len(test_loader), segment.size,
                                                               batch_time=batch_time, acc=acc, m_acc=m_acc,
                                                               iou=iou, m_iou=m_iou))
             if "ScanNet" in cfg.dataset_type:
                 np.savetxt(os.path.join(save_path, "submit", '{}.txt'.format(data_name)),
                            test_dataset.class2id[pred].reshape([-1, 1]), fmt="%d")
 
+        logger.info("Syncing ...")
         comm.synchronize()
         intersection_meter_sync = comm.gather(intersection_meter, dst=0)
         union_meter_sync = comm.gather(union_meter, dst=0)
         target_meter_sync = comm.gather(target_meter, dst=0)
 
-        intersection = np.sum([meter.sum for meter in intersection_meter_sync], axis=0)
-        union = np.sum([meter.sum for meter in union_meter_sync], axis=0)
-        target = np.sum([meter.sum for meter in target_meter_sync], axis=0)
+        if comm.is_main_process():
+            intersection = np.sum([meter.sum for meter in intersection_meter_sync], axis=0)
+            union = np.sum([meter.sum for meter in union_meter_sync], axis=0)
+            target = np.sum([meter.sum for meter in target_meter_sync], axis=0)
 
-        iou_class = intersection / (union + 1e-10)
-        accuracy_class = intersection / (target + 1e-10)
-        mIoU = np.mean(iou_class)
-        mAcc = np.mean(accuracy_class)
-        allAcc = sum(intersection) / (sum(target) + 1e-10)
+            iou_class = intersection / (union + 1e-10)
+            accuracy_class = intersection / (target + 1e-10)
+            mIoU = np.mean(iou_class)
+            mAcc = np.mean(accuracy_class)
+            allAcc = sum(intersection) / (sum(target) + 1e-10)
 
-        logger.info('Val result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}'.format(mIoU, mAcc, allAcc))
-        for i in range(cfg.data.num_classes):
-            logger.info('Class_{idx} - {name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}'.format(
-                idx=i, name=cfg.data.names[i], iou=iou_class[i], accuracy=accuracy_class[i]))
-        logger.info('<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<')
+            logger.info('Val result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}'.format(mIoU, mAcc, allAcc))
+            for i in range(cfg.data.num_classes):
+                logger.info('Class_{idx} - {name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}'.format(
+                    idx=i, name=cfg.data.names[i], iou=iou_class[i], accuracy=accuracy_class[i]))
+            logger.info('<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<')
 
     @staticmethod
     def collate_fn(batch):
@@ -153,6 +157,8 @@ class ClsTester(object):
             label = input_dict["category"]
             intersection, union, target = intersection_and_union_gpu(pred, label, cfg.data.num_classes,
                                                                      cfg.data.ignore_index)
+            if comm.get_world_size() > 1:
+                dist.all_reduce(intersection), dist.all_reduce(union), dist.all_reduce(target)
             intersection, union, target = intersection.cpu().numpy(), union.cpu().numpy(), target.cpu().numpy()
             intersection_meter.update(intersection), union_meter.update(union), target_meter.update(target)
 

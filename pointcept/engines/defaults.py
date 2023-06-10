@@ -121,12 +121,10 @@ def default_setup(cfg):
     # scalar by world size
     world_size = comm.get_world_size()
     cfg.num_worker = cfg.num_worker if cfg.num_worker is not None else mp.cpu_count()
-    cfg.batch_size_val = cfg.batch_size_val if cfg.batch_size_val is not None else world_size
-    cfg.batch_size_test = cfg.batch_size_test if cfg.batch_size_test is not None else world_size
     cfg.num_worker_per_gpu = cfg.num_worker // world_size
     cfg.batch_size_per_gpu = cfg.batch_size // world_size
-    cfg.batch_size_val_per_gpu = cfg.batch_size_val // world_size
-    cfg.batch_size_test_per_gpu = cfg.batch_size_test // world_size
+    cfg.batch_size_val_per_gpu = cfg.batch_size_val // world_size if cfg.batch_size_val is not None else 1
+    cfg.batch_size_test_per_gpu = cfg.batch_size_test // world_size if cfg.batch_size_test is not None else 1
     # update data loop
     assert cfg.epoch % cfg.eval_epoch == 0
     # settle random seed

@@ -14,7 +14,7 @@ import torch.optim
 import torch.utils.data
 
 import pointcept.utils.comm as comm
-from pointcept.engines.defaults import default_argument_parser, default_config_parser, default_setup
+from pointcept.engines.defaults import default_argument_parser, default_config_parser, default_setup, create_ddp_model
 from pointcept.engines.launch import launch
 from pointcept.models import build_model
 from pointcept.datasets import build_dataset
@@ -38,6 +38,7 @@ def main_worker(cfg):
     model = build_model(cfg.model).cuda()
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logger.info(f"Num params: {n_parameters}")
+    model = create_ddp_model(model.cuda(), broadcast_buffers=False, find_unused_parameters=False)
 
     # load checkpoint
     if os.path.isfile(cfg.weight):
@@ -46,18 +47,17 @@ def main_worker(cfg):
         new_state_dict = collections.OrderedDict()
         for name, value in state_dict.items():
             if name.startswith("module."):
-                if comm.get_world_size() > 1:
+                if comm.get_world_size() == 1:
                     name = name[7:]  # module.xxx.xxx -> xxx.xxx
             else:
-                if comm.get_world_size() == 1:
+                if comm.get_world_size() > 1:
                     name = "module." + name  # xxx.xxx -> module.xxx.xxx
             new_state_dict[name] = value
         model.load_state_dict(new_state_dict, strict=True)
-        logger.info("=> loaded weight '{}' (epoch {})".format(cfg.weight, checkpoint['epoch']))
+        logger.info("=> Loaded weight '{}' (epoch {})".format(cfg.weight, checkpoint['epoch']))
         cfg.test_epoch = checkpoint['epoch']
     else:
-        cfg.test_epoch = 100
-        # raise RuntimeError("=> no checkpoint found at '{}'".format(cfg.weight))
+        raise RuntimeError("=> No checkpoint found at '{}'".format(cfg.weight))
 
     # build dataset
     logger.info("=> Building test dataset & dataloader ...")

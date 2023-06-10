@@ -176,7 +176,7 @@ class CheckpointLoader(HookBase):
         self.replacement = replacement if replacement is not None else keywords
         self.strict = strict
 
-    def before_train(self):
+    def after_train(self):
         self.trainer.logger.info("=> Loading checkpoint & weight ...")
         if self.trainer.cfg.weight and os.path.isfile(self.trainer.cfg.weight):
             self.trainer.logger.info(f"Loading weight at: {self.trainer.cfg.weight}")
@@ -204,7 +204,7 @@ class PreciseEvaluator(HookBase):
     def __init__(self, test_last=False):
         self.test_last = test_last
 
-    def after_train(self):
+    def before_train(self):
         self.trainer.logger.info('>>>>>>>>>>>>>>>> Start Precise Evaluation >>>>>>>>>>>>>>>>')
         cfg = self.trainer.cfg
         tester = TEST.build(cfg.test)

@@ -111,7 +111,7 @@ class SemSegEvaluator(HookBase):
             self.trainer.storage.put_scalar("val_loss", loss.item())
             info = "Test: [{iter}/{max_iter}] ".format(iter=i + 1, max_iter=len(self.trainer.val_loader))
             if "origin_coord" in input_dict.keys():
-                info = "Precise " + info
+                info = "Interp. " + info
             self.trainer.logger.info(info + "Loss {loss:.4f} ".format(iter=i + 1,
                                                                       max_iter=len(self.trainer.val_loader),
                                                                       loss=loss.item()))
