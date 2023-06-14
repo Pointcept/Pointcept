@@ -41,9 +41,12 @@ class SemSegTester(object):
 
         save_path = os.path.join(cfg.save_path, "result", "test_epoch{}".format(cfg.test_epoch))
         make_dirs(save_path)
-        if "ScanNet" in cfg.dataset_type:
+        # create submit folder only on main process
+        if "ScanNet" in cfg.dataset_type and comm.is_main_process():
             sub_path = os.path.join(save_path, "submit")
             make_dirs(sub_path)
+        comm.synchronize()
+        # fragment inference
         for idx, data_dict in enumerate(test_loader):
             end = time.time()
             data_dict = data_dict[0]  # current assume batch size is 1

@@ -66,7 +66,7 @@ def intersection_and_union_gpu(output, target, k, ignore_index=-1):
 
 def make_dirs(dir_name):
     if not os.path.exists(dir_name):
-        os.makedirs(dir_name)
+        os.makedirs(dir_name, exist_ok=True)
 
 
 def find_free_port():

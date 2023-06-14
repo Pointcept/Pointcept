@@ -1,7 +1,6 @@
 import torch.nn as nn
 
 from pointcept.utils.losses import build_criteria
-from .utils import offset2batch
 from .builder import MODELS, build_model
 
 
