@@ -486,7 +486,7 @@ sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m1-1-spunet-pointcontrast 
 2. Pre-training with the following example scripts:
 ```bash
 # ScanNet
-sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m1-1-spunet-pointcontrast -n pretrain-msc-v1m1-1-spunet-pointcontrast
+sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m2-0-spunet-csc -n pretrain-msc-v1m2-0-spunet-csc
 ```
 3. Fine-tuning refer [MSC](#masked-scene-contrast).
 
