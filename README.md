@@ -46,8 +46,8 @@ Additionally, **Pointcept** integrates the following excellent work:
 [Stratified Transformer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)), 
 [Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5)),
 [PointGroup](https://github.com/dvlab-research/PointGroup) ([here](#pointgroup)),
-[PointContrast](https://github.com/facebookresearch/PointContrast), 
-[ContrastiveSceneContexts](https://github.com/facebookresearch/ContrastiveSceneContexts),
+[PointContrast](https://github.com/facebookresearch/PointContrast) ([here](#pointcontrast)), 
+[Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts)),
 and supports the following datasets:
 [ScanNet](http://www.scan-net.org/), 
 [ScanNet200](http://www.scan-net.org/), 
