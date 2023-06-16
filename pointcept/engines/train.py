@@ -26,7 +26,6 @@ from pointcept.models import build_model
 from pointcept.utils.logger import get_root_logger
 from pointcept.utils.optimizer import build_optimizer
 from pointcept.utils.scheduler import build_scheduler
-from pointcept.utils.losses import build_criteria
 from pointcept.utils.events import EventStorage
 
 
@@ -219,10 +218,7 @@ class Trainer(TrainerBase):
                                                    shuffle=(train_sampler is None),
                                                    num_workers=self.cfg.num_worker_per_gpu,
                                                    sampler=train_sampler,
-                                                   collate_fn=partial(point_collate_fn,
-                                                                      max_batch_points=self.cfg.max_batch_points,
-                                                                      mix_prob=self.cfg.mix_prob
-                                                                      ),
+                                                   collate_fn=partial(point_collate_fn, mix_prob=self.cfg.mix_prob),
                                                    pin_memory=True,
                                                    worker_init_fn=init_fn,
                                                    drop_last=True,

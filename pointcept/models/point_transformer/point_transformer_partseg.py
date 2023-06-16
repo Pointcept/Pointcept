@@ -206,12 +206,12 @@ class PointTransformerSeg(nn.Module):
             layers.append(block(self.in_planes, self.in_planes, share_planes, nsample=nsample))
         return nn.Sequential(*layers)
 
-    def forward(self, input_dict):
-        p0 = input_dict["coord"]
-        x0 = input_dict["feat"]
-        o0 = input_dict["offset"].int()
+    def forward(self, data_dict):
+        p0 = data_dict["coord"]
+        x0 = data_dict["feat"]
+        o0 = data_dict["offset"].int()
         if self.num_shape_classes is not None:
-            y = input_dict["cls_token"]
+            y = data_dict["cls_token"]
         p1, x1, o1 = self.enc1([p0, x0, o0])
         p2, x2, o2 = self.enc2([p1, x1, o1])
         p3, x3, o3 = self.enc3([p2, x2, o2])

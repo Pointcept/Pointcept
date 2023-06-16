@@ -1,0 +1,2 @@
+from .masked_scene_contrast_v1m1_base import MaskedSceneContrast
+

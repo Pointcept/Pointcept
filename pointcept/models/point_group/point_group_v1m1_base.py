@@ -1,7 +1,8 @@
 """
-Author: Xiaoyang Wu, Chengyao Wang
-Email: xiaoyang.wu.cs@gmail.com
-Point Group
+PointGroup for instance segmentation
+
+Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com), Chengyao Wang
+Please cite our work if the code is helpful to you.
 """
 
 from functools import partial
@@ -61,14 +62,14 @@ class PointGroup(nn.Module):
         self.seg_head = nn.Linear(backbone_out_channels, semantic_num_classes)
         self.ce_criteria = torch.nn.CrossEntropyLoss(ignore_index=semantic_ignore_index)
 
-    def forward(self, input_dict):
-        coord = input_dict["coord"]
-        segment = input_dict["segment"]
-        instance = input_dict["instance"]
-        instance_center = input_dict["instance_center"]
-        offset = input_dict["offset"]
+    def forward(self, data_dict):
+        coord = data_dict["coord"]
+        segment = data_dict["segment"]
+        instance = data_dict["instance"]
+        instance_center = data_dict["instance_center"]
+        offset = data_dict["offset"]
 
-        feat = self.backbone(input_dict)
+        feat = self.backbone(data_dict)
         bias_pred = self.bias_head(feat)
         logit_pred = self.seg_head(feat)
 

@@ -41,24 +41,10 @@ def collate_fn(batch):
         return default_collate(batch)
 
 
-def point_collate_fn(batch, max_batch_points=1e10, mix_prob=0):
+def point_collate_fn(batch, mix_prob=0):
     assert isinstance(batch[0], Mapping)  # currently, only support input_dict, rather than input_list
     batch = collate_fn(batch)
     if "offset" in batch.keys():
-        assert batch["offset"][0] <= max_batch_points  # at least the first scan can be added to batch
-        for i in range(len(batch["offset"]) - 1):
-            if batch["offset"][i + 1] > max_batch_points:
-                # logger = get_root_logger()
-                # logger.info("Reach batch point limit! Batch Size: {} -> {}; Points Num: {} -> {}".format(
-                #     len(batch["offset"]), i+1, batch["offset"][-1], batch["offset"][i]
-                # ))
-                batch["offset"] = batch["offset"][:i + 1]
-                for key in batch.keys():
-                    if key != "offset":
-                        # TODO: bug for data_metas
-                        batch[key] = batch[key][:batch["offset"][-1]]
-                break
-
         # Mix3d (https://arxiv.org/pdf/2110.02210.pdf)
         if random.random() < mix_prob:
             batch["offset"] = torch.cat([batch["offset"][1:-1:2], batch["offset"][-1].unsqueeze(0)], dim=0)

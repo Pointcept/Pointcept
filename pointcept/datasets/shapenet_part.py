@@ -106,7 +106,8 @@ class ShapeNetPartDataset(Dataset):
             data_dict_list.append(
                 self.post_transform(aug(deepcopy(data_dict)))
             )
-        return data_dict_list, segment
+        data_dict = dict(fragment_list=data_dict_list, segment=segment, name=self.get_data_name(idx))
+        return data_dict
 
     def get_data_name(self, idx):
         data_idx = self.data_idx[idx % len(self.data_idx)]

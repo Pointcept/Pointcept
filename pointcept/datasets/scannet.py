@@ -133,7 +133,8 @@ class ScanNetDataset(Dataset):
 
         for i in range(len(input_dict_list)):
             input_dict_list[i] = self.post_transform(input_dict_list[i])
-        return input_dict_list, segment
+        data_dict = dict(fragment_list=input_dict_list, segment=segment, name=self.get_data_name(idx))
+        return data_dict
 
     def __getitem__(self, idx):
         if self.test_mode:
