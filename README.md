@@ -142,7 +142,7 @@ cp -r ${RAW_SCANNET_DIR}/tasks ${PROCESSED_SCANNET_DIR}
 ```bash
 # PROCESSED_SCANNET_DIR: the directory of processed ScanNet dataset.
 mkdir data
-ln -s ${RAW_SCANNET_DIR} ${CODEBASE_DIR}/data/scannet
+ln -s ${PROCESSED_SCANNET_DIR} ${CODEBASE_DIR}/data/scannet
 ```
 
 ### S3DIS
@@ -157,9 +157,9 @@ ln -s ${RAW_SCANNET_DIR} ${CODEBASE_DIR}/data/scannet
 
 # S3DIS without aligned angle
 python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR}
-# S3DIS with aligned angle (our old codebase choice)
+# S3DIS with aligned angle
 python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --align_angle
-# S3DIS with normal vector (our new choice)
+# S3DIS with normal vector
 python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --raw_root ${RAW_S3DIS_DIR} --parse_normal
 python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --raw_root ${RAW_S3DIS_DIR} --align_angle --parse_normal
 
@@ -168,7 +168,7 @@ python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root
 ```bash
 # PROCESSED_S3DIS_DIR: the directory of processed S3DIS dataset.
 mkdir data
-ln -s ${RAW_S3DIS_DIR} ${CODEBASE_DIR}/data/s3dis
+ln -s ${PROCESSED_S3DIS_DIR} ${CODEBASE_DIR}/data/s3dis
 ```
 
 ### Semantic KITTI
@@ -465,6 +465,30 @@ sh scripts/train.sh -g 8 -d scannet -w exp/scannet/pretrain-msc-v1m1-0-spunet-ba
 sh scripts/train.sh -g 4 -d scannet -w exp/scannet/pretrain-msc-v1m1-0-spunet-base/model/model_last.pth -c insseg-pointgroup-v1m1-0-spunet-base -n insseg-msc-v1m1-0f-pointgroup-spunet-base
 ```
 3. Example log and weight: [[Pretrain](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/EYvNV4XUJ_5Mlk-g15RelN4BW_P8lVBfC_zhjC_BlBDARg?e=UoGFWH)] [[Semseg](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/EQkDiv5xkOFKgCpGiGtAlLwBon7i8W6my3TIbGVxuiTttQ?e=tQFnbr)]
+
+#### PointContrast
+1. Preprocess and link ScanNet-Pair dataset (pair-wise matching with ScanNet raw RGB-D frame, ~1.5T):
+```bash
+# RAW_SCANNET_DIR: the directory of downloaded ScanNet v2 raw dataset.
+# PROCESSED_SCANNET_PAIR_DIR: the directory of processed ScanNet pair dataset (output dir).
+python pointcept/datasets/preprocessing/scannet/scannet_pair/preprocess.py --dataset_root ${RAW_SCANNET_DIR} --output_root ${PROCESSED_SCANNET_PAIR_DIR}
+ln -s ${PROCESSED_SCANNET_PAIR_DIR} ${CODEBASE_DIR}/data/scannet
+```
+2. Pre-training with the following example scripts:
+```bash
+# ScanNet
+sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m1-1-spunet-pointcontrast -n pretrain-msc-v1m1-1-spunet-pointcontrast
+```
+3. Fine-tuning refer [MSC](#masked-scene-contrast).
+
+#### Contrastive Scene Contexts
+1. Preprocess and link ScanNet-Pair dataset (refer [PointContrast](#pointcontrast)):
+2. Pre-training with the following example scripts:
+```bash
+# ScanNet
+sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m1-1-spunet-pointcontrast -n pretrain-msc-v1m1-1-spunet-pointcontrast
+```
+3. Fine-tuning refer [MSC](#masked-scene-contrast).
 
 ## Citation
 If you find _Pointcept_ useful to your research, please cite our work:

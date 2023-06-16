@@ -33,6 +33,3 @@ if __name__ == '__main__':
     print('Processing scenes...')
     _ = list(pool.map(parse_sens, sens_list, repeat(opt.output_root)))
 
-    # sens_dir = "/home/gofinge/Documents/datasets/scannet/scans/scene0024_00/scene0024_00.sens"
-    # output_dir = "/home/gofinge/Downloads"
-    # parse_sens(sens_dir, output_dir)

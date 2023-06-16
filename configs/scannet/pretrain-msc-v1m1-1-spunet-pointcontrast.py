@@ -1,0 +1,114 @@
+_base_ = ["../_base_/default_runtime.py"]
+
+# misc custom setting
+batch_size = 32  # bs: total bs in all gpus
+num_worker = 32
+mix_prob = 0
+empty_cache = False
+enable_amp = False
+evaluate = False
+find_unused_parameters = False
+
+# model settings
+model = dict(
+    type="MSC-v1m1",
+    backbone=dict(
+        type="SpUNet-v1m1",
+        in_channels=3,
+        num_classes=0,
+        channels=(32, 64, 128, 256, 256, 128, 96, 96),
+        layers=(2, 3, 4, 6, 2, 2, 2, 2)
+    ),
+    backbone_in_channels=3,
+    backbone_out_channels=96,
+    mask_grid_size=0.1,
+    mask_rate=0,
+    view1_mix_prob=0,
+    view2_mix_prob=0,
+    matching_max_k=8,
+    matching_max_radius=0.03,
+    matching_max_pair=4096,
+    nce_t=0.07,
+    contrast_weight=1,
+    reconstruct_weight=1,
+    reconstruct_color=False,
+    reconstruct_normal=False
+)
+
+# scheduler settings
+epoch = 10
+eval_epoch = 10
+optimizer = dict(type="SGD", lr=0.1, momentum=0.8, weight_decay=0.0001, nesterov=True)
+scheduler = dict(type="OneCycleLR",
+                 max_lr=optimizer["lr"],
+                 pct_start=0.01,
+                 anneal_strategy="cos",
+                 div_factor=10.0,
+                 final_div_factor=10000.0)
+
+# dataset settings
+dataset_type = "ScanNetPairDataset"
+data_root = "data/scannet_pair"
+
+data = dict(
+    num_classes=20,
+    ignore_index=-1,
+    names=["wall", "floor", "cabinet", "bed", "chair",
+           "sofa", "table", "door", "window", "bookshelf",
+           "picture", "counter", "desk", "curtain", "refridgerator",
+           "shower curtain", "toilet", "sink", "bathtub", "otherfurniture"],
+    train=dict(
+        type=dataset_type,
+        data_root=data_root,
+        view1_transform=[
+            dict(type="CenterShift", apply_z=True),
+            dict(type="Copy", keys_dict={"coord": "origin_coord"}),
+            # dict(type="RandomScale", scale=[0.9, 1.1]),
+            dict(type="RandomRotate", angle=[-1, 1], axis='z', center=[0, 0, 0], p=1),
+            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis='x', p=1),
+            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis='y', p=1),
+            dict(type="RandomFlip", p=0.5),
+            dict(type="RandomJitter", sigma=0.005, clip=0.02),
+            dict(type="RandomColorJitter", brightness=0.4, contrast=0.4, saturation=0.2, hue=0.02, p=0.8),
+            dict(type="ChromaticJitter", p=0.95, std=0.05),
+            dict(type="GridSample", grid_size=0.025, hash_type='fnv', mode='train',
+                 keys=("origin_coord", "coord", "color"),
+                 return_discrete_coord=True),
+            dict(type="NormalizeColor"),
+            dict(type="ToTensor"),
+            dict(type="Collect",
+                 keys=("origin_coord", "discrete_coord", "coord", "color"),
+                 offset_keys_dict=dict(offset="coord"),
+                 feat_keys=["color"]),
+        ],
+        view2_transform=[
+            dict(type="CenterShift", apply_z=True),
+            dict(type="Copy", keys_dict={"coord": "origin_coord"}),
+            # dict(type="RandomScale", scale=[0.9, 1.1]),
+            dict(type="RandomRotate", angle=[-1, 1], axis='z', center=[0, 0, 0], p=1),
+            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis='x', p=1),
+            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis='y', p=1),
+            dict(type="RandomFlip", p=0.5),
+            dict(type="RandomJitter", sigma=0.005, clip=0.02),
+            dict(type="RandomColorJitter", brightness=0.4, contrast=0.4, saturation=0.2, hue=0.02, p=0.8),
+            dict(type="ChromaticJitter", p=0.95, std=0.05),
+            dict(type="GridSample", grid_size=0.025, hash_type='fnv', mode='train',
+                 keys=("origin_coord", "coord", "color"),
+                 return_discrete_coord=True),
+            dict(type="NormalizeColor"),
+            dict(type="ToTensor"),
+            dict(type="Collect",
+                 keys=("origin_coord", "discrete_coord", "coord", "color"),
+                 offset_keys_dict=dict(offset="coord"),
+                 feat_keys=["color"]),
+        ],
+        test_mode=False
+    )
+)
+
+hooks = [
+    dict(type="CheckpointLoader"),
+    dict(type="IterationTimer", warmup_iter=2),
+    dict(type="InformationWriter"),
+    dict(type="CheckpointSaver", save_freq=None)
+]

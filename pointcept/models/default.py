@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from pointcept.utils.losses import build_criteria
+from pointcept.models.losses import build_criteria
 from .builder import MODELS, build_model
 
 
