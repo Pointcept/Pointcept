@@ -84,50 +84,6 @@ class Flip(object):
 
 
 @TRANSFORMS.register_module()
-class Scale(object):
-    def __init__(self, scale=None):
-        self.scale = scale if scale is not None else [0.95, 1.05]
-
-    def __call__(self, data_dict):
-        if "coord" in data_dict.keys():
-            scale = np.random.uniform(self.scale[0], self.scale[1])
-            data_dict["coord"][:, 0] *= scale
-            data_dict["coord"][:, 1] *= scale
-        return data_dict
-
-
-@TRANSFORMS.register_module()
-class TransformAug(object):
-    def __init__(self, trans_std=[0.1, 0.1, 0.1]):
-        self.trans_std = trans_std
-
-    def __call__(self, data_dict):
-        noise_translate = np.array([np.random.normal(0, self.trans_std[0], 1),
-                                    np.random.normal(0, self.trans_std[1], 1),
-                                    np.random.normal(0, self.trans_std[2], 1)]).T
-        data_dict["coord"] += noise_translate
-        return data_dict
-
-
-@TRANSFORMS.register_module()
-class Copy(object):
-    def __init__(self, keys_dict=None):
-        if keys_dict is None:
-            keys_dict = dict(coord="origin_coord", segment="origin_segment")
-        self.keys_dict = keys_dict
-
-    def __call__(self, data_dict):
-        for key, value in self.keys_dict.items():
-            if isinstance(data_dict[key], np.ndarray):
-                data_dict[value] = data_dict[key].copy()
-            elif isinstance(data_dict[key], torch.Tensor):
-                data_dict[value] = data_dict[key].clone().detach()
-            else:
-                data_dict[value] = copy.deepcopy(data_dict[key])
-        return data_dict
-
-
-@TRANSFORMS.register_module()
 class ToTensor(object):
     def __call__(self, data):
         if isinstance(data, torch.Tensor):
@@ -348,14 +304,20 @@ class RandomRotateTargetAngle(object):
 
 @TRANSFORMS.register_module()
 class RandomScale(object):
-    def __init__(self, scale=None, anisotropic=False):
+    def __init__(self, scale=None, anisotropic=False, apply_z=True):
         self.scale = scale if scale is not None else [0.95, 1.05]
         self.anisotropic = anisotropic
+        self.apply_z = apply_z
 
     def __call__(self, data_dict):
         if "coord" in data_dict.keys():
-            scale = np.random.uniform(self.scale[0], self.scale[1], 3 if self.anisotropic else 1)
-            data_dict["coord"] *= scale
+            if self.apply_z:
+                scale = np.random.uniform(self.scale[0], self.scale[1], 3 if self.anisotropic else 1)
+                data_dict["coord"] *= scale
+            else:
+                scale = np.random.uniform(self.scale[0], self.scale[1], 2 if self.anisotropic else 1)
+                data_dict["coord"][:, 0] *= scale
+                data_dict["coord"][:, 1] *= scale
         return data_dict
 
 
@@ -380,15 +342,23 @@ class RandomFlip(object):
 
 @TRANSFORMS.register_module()
 class RandomJitter(object):
-    def __init__(self, sigma=0.01, clip=0.05):
+    def __init__(self, sigma=0.01, clip=0.05, scale=[0.95, 1.05], use_uniform=False):
         assert (clip > 0)
+        self.use_uniform = use_uniform
         self.sigma = sigma
         self.clip = clip
+        self.scale = scale
 
     def __call__(self, data_dict):
         if "coord" in data_dict.keys():
-            jitter = np.clip(self.sigma * np.random.randn(data_dict["coord"].shape[0], 3), -self.clip, self.clip)
-            data_dict["coord"] += jitter
+            if self.use_uniform:
+                noise_translate = np.array([np.random.normal(0, self.trans_std[0], 1),
+                                            np.random.normal(0, self.trans_std[1], 1),
+                                            np.random.normal(0, self.trans_std[2], 1)]).T
+                data_dict["coord"] += noise_translate
+            else:
+                jitter = np.clip(self.sigma * np.random.randn(data_dict["coord"].shape[0], 3), -self.clip, self.clip)
+                data_dict["coord"] += jitter
         return data_dict
 
 

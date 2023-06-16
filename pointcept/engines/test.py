@@ -45,6 +45,9 @@ class SemSegTester(object):
         if "ScanNet" in cfg.dataset_type and comm.is_main_process():
             sub_path = os.path.join(save_path, "submit")
             make_dirs(sub_path)
+        if 'SemanticKITTIDataset' in cfg.dataset_type and comm.is_main_process():
+            sub_path = os.path.join(save_path, "submit")
+            make_dirs(sub_path)
         comm.synchronize()
         # fragment inference
         for idx, data_dict in enumerate(test_loader):
@@ -105,13 +108,10 @@ class SemSegTester(object):
                 np.savetxt(os.path.join(save_path, "submit", '{}.txt'.format(data_name)),
                            test_dataset.class2id[pred].reshape([-1, 1]), fmt="%d")
             if 'SemanticKITTIDataset' in cfg.dataset_type:
-                submit_path = os.path.join(save_path, "submit", '{}.label'.format(data_name))
-                folder_path = os.path.dirname(submit_path)
-                if not os.path.exists(folder_path):
-                    os.makedirs(folder_path)
+                sub_path = os.path.join(save_path, "submit", '{}.label'.format(data_name))
                 pred = pred.astype(np.uint32)
                 pred = np.vectorize(cfg.learning_map_inv.__getitem__)(pred).astype(np.uint32)
-                pred.tofile(submit_path)
+                pred.tofile(sub_path)
 
         logger.info("Syncing ...")
         comm.synchronize()

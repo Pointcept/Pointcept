@@ -122,6 +122,7 @@ class SemanticKITTIDataset(Dataset):
 
         for i in range(len(input_dict_list)):
             input_dict_list[i] = self.post_transform(input_dict_list[i])
+        data_dict = dict(fragment_list=input_dict_list, segment=segment, name=self.get_data_name(idx))
         return input_dict_list, segment
 
     def get_data_name(self, idx):
@@ -130,7 +131,7 @@ class SemanticKITTIDataset(Dataset):
         sequence_num = os.path.basename(os.path.dirname(dir_path))
         frame_num = os.path.splitext(filename)[0]
 
-        result = f'{sequence_num}/{frame_num}'
+        result = f'{sequence_num}/predictions/{frame_num}'
         return result
 
     def __getitem__(self, idx):
