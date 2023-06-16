@@ -902,13 +902,13 @@ class CropBoundary(object):
 
 @TRANSFORMS.register_module()
 class ContrastiveViewsGenerator(object):
-    def __init__(self, view_keys=("coord", "normal", "color"), view_trans_cfg=None):
+    def __init__(self, view_keys=("coord", "normal", "color", "origin_coord"), view_trans_cfg=None):
         self.view_keys = view_keys
         self.view_trans = Compose(view_trans_cfg)
 
     def __call__(self, data_dict):
-        view1_dict = dict(origin_coord=data_dict["coord"].copy())
-        view2_dict = dict(origin_coord=data_dict["coord"].copy())
+        view1_dict = dict()
+        view2_dict = dict()
         for key in self.view_keys:
             view1_dict[key] = data_dict[key].copy()
             view2_dict[key] = data_dict[key].copy()
