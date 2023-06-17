@@ -14,7 +14,8 @@ from torch.utils.data import Dataset
 from pointcept.utils.logger import get_root_logger
 from .builder import DATASETS
 from .transform import Compose, TRANSFORMS
-
+import random
+from copy import deepcopy
 
 @DATASETS.register_module()
 class SemanticKITTIDataset(Dataset):
@@ -70,6 +71,24 @@ class SemanticKITTIDataset(Dataset):
         data_idx = idx % len(self.data_list)
         with open(self.data_list[data_idx], 'rb') as b:
             scan = np.fromfile(b, dtype=np.float32).reshape(-1, 4)
+
+        label_file = self.data_list[data_idx].replace('velodyne', 'labels').replace('.bin', '.label')
+        if os.path.exists(label_file):
+            with open(label_file, 'rb') as a:
+                segment = np.fromfile(a, dtype=np.int32).reshape(-1)
+        else:
+            segment = np.zeros(scan.shape[0]).astype(np.int32)
+        segment = np.vectorize(self.learning_map.__getitem__)(segment & 0xFFFF).astype(np.int64)
+        coord = scan[:, :3]
+        strength = scan[:, -1].reshape([-1, 1])
+        data_dict = dict(coord=coord, strength=strength, segment=segment)
+        data_dict = self.transform(data_dict)
+        return data_dict
+
+    def prepare_test_data(self, idx):
+        data_idx = idx % len(self.data_list)
+        with open(self.data_list[data_idx], 'rb') as b:
+            scan = np.fromfile(b, dtype=np.float32).reshape(-1, 4)
         coord = scan[:, :3]
         strength = scan[:, -1].reshape([-1, 1])
 
@@ -80,15 +99,40 @@ class SemanticKITTIDataset(Dataset):
         else:
             segment = np.zeros(coord.shape[0]).astype(np.int32)
         segment = np.vectorize(self.learning_map.__getitem__)(segment & 0xFFFF).astype(np.int64)
-        data_dict = dict(coord=coord, strength=strength, segment=segment)
+
+        data_dict = dict(coord=coord, strength=strength, segment=segment.astype(np.int64))
+
+        segment = data_dict.pop("segment")
         data_dict = self.transform(data_dict)
+        data_dict_list = []
+        for aug in self.aug_transform:
+            data_dict_list.append(
+                aug(deepcopy(data_dict))
+            )
+
+        input_dict_list = []
+        for data in data_dict_list:
+            data_part_list = self.test_voxelize(data)
+            for data_part in data_part_list:
+                if self.test_crop:
+                    data_part = self.test_crop(data_part)
+                else:
+                    data_part = [data_part]
+                input_dict_list += data_part
+
+        for i in range(len(input_dict_list)):
+            input_dict_list[i] = self.post_transform(input_dict_list[i])
+        data_dict = dict(fragment_list=input_dict_list, segment=segment, name=self.get_data_name(idx))
         return data_dict
 
-    def prepare_test_data(self, idx):
-        raise NotImplementedError
-
     def get_data_name(self, idx):
-        return self.data_list[self.data_list[idx % len(self.data_list)]]
+        file_path = self.data_list[idx % len(self.data_list)]
+        dir_path, filename = os.path.split(file_path)
+        sequence_num = os.path.basename(os.path.dirname(dir_path))
+        frame_num = os.path.splitext(filename)[0]
+
+        result = f'{sequence_num}/predictions/{frame_num}'
+        return result
 
     def __getitem__(self, idx):
         if self.test_mode:
