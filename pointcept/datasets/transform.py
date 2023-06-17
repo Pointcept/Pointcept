@@ -342,12 +342,12 @@ class RandomFlip(object):
 
 @TRANSFORMS.register_module()
 class RandomJitter(object):
-    def __init__(self, sigma=0.01, clip=0.05, scale=[0.95, 1.05], use_uniform=False):
+    def __init__(self, sigma=0.01, clip=0.05, trans_std=[0.1, 0.1, 0.1], use_uniform=False):
         assert (clip > 0)
         self.use_uniform = use_uniform
         self.sigma = sigma
         self.clip = clip
-        self.scale = scale
+        self.trans_std = trans_std
 
     def __call__(self, data_dict):
         if "coord" in data_dict.keys():

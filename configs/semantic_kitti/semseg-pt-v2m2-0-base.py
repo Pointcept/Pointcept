@@ -135,7 +135,7 @@ data = dict(
             # dict(type="RandomRotate", angle=[-1/6, 1/6], axis="y", p=0.5),
             dict(type="Flip"),
             dict(type="RandomScale", scale=[0.9, 1.1], apply_z=False),
-            dict(type="RandomJitter", use_uniform=True, scale=[0.9, 1.1]),
+            dict(type="RandomJitter", use_uniform=True, trans_std=[0.1, 0.1, 0.1]),
             dict(type="PointClip", point_cloud_range=(-35.2, -35.2, -4, 35.2, 35.2, 2)),
             # dict(type="RandomShift", shift=[0.2, 0.2, 0.2]),
             # dict(type="RandomFlip", p=0.5),
