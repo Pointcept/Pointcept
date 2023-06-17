@@ -123,7 +123,7 @@ class SemanticKITTIDataset(Dataset):
         for i in range(len(input_dict_list)):
             input_dict_list[i] = self.post_transform(input_dict_list[i])
         data_dict = dict(fragment_list=input_dict_list, segment=segment, name=self.get_data_name(idx))
-        return input_dict_list, segment
+        return data_dict
 
     def get_data_name(self, idx):
         file_path = self.data_list[idx % len(self.data_list)]
