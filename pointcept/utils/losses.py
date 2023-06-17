@@ -26,6 +26,7 @@ class CrossEntropyLoss(nn.Module):
                  ):
         super(CrossEntropyLoss, self).__init__()
         self.loss_weight = loss_weight
+        weight = torch.tensor(weight).cuda() if weight is not None else None
         self.loss = nn.CrossEntropyLoss(weight=weight,
                                         size_average=size_average,
                                         ignore_index=ignore_index,
