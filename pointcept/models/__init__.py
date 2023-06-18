@@ -8,6 +8,9 @@ from .point_transformer_v2 import *
 # from .stratified_transformer import *
 # from .spvcnn import *
 
+# Semantic Segmentation
+from .context_aware_classifier import *
+
 # Instance Segmentation
 # from .point_group import *
 

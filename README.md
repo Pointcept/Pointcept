@@ -124,6 +124,9 @@ The preprocessing support semantic and instance segmentation for both `ScanNet20
 # PROCESSED_SCANNET_DIR: the directory of processed ScanNet dataset (output dir).
 python pointcept/datasets/preprocessing/scannet/preprocess_scannet.py --dataset_root ${RAW_SCANNET_DIR} --output_root ${PROCESSED_SCANNET_DIR}
 ```
+
+- (Alternative) Our preprocess data can also be downloaded [[here](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/EREuB1If2DNEjz43-rdaVf4B5toMaIViXv8gEbxr9ydeYA?e=ffXeG4)], please agree the official license before download it.
+
 - (Optional) Download ScanNet Data Efficient files:
 ```bash
 # download-scannet.py is the official download script
@@ -164,6 +167,10 @@ python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root
 python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --raw_root ${RAW_S3DIS_DIR} --align_angle --parse_normal
 
 ```
+
+- (Alternative) Our preprocess data can also be downloaded [[here](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/ERtd0QAyLGNMs6vsM4XnebcBseQ8YTL0UTrMmp11PmQF3g?e=MsER95
+)], please agree the official license before download it.
+
 - Link processed dataset to codebase.
 ```bash
 # PROCESSED_S3DIS_DIR: the directory of processed S3DIS dataset.
@@ -435,7 +442,7 @@ sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-spvcnn-v1m1-0-base -n semse
 ```bash
 conda install -c bioconda google-sparsehash 
 cd libs/pointgroup_ops
-python setup.py build_ext --include-dirs=YOUR_ENV_PATH/include
+python setup.py build_ext --include-dirs=${CONDA_PREFIX}/include
 python setup.py install
 cd ../..
 ```
