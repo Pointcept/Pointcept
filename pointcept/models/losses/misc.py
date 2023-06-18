@@ -1,5 +1,5 @@
 """
-Losses
+Misc Losses
 
 Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
@@ -8,9 +8,7 @@ Please cite our work if the code is helpful to you.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from pointcept.utils.registry import Registry
-
-LOSSES = Registry("losses")
+from .builder import LOSSES
 
 
 @LOSSES.register_module()
@@ -223,24 +221,3 @@ class DiceLoss(nn.Module):
                 total_loss += dice_loss
         loss = total_loss / num_classes
         return self.loss_weight * loss
-
-
-class Criteria(object):
-    def __init__(self, cfg=None):
-        self.cfg = cfg if cfg is not None else []
-        self.criteria = []
-        for loss_cfg in self.cfg:
-            self.criteria.append(LOSSES.build(cfg=loss_cfg))
-
-    def __call__(self, pred, target):
-        if len(self.criteria) == 0:
-            # loss computation occur in model
-            return pred
-        loss = 0
-        for c in self.criteria:
-            loss += c(pred, target)
-        return loss
-
-
-def build_criteria(cfg):
-    return Criteria(cfg)
