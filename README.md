@@ -26,7 +26,7 @@ IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2023
 - **Learning Context-aware Classifier for Semantic Segmentation** (3D Part)  
 *Zhuotao Tian, Jiequan Cui, Li Jiang, Xiaojuan Qi, Xin Lai, Yixin Chen, Shu Liu, Jiaya Jia*  
 AAAI Conference on Artificial Intelligence (**AAAI**) 2023 - Oral  
-[ SemSeg ] [ CAC ] - [ [arXiv](https://arxiv.org/abs/2303.11633) ] [ [Bib](https://xywu.me/research/cac/bib.txt) ] [ [2D Part](https://github.com/tianzhuotao/CAC) ] &rarr; soon
+[ SemSeg ] [ CAC ] - [ [arXiv](https://arxiv.org/abs/2303.11633) ] [ [Bib](https://xywu.me/research/cac/bib.txt) ] [ [2D Part](https://github.com/tianzhuotao/CAC) ] &rarr; [here](#context-aware-classifier)
 
 
 - **Point Transformer V2: Grouped Vector Attention and Partition-based Pooling**   
@@ -162,14 +162,14 @@ ln -s ${PROCESSED_SCANNET_DIR} ${CODEBASE_DIR}/data/scannet
 python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR}
 # S3DIS with aligned angle
 python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --align_angle
-# S3DIS with normal vector
+# S3DIS with normal vector (recommended, normal is helpful)
 python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --raw_root ${RAW_S3DIS_DIR} --parse_normal
 python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --raw_root ${RAW_S3DIS_DIR} --align_angle --parse_normal
 
 ```
 
 - (Alternative) Our preprocess data can also be downloaded [[here](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/ERtd0QAyLGNMs6vsM4XnebcBseQ8YTL0UTrMmp11PmQF3g?e=MsER95
-)], please agree the official license before download it.
+)] (with normal vector and aligned angle), please agree the official license before download it.
 
 - Link processed dataset to codebase.
 ```bash
@@ -285,7 +285,7 @@ A visual illustration of batch and offset is as follows:
 </p>
 
 ## Model Zoo
-### 1. Semantic Segmentation (Backbones)
+### 1. Backbones and Semantic Segmentation
 #### SparseUNet
 
 _Pointcept_ provides `SparseUNet` implemented by `SpConv` and `MinkowskiEngine`. The SpConv version is recommended since SpConv is easy to install and faster than MinkowskiEngine. Meanwhile, SpConv is also widely applied in outdoor perception.
@@ -434,6 +434,19 @@ pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git
 # Semantic-KITTI
 sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-spvcnn-v1m1-0-base -n semseg-spvcnn-v1m1-0-base
 ```
+
+#### Context-Aware Classifier
+`Context-Aware Classifier` is a segmentor that can further boost the performance of each backbone, as a replacement for `Default Segmentor`.  Training with the following example scripts:
+```bash
+# ScanNet
+sh scripts/train.sh -g 4 -d scannet -c semseg-cac-v1m1-0-spunet-base -n semseg-cac-v1m1-0-spunet-base
+sh scripts/train.sh -g 4 -d scannet -c semseg-cac-v1m1-1-spunet-lovasz -n semseg-cac-v1m1-1-spunet-lovasz
+
+# ScanNet200
+sh scripts/train.sh -g 4 -d scannet200 -c semseg-cac-v1m1-0-spunet-base -n semseg-cac-v1m1-0-spunet-base
+sh scripts/train.sh -g 4 -d scannet200 -c semseg-cac-v1m1-1-spunet-lovasz -n semseg-cac-v1m1-1-spunet-lovasz
+```
+
 
 ### 2. Instance Segmentation
 #### PointGroup
