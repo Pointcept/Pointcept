@@ -285,7 +285,7 @@ A visual illustration of batch and offset is as follows:
 </p>
 
 ## Model Zoo
-### 1. Semantic Segmentation (Backbones)
+### 1. Backbones and Semantic Segmentation
 #### SparseUNet
 
 _Pointcept_ provides `SparseUNet` implemented by `SpConv` and `MinkowskiEngine`. The SpConv version is recommended since SpConv is easy to install and faster than MinkowskiEngine. Meanwhile, SpConv is also widely applied in outdoor perception.
