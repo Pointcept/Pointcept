@@ -122,6 +122,9 @@ def default_setup(cfg):
     world_size = comm.get_world_size()
     cfg.num_worker = cfg.num_worker if cfg.num_worker is not None else mp.cpu_count()
     cfg.num_worker_per_gpu = cfg.num_worker // world_size
+    assert cfg.batch_size % world_size == 0
+    assert cfg.batch_size_val is None or cfg.batch_size_val % world_size == 0
+    assert cfg.batch_size_test is None or cfg.batch_size_test % world_size == 0
     cfg.batch_size_per_gpu = cfg.batch_size // world_size
     cfg.batch_size_val_per_gpu = cfg.batch_size_val // world_size if cfg.batch_size_val is not None else 1
     cfg.batch_size_test_per_gpu = cfg.batch_size_test // world_size if cfg.batch_size_test is not None else 1

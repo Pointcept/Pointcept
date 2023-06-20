@@ -470,7 +470,7 @@ class OctFormer(torch.nn.Module):
                 feat = self.downsamples[i](feat, octree, depth_i)
         out = self.decoder(features, octree)
         # interp representation to points before Octreeization
-        query_pts = torch.cat([coord, batch.unsqueeze(-1)], dim=1).contiguous()
+        query_pts = torch.cat([point.points, point.batch_id], dim=1).contiguous()
         out = self.interp(out, octree, octree.depth, query_pts)
         out = self.seg_head(out)
         return out
