@@ -353,6 +353,8 @@ Example running script is as follows:
 # ptv2m2: PTv2 mode2, disable PEM & Grouped Linear, GPU memory cost < 24G (recommend)
 # ScanNet
 sh scripts/train.sh -g 4 -d scannet -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
+sh scripts/train.sh -g 4 -d scannet -c semseg-pt-v2m2-3-lovasz -n semseg-pt-v2m2-3-lovasz
+
 # ScanNet test benchmark (train on train set and val set)
 sh scripts/train.sh -g 4 -d scannet -c semseg-pt-v2m2-1-benchmark-submit -n semseg-pt-v2m2-1-benchmark-submit
 # ScanNet200
