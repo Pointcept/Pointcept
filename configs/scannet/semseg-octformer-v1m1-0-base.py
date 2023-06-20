@@ -35,13 +35,9 @@ model = dict(
 
 # scheduler settings
 epoch = 600
-optimizer = dict(type="AdamW", lr=0.002, weight_decay=0.05)
-scheduler = dict(type="OneCycleLR",
-                 max_lr=optimizer["lr"],
-                 pct_start=0.05,
-                 anneal_strategy="cos",
-                 div_factor=10.0,
-                 final_div_factor=1000.0)
+optimizer = dict(type="AdamW", lr=0.0015, weight_decay=0.05)
+scheduler = dict(type="MultiStepWithWarmupLR", milestones=[0.6, 0.9], gamma=0.1, warmup_rate=0.05,  warmup_scale=1e-6)
+param_dicts = [dict(keyword="blocks", lr=0.00015)]
 
 # dataset settings
 dataset_type = "ScanNetDataset"
