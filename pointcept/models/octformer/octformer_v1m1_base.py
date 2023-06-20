@@ -423,7 +423,7 @@ class OctFormer(torch.nn.Module):
             nn.Linear(fpn_channels, fpn_channels),
             torch.nn.BatchNorm1d(fpn_channels),
             nn.ReLU(inplace=True),
-            nn.Linear(fpn_channels, fpn_channels)
+            nn.Linear(fpn_channels, num_classes)
         ) if num_classes > 0 else nn.Identity()
 
     def points2octree(self, points):
