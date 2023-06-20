@@ -36,7 +36,7 @@ model = dict(
 # scheduler settings
 epoch = 600
 optimizer = dict(type="AdamW", lr=0.0015, weight_decay=0.05)
-scheduler = dict(type="MultiStepWithWarmupLR", milestones=[0.6, 0.9], gamma=0.1, warmup_rate=0.05,  warmup_scale=1e-6)
+scheduler = dict(type="MultiStepWithWarmupLR", milestones=[0.6, 0.9], gamma=0.1, warmup_rate=0.05,  warmup_scale=1e-5)
 param_dicts = [dict(keyword="blocks", lr=0.00015)]
 
 # dataset settings
@@ -71,7 +71,7 @@ data = dict(
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
-            dict(type="GridSample", grid_size=0.01, hash_type="fnv", mode="train", return_min_coord=True),
+            dict(type="GridSample", grid_size=0.001, hash_type="fnv", mode="train", return_min_coord=True),
             dict(type="SphereCrop", sample_rate=0.8, mode="random"),
             dict(type="SphereCrop", point_max=120000, mode="random"),
             dict(type="CenterShift", apply_z=False),
@@ -89,7 +89,7 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="GridSample", grid_size=0.01, hash_type="fnv", mode="train", return_min_coord=True),
+            dict(type="GridSample", grid_size=0.001, hash_type="fnv", mode="train", return_min_coord=True),
             # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
@@ -110,7 +110,7 @@ data = dict(
         test_mode=True,
         test_cfg=dict(
             voxelize=dict(type="GridSample",
-                          grid_size=0.01,
+                          grid_size=0.001,
                           hash_type="fnv",
                           mode="test",
                           keys=("coord", "color", "normal")
