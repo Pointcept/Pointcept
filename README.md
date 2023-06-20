@@ -390,7 +390,7 @@ sh scripts/train.sh -g 4 -d s3dis -c semseg-pt-v1-0-base -n semseg-pt-v1-0-base
 
 
 #### Stratified Transformer
-1. Build dependance:
+1. Additional requirements:
 ```bash
 pip install torch-points3d
 # fix dependence, caused by install torch-points3d 
@@ -435,6 +435,17 @@ pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git
 sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-spvcnn-v1m1-0-base -n semseg-spvcnn-v1m1-0-base
 ```
 
+#### OctFormer
+`OctFormer` from _OctFormer: Octree-based Transformers for 3D Point Clouds_.
+1. Additional requirements:
+```bash
+cd libs
+git clone https://github.com/octree-nn/dwconv.git
+pip install ./dwconv
+pip install ocnn
+```
+2. Uncomment `# from .octformer import *` in `pointcept/models/__init__.py`.
+
 #### Context-Aware Classifier
 `Context-Aware Classifier` is a segmentor that can further boost the performance of each backbone, as a replacement for `Default Segmentor`.  Training with the following example scripts:
 ```bash
@@ -451,7 +462,7 @@ sh scripts/train.sh -g 4 -d scannet200 -c semseg-cac-v1m1-1-spunet-lovasz -n sem
 ### 2. Instance Segmentation
 #### PointGroup
 [PointGroup](https://github.com/dvlab-research/PointGroup) is a baseline framework for point cloud instance segmentation.
-1. Build point group library:
+1. Additional requirements:
 ```bash
 conda install -c bioconda google-sparsehash 
 cd libs/pointgroup_ops
