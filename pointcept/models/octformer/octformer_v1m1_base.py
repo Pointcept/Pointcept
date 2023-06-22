@@ -435,23 +435,11 @@ class OctFormer(torch.nn.Module):
         coord = data_dict["coord"]
         normal = data_dict["normal"]
         feat = data_dict["feat"]
-        segment = data_dict["segment"]
         offset = data_dict["offset"]
         batch = offset2batch(offset)
 
-        # # original batched octree generation strategy
-        # points = [Points(points=coord[offset[i - 1]: o] / self.octree_scale_factor, normals=normal[offset[i - 1]: o],
-        #                  features=feat[offset[i - 1]: o], labels=segment[offset[i - 1]: o])
-        #           if i > 0 else
-        #           Points(points=coord[: o] / self.octree_scale_factor, normals=normal[: o],
-        #                  features=feat[: o], labels=segment[: o])
-        #           for i, o in enumerate(offset)]
-        # octrees = [self.points2octree(pts) for pts in points]
-        # octree = ocnn.octree.merge_octrees(octrees)
-        # octree.construct_all_neigh()
-
         point = Points(points=coord / self.octree_scale_factor, normals=normal, features=feat,
-                       labels=segment, batch_id=batch.unsqueeze(-1), batch_size=len(offset))
+                       batch_id=batch.unsqueeze(-1), batch_size=len(offset))
         octree = ocnn.octree.Octree(depth=self.octree_depth, full_depth=self.octree_full_depth,
                                     batch_size=len(offset), device=coord.device)
         octree.build_octree(point)
