@@ -694,7 +694,8 @@ class GridSample(object):
                  mode='train',
                  keys=("coord", "normal", "color", "segment"),
                  return_discrete_coord=False,
-                 return_min_coord=False):
+                 return_min_coord=False,
+                 return_displacement=False):
         self.grid_size = grid_size
         self.hash = self.fnv_hash_vec if hash_type == "fnv" else self.ravel_hash_vec
         assert mode in ["train", "test"]
@@ -702,10 +703,12 @@ class GridSample(object):
         self.keys = keys
         self.return_discrete_coord = return_discrete_coord
         self.return_min_coord = return_min_coord
+        self.return_displacement = return_displacement
 
     def __call__(self, data_dict):
         assert "coord" in data_dict.keys()
-        discrete_coord = np.floor(data_dict["coord"] / np.array(self.grid_size)).astype(int)
+        scaled_coord = data_dict["coord"] / np.array(self.grid_size)
+        discrete_coord = np.floor(scaled_coord).astype(int)
         min_coord = discrete_coord.min(0) * np.array(self.grid_size)
         discrete_coord -= discrete_coord.min(0)
         key = self.hash(discrete_coord)
@@ -725,6 +728,10 @@ class GridSample(object):
                 data_dict["discrete_coord"] = discrete_coord[idx_unique]
             if self.return_min_coord:
                 data_dict["min_coord"] = min_coord.reshape([1, 3])
+            if self.return_displacement:
+                displacement = scaled_coord - discrete_coord - 0.5  # [0, 1] -> [-0.5, 0.5] displacement to center
+                displacement = np.sum(displacement * data_dict["normal"], axis=-1, keepdims=True)
+                data_dict["displacement"] = displacement[idx_unique]
             for key in self.keys:
                 data_dict[key] = data_dict[key][idx_unique]
             return data_dict
@@ -735,15 +742,19 @@ class GridSample(object):
                 idx_select = np.cumsum(np.insert(count, 0, 0)[0:-1]) + i % count
                 idx_part = idx_sort[idx_select]
                 data_part = dict(index=idx_part)
+                if self.return_discrete_coord:
+                    data_part["discrete_coord"] = discrete_coord[idx_part]
+                if self.return_min_coord:
+                    data_part["min_coord"] = min_coord.reshape([1, 3])
+                if self.return_displacement:
+                    displacement = scaled_coord - discrete_coord - 0.5  # [0, 1] -> [-0.5, 0.5] displacement to center
+                    displacement = np.sum(displacement * data_dict["normal"], axis=-1, keepdims=True)
+                    data_dict["displacement"] = displacement[idx_part]
                 for key in data_dict.keys():
                     if key in self.keys:
                         data_part[key] = data_dict[key][idx_part]
                     else:
                         data_part[key] = data_dict[key]
-                if self.return_discrete_coord:
-                    data_part["discrete_coord"] = discrete_coord[idx_part]
-                if self.return_min_coord:
-                    data_part["min_coord"] = min_coord.reshape([1, 3])
                 data_part_list.append(data_part)
             return data_part_list
         else:
@@ -819,6 +830,8 @@ class SphereCrop(object):
                         data_crop_dict["normal"] = data_dict["normal"][idx_crop]
                     if "color" in data_dict.keys():
                         data_crop_dict["color"] = data_dict["color"][idx_crop]
+                    if "displacement" in data_dict.keys():
+                        data_crop_dict["displacement"] = data_dict["displacement"][idx_crop]
                     data_crop_dict["weight"] = dist2[idx_crop]
                     data_crop_dict["index"] = data_dict["index"][idx_crop]
                     data_part_list.append(data_crop_dict)
@@ -855,6 +868,8 @@ class SphereCrop(object):
                 data_dict["segment"] = data_dict["segment"][idx_crop]
             if "instance" in data_dict.keys():
                 data_dict["instance"] = data_dict["instance"][idx_crop]
+            if "displacement" in data_dict.keys():
+                data_dict["displacement"] = data_dict["displacement"][idx_crop]
         return data_dict
 
 
@@ -868,6 +883,8 @@ class ShufflePoint(object):
             data_dict["coord"] = data_dict["coord"][shuffle_index]
         if "discrete_coord" in data_dict.keys():
             data_dict["discrete_coord"] = data_dict["discrete_coord"][shuffle_index]
+        if "displacement" in data_dict.keys():
+            data_dict["displacement"] = data_dict["displacement"][shuffle_index]
         if "color" in data_dict.keys():
             data_dict["color"] = data_dict["color"][shuffle_index]
         if "normal" in data_dict.keys():
