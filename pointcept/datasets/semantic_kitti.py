@@ -43,7 +43,7 @@ class SemanticKITTIDataset(Dataset):
 
         if test_mode:
             self.test_voxelize = TRANSFORMS.build(self.test_cfg.voxelize)
-            self.test_crop = TRANSFORMS.build(self.test_cfg.crop)
+            self.test_crop = TRANSFORMS.build(self.test_cfg.crop) if self.test_cfg.crop else None
             self.post_transform = Compose(self.test_cfg.post_transform)
             self.aug_transform = [Compose(aug) for aug in self.test_cfg.aug_transform]
 
