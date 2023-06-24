@@ -104,13 +104,13 @@ data = dict(
                           grid_size=0.02,
                           hash_type="fnv",
                           mode="test",
-                          keys=("coord", "normal", "color")
+                          keys=("coord", "color", "normal")
                           ),
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
                 dict(type="ToTensor"),
-                dict(type="Collect", keys=("coord", "index"), feat_keys=("coord", "normal", "color"))
+                dict(type="Collect", keys=("coord", "index"), feat_keys=("coord", "color", "normal"))
             ],
             aug_transform=[
                 [dict(type="RandomRotateTargetAngle", angle=[0], axis="z", center=[0, 0, 0], p=1)],

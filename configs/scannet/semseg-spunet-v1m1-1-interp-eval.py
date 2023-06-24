@@ -117,7 +117,7 @@ data = dict(
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
                 dict(type="ToTensor"),
-                dict(type="Collect", keys=("coord", "discrete_coord", "index"), feat_keys=("normal", "color"))
+                dict(type="Collect", keys=("coord", "discrete_coord", "index"), feat_keys=("color", "normal"))
             ],
             aug_transform=[
                 [dict(type="RandomRotateTargetAngle", angle=[0], axis="z", center=[0, 0, 0], p=1)],

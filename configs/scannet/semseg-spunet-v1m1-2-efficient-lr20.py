@@ -72,7 +72,7 @@ data = dict(
             dict(type="NormalizeColor"),
             dict(type="ShufflePoint"),
             dict(type="ToTensor"),
-            dict(type="Collect", keys=("coord", "discrete_coord", "segment"), feat_keys=("normal", "color"))
+            dict(type="Collect", keys=("coord", "discrete_coord", "segment"), feat_keys=("color", "normal"))
         ],
         test_mode=False
     ),
@@ -88,7 +88,7 @@ data = dict(
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
-            dict(type="Collect", keys=("coord", "discrete_coord", "segment"), feat_keys=("normal", "color"))
+            dict(type="Collect", keys=("coord", "discrete_coord", "segment"), feat_keys=("color", "normal"))
         ],
         test_mode=False,
     ),
@@ -108,13 +108,13 @@ data = dict(
                           hash_type="fnv",
                           mode="test",
                           return_discrete_coord=True,
-                          keys=("coord", "normal", "color")
+                          keys=("coord", "color", "normal")
                           ),
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
                 dict(type="ToTensor"),
-                dict(type="Collect", keys=("coord", "discrete_coord", "index"), feat_keys=("normal", "color"))
+                dict(type="Collect", keys=("coord", "discrete_coord", "index"), feat_keys=("color", "normal"))
             ],
             aug_transform=[
                 [dict(type="RandomRotateTargetAngle", angle=[0], axis="z", center=[0, 0, 0], p=1)],

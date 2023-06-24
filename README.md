@@ -464,10 +464,12 @@ sh scripts/train.sh -g 4 -d scannet -c semseg-octformer-v1m1-0-base -n semseg-oc
 # ScanNet
 sh scripts/train.sh -g 4 -d scannet -c semseg-cac-v1m1-0-spunet-base -n semseg-cac-v1m1-0-spunet-base
 sh scripts/train.sh -g 4 -d scannet -c semseg-cac-v1m1-1-spunet-lovasz -n semseg-cac-v1m1-1-spunet-lovasz
+sh scripts/train.sh -g 4 -d scannet -c semseg-cac-v1m1-2-ptv2-lovasz -n semseg-cac-v1m1-2-ptv2-lovasz
 
 # ScanNet200
 sh scripts/train.sh -g 4 -d scannet200 -c semseg-cac-v1m1-0-spunet-base -n semseg-cac-v1m1-0-spunet-base
 sh scripts/train.sh -g 4 -d scannet200 -c semseg-cac-v1m1-1-spunet-lovasz -n semseg-cac-v1m1-1-spunet-lovasz
+sh scripts/train.sh -g 4 -d scannet200 -c semseg-cac-v1m1-2-ptv2-lovasz -n semseg-cac-v1m1-2-ptv2-lovasz
 ```
 
 

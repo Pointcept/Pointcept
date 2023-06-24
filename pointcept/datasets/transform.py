@@ -692,7 +692,7 @@ class GridSample(object):
                  grid_size=0.05,
                  hash_type="fnv",
                  mode='train',
-                 keys=("coord", "normal", "color", "segment"),
+                 keys=("coord", "color", "normal", "segment"),
                  return_discrete_coord=False,
                  return_min_coord=False,
                  return_displacement=False):
@@ -919,7 +919,7 @@ class CropBoundary(object):
 
 @TRANSFORMS.register_module()
 class ContrastiveViewsGenerator(object):
-    def __init__(self, view_keys=("coord", "normal", "color", "origin_coord"), view_trans_cfg=None):
+    def __init__(self, view_keys=("coord", "color", "normal", "origin_coord"), view_trans_cfg=None):
         self.view_keys = view_keys
         self.view_trans = Compose(view_trans_cfg)
 
