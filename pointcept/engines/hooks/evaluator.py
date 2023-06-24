@@ -1,3 +1,10 @@
+"""
+Evaluate Hook
+
+Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
+Please cite our work if the code is helpful to you.
+"""
+
 import numpy as np
 import torch
 import torch.distributed as dist

@@ -206,6 +206,7 @@ class PreciseEvaluator(HookBase):
 
     def after_train(self):
         self.trainer.logger.info('>>>>>>>>>>>>>>>> Start Precise Evaluation >>>>>>>>>>>>>>>>')
+        torch.cuda.empty_cache()
         cfg = self.trainer.cfg
         tester = TEST.build(cfg.test)
         self.trainer.logger.info("=> Building test dataset & dataloader ...")

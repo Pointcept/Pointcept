@@ -19,6 +19,10 @@ model = dict(
     criteria=[
         dict(type="CrossEntropyLoss",
              loss_weight=1.0,
+             ignore_index=-1),
+        dict(type="LovaszLoss",
+             mode="multiclass",
+             loss_weight=1.0,
              ignore_index=-1)
     ],
     num_classes=20,

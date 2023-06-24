@@ -1,3 +1,11 @@
+"""
+Default Hook
+
+Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
+Please cite our work if the code is helpful to you.
+"""
+
+
 class HookBase:
     """
     Base class for hooks that can be registered with :class:`TrainerBase`.
