@@ -40,18 +40,23 @@ Conference on Neural Information Processing Systems (**NeurIPS**) 2022
 IEEE International Conference on Computer Vision (**ICCV**) 2021 - Oral  
 [ Backbone ] [ PTv1 ] - [ [arXiv](https://arxiv.org/abs/2012.09164) ] [ [Bib](https://hszhao.github.io/papers/iccv21_pointtransformer_bib.txt) ] &rarr; [here](#point-transformers)
 
-Additionally, **Pointcept** integrates the following excellent work: 
+Additionally, **Pointcept** integrates the following excellent work:  
+Backbone: 
 [MinkUNet](https://github.com/NVIDIA/MinkowskiEngine) ([here](#sparseunet)), 
 [SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)), 
-[Stratified Transformer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)), 
-[Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5)),
-[PointGroup](https://github.com/dvlab-research/PointGroup) ([here](#pointgroup)),
+[StratifiedFormer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)),
+[OctFormer](https://github.com/octree-nn/octformer) ([here](#octformer));  
+Augmentation: 
+[Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5));  
+Instance Segmentation: 
+[PointGroup](https://github.com/dvlab-research/PointGroup) ([here](#pointgroup));  
+Pre-training: 
 [PointContrast](https://github.com/facebookresearch/PointContrast) ([here](#pointcontrast)), 
-[Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts)),
-and supports the following datasets:
+[Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts));  
+Datasets:
 [ScanNet](http://www.scan-net.org/), 
 [ScanNet200](http://www.scan-net.org/), 
-[S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1), 
+[S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1),
 [ArkitScene](https://github.com/apple/ARKitScenes), 
 [Semantic KITTI](http://www.semantic-kitti.org/), 
 [ModelNet40](https://modelnet.cs.princeton.edu/).
@@ -447,6 +452,11 @@ pip install ./dwconv
 pip install ocnn
 ```
 2. Uncomment `# from .octformer import *` in `pointcept/models/__init__.py`.
+2. Training with the following example scripts:
+```bash
+# ScanNet
+sh scripts/train.sh -g 4 -d scannet -c semseg-octformer-v1m1-0-base -n semseg-octformer-v1m1-0-base
+```
 
 #### Context-Aware Classifier
 `Context-Aware Classifier` is a segmentor that can further boost the performance of each backbone, as a replacement for `Default Segmentor`.  Training with the following example scripts:
