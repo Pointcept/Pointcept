@@ -44,22 +44,22 @@ Additionally, **Pointcept** integrates the following excellent work:
 Backbone: 
 [MinkUNet](https://github.com/NVIDIA/MinkowskiEngine) ([here](#sparseunet)), 
 [SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)), 
-[SPVCNN](https://github.com/mit-han-lab/spvnas) ([here](#spvcnn))
+[SPVCNN](https://github.com/mit-han-lab/spvnas) ([here](#spvcnn))  
 [StratifiedFormer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)),
 [OctFormer](https://github.com/octree-nn/octformer) ([here](#octformer)),
-[Swin3D](https://github.com/microsoft/Swin3D) ([here](#swin3d));  
-Augmentation: 
-[Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5));  
+[Swin3D](https://github.com/microsoft/Swin3D) ([here](#swin3d));   
 Instance Segmentation: 
 [PointGroup](https://github.com/dvlab-research/PointGroup) ([here](#pointgroup));  
 Pre-training: 
 [PointContrast](https://github.com/facebookresearch/PointContrast) ([here](#pointcontrast)), 
 [Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts));  
+Augmentation: 
+[Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5));  
 Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
 [S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1) ([here](#s3dis)),
-[ArkitScene](https://github.com/apple/ARKitScenes), 
+[ArkitScene](https://github.com/apple/ARKitScenes),  
 [Semantic KITTI](http://www.semantic-kitti.org/) ([here](#semantic-kitti)),
 [ModelNet40](https://modelnet.cs.princeton.edu/) ([here](#modelnet)),
 [Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)).
