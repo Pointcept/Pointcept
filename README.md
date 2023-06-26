@@ -196,7 +196,7 @@ python pointcept/datasets/preprocessing/structured3d/preprocess_structured3d.py 
 ```
 Following the instruction of [Swin3D](https://arxiv.org/abs/2304.06906), we keep 25 categories with frequencies of more than 0.001, out of the original 40 categories.
 
-- (Alternative) Our preprocess data can also be downloaded [[here]()], please agree the official license before download it.
+[//]: # (- &#40;Alternative&#41; Our preprocess data can also be downloaded [[here]&#40;&#41;], please agree the official license before download it.)
 
 - Link processed dataset to codebase.
 ```bash
