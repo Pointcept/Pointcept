@@ -54,12 +54,13 @@ Pre-training:
 [PointContrast](https://github.com/facebookresearch/PointContrast) ([here](#pointcontrast)), 
 [Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts));  
 Datasets:
-[ScanNet](http://www.scan-net.org/), 
-[ScanNet200](http://www.scan-net.org/), 
-[S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1),
+[ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
+[ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
+[S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1) ([here](#s3dis)),
 [ArkitScene](https://github.com/apple/ARKitScenes), 
-[Semantic KITTI](http://www.semantic-kitti.org/), 
-[ModelNet40](https://modelnet.cs.princeton.edu/).
+[Semantic KITTI](http://www.semantic-kitti.org/) ([here](#semantic-kitti)),
+[ModelNet40](https://modelnet.cs.princeton.edu/) ([here](#modelnet)),
+[Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)).
 
 
 ## Highlights
@@ -170,7 +171,6 @@ python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root
 # S3DIS with normal vector (recommended, normal is helpful)
 python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --raw_root ${RAW_S3DIS_DIR} --parse_normal
 python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --raw_root ${RAW_S3DIS_DIR} --align_angle --parse_normal
-
 ```
 
 - (Alternative) Our preprocess data can also be downloaded [[here](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/ERtd0QAyLGNMs6vsM4XnebcBseQ8YTL0UTrMmp11PmQF3g?e=MsER95
@@ -181,6 +181,28 @@ python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root
 # PROCESSED_S3DIS_DIR: the directory of processed S3DIS dataset.
 mkdir data
 ln -s ${PROCESSED_S3DIS_DIR} ${CODEBASE_DIR}/data/s3dis
+```
+### Structured3D
+
+- Download Structured3D panorama related and perspective (full) related zip files by filling this [Google form](https://docs.google.com/forms/d/e/1FAIpQLSc0qtvh4vHSoZaW6UvlXYy79MbcGdZfICjh4_t4bYofQIVIdw/viewform?pli=1) (no need to unzip them).
+- Organize all downloaded zip file in one folder (`${STRUCT3D_DIR}`).
+- Run preprocessing code for Structured3D as follows:
+```bash
+# STRUCT3D_DIR: the directory of downloaded Structured3D dataset.
+# PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
+# NUM_WORKERS: Number for workers for preprocessing, default same as cpu count (might OOM).
+export PYTHONPATH=./
+python pointcept/datasets/preprocessing/structured3d/preprocess_structured3d.py --dataset_root ${STRUCT3D_DIR} --output_root ${PROCESSED_STRUCT3D_DIR} --num_workers ${NUM_WORKERS} --grid_size 0.01 --fuse_prsp --fuse_pano
+```
+Following the instruction of [Swin3D](https://arxiv.org/abs/2304.06906), we keep 25 categories with frequencies of more than 0.001, out of the original 40 categories.
+
+[//]: # (- &#40;Alternative&#41; Our preprocess data can also be downloaded [[here]&#40;&#41;], please agree the official license before download it.)
+
+- Link processed dataset to codebase.
+```bash
+# PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
+mkdir data
+ln -s ${PROCESSED_STRUCT3D_DIR} ${CODEBASE_DIR}/data/structured3d
 ```
 
 ### Semantic KITTI

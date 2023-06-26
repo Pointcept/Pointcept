@@ -6,5 +6,7 @@ from .modelnet import ModelNetDataset
 from .shapenet_part import ShapeNetPartDataset
 from .semantic_kitti import SemanticKITTIDataset
 from .arkitscenes import ArkitScenesDataset
+from .structure3d import Structured3DDataset
+
 from .builder import build_dataset
 from .utils import point_collate_fn, collate_fn

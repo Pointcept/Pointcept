@@ -31,7 +31,7 @@ class DefaultDataset(Dataset):
         self.data_root = data_root
         self.split = split
         self.transform = Compose(transform)
-        self.loop = loop if not test_mode else 1    # force make loop = 1 while in test mode
+        self.loop = loop if not test_mode else 1  # force make loop = 1 while in test mode
         self.test_mode = test_mode
         self.test_cfg = test_cfg if test_mode else None
 
@@ -100,7 +100,8 @@ class DefaultDataset(Dataset):
 
         for i in range(len(input_dict_list)):
             input_dict_list[i] = self.post_transform(input_dict_list[i])
-        return input_dict_list, segment
+        data_dict = dict(fragment_list=input_dict_list, segment=segment, name=self.get_data_name(idx))
+        return data_dict
 
     def __getitem__(self, idx):
         if self.test_mode:
