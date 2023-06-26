@@ -191,6 +191,7 @@ ln -s ${PROCESSED_S3DIS_DIR} ${CODEBASE_DIR}/data/s3dis
 # STRUCT3D_DIR: the directory of downloaded Structured3D dataset.
 # PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
 # NUM_WORKERS: Number for workers for preprocessing, default same as cpu count (might OOM).
+export PYTHONPATH=./
 python pointcept/datasets/preprocessing/structured3d/preprocess_structured3d.py --dataset_root ${STRUCT3D_DIR} --output_root ${PROCESSED_STRUCT3D_DIR} --num_workers ${NUM_WORKERS} --grid_size 0.01 --fuse_prsp --fuse_pano
 ```
 Following the instruction of [Swin3D](https://arxiv.org/abs/2304.06906), we keep 25 categories with frequencies of more than 0.001, out of the original 40 categories.
