@@ -44,20 +44,22 @@ Additionally, **Pointcept** integrates the following excellent work:
 Backbone: 
 [MinkUNet](https://github.com/NVIDIA/MinkowskiEngine) ([here](#sparseunet)), 
 [SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)), 
+[SPVCNN](https://github.com/mit-han-lab/spvnas) ([here](#spvcnn))  
 [StratifiedFormer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)),
-[OctFormer](https://github.com/octree-nn/octformer) ([here](#octformer));  
-Augmentation: 
-[Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5));  
+[OctFormer](https://github.com/octree-nn/octformer) ([here](#octformer)),
+[Swin3D](https://github.com/microsoft/Swin3D) ([here](#swin3d));   
 Instance Segmentation: 
 [PointGroup](https://github.com/dvlab-research/PointGroup) ([here](#pointgroup));  
 Pre-training: 
 [PointContrast](https://github.com/facebookresearch/PointContrast) ([here](#pointcontrast)), 
 [Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts));  
+Augmentation: 
+[Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5));  
 Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
 [S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1) ([here](#s3dis)),
-[ArkitScene](https://github.com/apple/ARKitScenes), 
+[ArkitScene](https://github.com/apple/ARKitScenes),  
 [Semantic KITTI](http://www.semantic-kitti.org/) ([here](#semantic-kitti)),
 [ModelNet40](https://modelnet.cs.princeton.edu/) ([here](#modelnet)),
 [Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)).
@@ -445,7 +447,6 @@ sh scripts/train.sh -g 4 -d scannet200 -c semseg-st-v1m2-0-refined -n semseg-st-
 # S3DIS
 sh scripts/train.sh -g 4 -d s3dis -c semseg-st-v1m2-0-refined -n semseg-st-v1m2-0-refined
 ```
-*I did not tune the parameters for Stratified Transformer and just ensured it could run.*
 
 #### SPVCNN
 `SPVCNN` is baseline model of [SPVNAS](https://github.com/mit-han-lab/spvnas), it is also a practical baseline for outdoor dataset.
@@ -465,7 +466,7 @@ sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-spvcnn-v1m1-0-base -n semse
 ```
 
 #### OctFormer
-`OctFormer` from _OctFormer: Octree-based Transformers for 3D Point Clouds_.
+OctFormer from _OctFormer: Octree-based Transformers for 3D Point Clouds_.
 1. Additional requirements:
 ```bash
 cd libs
@@ -478,6 +479,44 @@ pip install ocnn
 ```bash
 # ScanNet
 sh scripts/train.sh -g 4 -d scannet -c semseg-octformer-v1m1-0-base -n semseg-octformer-v1m1-0-base
+```
+
+#### Swin3D
+Swin3D from _Swin3D: A Pretrained Transformer Backbone for 3D Indoor Scene Understanding_. 
+1. Additional requirements:
+```bash
+# 1. Install MinkEngine v0.5.4, follow readme in https://github.com/NVIDIA/MinkowskiEngine;
+# 2. Install Swin3D, mainly for cuda operation:
+cd libs
+git clone https://github.com/microsoft/Swin3D.git
+cd Swin3D
+pip install ./Swin3D
+```
+2. Uncomment `# from .swin3d import *` in `pointcept/models/__init__.py`.
+3. Pre-Training with the following example scripts (Structured3D preprocessing refer [here](#structured3d)):
+```bash
+# Structured3D + Swin-S
+sh scripts/train.sh -g 4 -d strcutured3d -c semseg-swin3d-v1m1-0-small -n semseg-swin3d-v1m1-0-small
+# Structured3D + Swin-L
+sh scripts/train.sh -g 4 -d strcutured3d -c semseg-swin3d-v1m1-1-large -n semseg-swin3d-v1m1-1-large
+
+# Addition
+# Structured3D + SpUNet
+sh scripts/train.sh -g 4 -d strcutured3d -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
+# Structured3D + PTv2
+sh scripts/train.sh -g 4 -d strcutured3d -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
+```
+4. Fine-tuning with the following example scripts:
+```bash
+# ScanNet + Swin-S
+sh scripts/train.sh -g 4 -d scannet -w exp/strcutured3d/semseg-swin3d-v1m1-1-large/model/model_last.pth -c semseg-swin3d-v1m1-0-small -n semseg-swin3d-v1m1-0-small
+# ScanNet + Swin-L
+sh scripts/train.sh -g 4 -d scannet -w exp/strcutured3d/semseg-swin3d-v1m1-1-large/model/model_last.pth -c semseg-swin3d-v1m1-1-large -n semseg-swin3d-v1m1-1-large
+
+# S3DIS + Swin-S (here we provide config support S3DIS normal vector)
+sh scripts/train.sh -g 4 -d s3dis -w exp/strcutured3d/semseg-swin3d-v1m1-1-large/model/model_last.pth -c semseg-swin3d-v1m1-0-small -n semseg-swin3d-v1m1-0-small
+# S3DIS + Swin-L (here we provide config support S3DIS normal vector)
+sh scripts/train.sh -g 4 -d s3dis -w exp/strcutured3d/semseg-swin3d-v1m1-1-large/model/model_last.pth -c semseg-swin3d-v1m1-1-large -n semseg-swin3d-v1m1-1-large
 ```
 
 #### Context-Aware Classifier
