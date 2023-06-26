@@ -4,27 +4,35 @@ _base_ = ["../_base_/default_runtime.py"]
 batch_size = 12  # bs: total bs in all gpus
 mix_prob = 0.8
 empty_cache = False
-enable_amp = False
+enable_amp = True
 
 # model settings
 model = dict(
     type="DefaultSegmentor",
     backbone=dict(
-        type="OctFormer-v1m1",
-        in_channels=10,
-        num_classes=20,
-        fpn_channels=168,
-        channels=(96, 192, 384, 384),
-        num_blocks=(2, 2, 18, 2),
-        num_heads=(6, 12, 24, 24),
-        patch_size=26,
-        stem_down=2,
-        head_up=2,
-        dilation=4,
-        drop_path=0.5,
-        nempty=True,
-        octree_depth=11,
-        octree_full_depth=2
+        type="PT-v2m2",
+        in_channels=9,
+        num_classes=25,
+        patch_embed_depth=1,
+        patch_embed_channels=48,
+        patch_embed_groups=6,
+        patch_embed_neighbours=8,
+        enc_depths=(2, 2, 6, 2),
+        enc_channels=(96, 192, 384, 512),
+        enc_groups=(12, 24, 48, 64),
+        enc_neighbours=(16, 16, 16, 16),
+        dec_depths=(1, 1, 1, 1),
+        dec_channels=(48, 96, 192, 384),
+        dec_groups=(6, 12, 24, 48),
+        dec_neighbours=(16, 16, 16, 16),
+        grid_sizes=(0.06, 0.15, 0.375, 0.9375),  # x3, x2.5, x2.5, x2.5
+        attn_qkv_bias=True,
+        pe_multiplier=False,
+        pe_bias=True,
+        attn_drop_rate=0.,
+        drop_path_rate=0.3,
+        enable_checkpoint=False,
+        unpool_backend="map",  # map / interp
     ),
     criteria=[
         dict(type="CrossEntropyLoss",
@@ -34,22 +42,25 @@ model = dict(
 )
 
 # scheduler settings
-epoch = 600
-optimizer = dict(type="AdamW", lr=0.0015, weight_decay=0.05)
-scheduler = dict(type="MultiStepWithWarmupLR", milestones=[0.6, 0.9], gamma=0.1, warmup_rate=0.05,  warmup_scale=1e-5)
-param_dicts = [dict(keyword="blocks", lr=0.00015)]
+epoch = 100
+optimizer = dict(type="SGD", lr=0.05, momentum=0.9, weight_decay=0.0001, nesterov=True)
+scheduler = dict(type="OneCycleLR",
+                 max_lr=optimizer["lr"],
+                 pct_start=0.05,
+                 anneal_strategy="cos",
+                 div_factor=10.0,
+                 final_div_factor=10000.0)
 
 # dataset settings
-dataset_type = "ScanNetDataset"
-data_root = "data/scannet"
+dataset_type = "Structured3DDataset"
+data_root = "data/structured3d"
 
 data = dict(
-    num_classes=20,
+    num_classes=25,
     ignore_index=-1,
-    names=["wall", "floor", "cabinet", "bed", "chair",
-           "sofa", "table", "door", "window", "bookshelf",
-           "picture", "counter", "desk", "curtain", "refridgerator",
-           "shower curtain", "toilet", "sink", "bathtub", "otherfurniture"],
+    names=("wall", "floor", "cabinet", "bed", "chair", "sofa", "table", "door", "window", "picture", "desk",
+                   "shelves", "curtain", "dresser", "pillow", "mirror", "ceiling", "refrigerator", "television",
+                   "nightstand", "sink", "lamp", "otherstructure", "otherfurniture", "otherprop"),
     train=dict(
         type=dataset_type,
         split="train",
@@ -67,23 +78,20 @@ data = dict(
             dict(type="RandomJitter", sigma=0.005, clip=0.02),
             dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
             dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
-            dict(type="ChromaticTranslation", p=0.95, ratio=0.1),
+            dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
-            dict(type="GridSample", grid_size=0.01, hash_type="fnv", mode="train",
-                 return_min_coord=True, return_displacement=True, project_displacement=True),
+            dict(type="GridSample", grid_size=0.02, hash_type="fnv", mode="train", return_discrete_coord=True),
             dict(type="SphereCrop", sample_rate=0.8, mode="random"),
             dict(type="SphereCrop", point_max=120000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ShufflePoint"),
             dict(type="ToTensor"),
-            dict(type="Collect",
-                 keys=("coord", "normal", "segment"),
-                 feat_keys=("coord", "color", "normal", "displacement"))
+            dict(type="Collect", keys=("coord", "discrete_coord", "segment"), feat_keys=("coord", "color", "normal"))
         ],
-        test_mode=False,
+        test_mode=False
     ),
 
     val=dict(
@@ -92,15 +100,12 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="GridSample", grid_size=0.01, hash_type="fnv", mode="train",
-                 return_min_coord=True, return_displacement=True, project_displacement=True),
+            dict(type="GridSample", grid_size=0.02, hash_type="fnv", mode="train", return_discrete_coord=True),
             # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
-            dict(type="Collect",
-                 keys=("coord", "normal", "segment"),
-                 feat_keys=("coord", "color", "normal", "displacement"))
+            dict(type="Collect", keys=("coord", "discrete_coord", "segment"), feat_keys=("coord", "color", "normal"))
         ],
         test_mode=False,
     ),
@@ -116,20 +121,17 @@ data = dict(
         test_mode=True,
         test_cfg=dict(
             voxelize=dict(type="GridSample",
-                          grid_size=0.01,
+                          grid_size=0.02,
                           hash_type="fnv",
                           mode="test",
-                          keys=("coord", "color", "normal"),
-                          return_displacement=True,
-                          project_displacement=True
+                          return_discrete_coord=True,
+                          keys=("coord", "color", "normal")
                           ),
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
                 dict(type="ToTensor"),
-                dict(type="Collect",
-                     keys=("coord", "normal", "index"),
-                     feat_keys=("coord", "color", "normal", "displacement"))
+                dict(type="Collect", keys=("coord", "discrete_coord", "index"), feat_keys=("coord", "color", "normal"))
             ],
             aug_transform=[
                 [dict(type="RandomRotateTargetAngle", angle=[0], axis="z", center=[0, 0, 0], p=1)],

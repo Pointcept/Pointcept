@@ -627,12 +627,12 @@ class HueSaturationTranslation(object):
 
 @TRANSFORMS.register_module()
 class RandomColorDrop(object):
-    def __init__(self, p=0.8, color_augment=0.0):
+    def __init__(self, p=0.2, color_augment=0.0):
         self.p = p
         self.color_augment = color_augment
 
     def __call__(self, data_dict):
-        if "color" in data_dict.keys() and np.random.rand() > self.p:
+        if "color" in data_dict.keys() and np.random.rand() < self.p:
             data_dict["color"] *= self.color_augment
         return data_dict
 
@@ -695,7 +695,8 @@ class GridSample(object):
                  keys=("coord", "color", "normal", "segment"),
                  return_discrete_coord=False,
                  return_min_coord=False,
-                 return_displacement=False):
+                 return_displacement=False,
+                 project_displacement=False):
         self.grid_size = grid_size
         self.hash = self.fnv_hash_vec if hash_type == "fnv" else self.ravel_hash_vec
         assert mode in ["train", "test"]
@@ -704,6 +705,7 @@ class GridSample(object):
         self.return_discrete_coord = return_discrete_coord
         self.return_min_coord = return_min_coord
         self.return_displacement = return_displacement
+        self.project_displacement = project_displacement
 
     def __call__(self, data_dict):
         assert "coord" in data_dict.keys()
@@ -730,7 +732,8 @@ class GridSample(object):
                 data_dict["min_coord"] = min_coord.reshape([1, 3])
             if self.return_displacement:
                 displacement = scaled_coord - discrete_coord - 0.5  # [0, 1] -> [-0.5, 0.5] displacement to center
-                displacement = np.sum(displacement * data_dict["normal"], axis=-1, keepdims=True)
+                if self.project_displacement:
+                    displacement = np.sum(displacement * data_dict["normal"], axis=-1, keepdims=True)
                 data_dict["displacement"] = displacement[idx_unique]
             for key in self.keys:
                 data_dict[key] = data_dict[key][idx_unique]
