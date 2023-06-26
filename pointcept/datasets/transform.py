@@ -86,7 +86,7 @@ class ToTensor(object):
             return torch.FloatTensor([data])
         elif isinstance(data, np.ndarray) and np.issubdtype(data.dtype, bool):
             return torch.from_numpy(data)
-        elif isinstance(data, np.ndarray) and np.issubdtype(data.dtype, int):
+        elif isinstance(data, np.ndarray) and np.issubdtype(data.dtype, np.integer):
             return torch.from_numpy(data).long()
         elif isinstance(data, np.ndarray) and np.issubdtype(data.dtype, np.floating):
             return torch.from_numpy(data).float()

@@ -69,7 +69,6 @@ data = dict(
             dict(type="ToTensor"),
             dict(type="Collect", keys=("coord", "discrete_coord", "segment"), feat_keys=["color", "normal"])
         ],
-        cache=True,
         test_mode=False
     ),
     val=dict(
@@ -132,13 +131,3 @@ data = dict(
         )
     )
 )
-
-# hooks
-hooks = [
-    dict(type="CheckpointLoader"),
-    dict(type="IterationTimer", warmup_iter=2),
-    dict(type="InformationWriter"),
-    dict(type="SemSegEvaluator"),
-    dict(type="CheckpointSaver", save_freq=None),
-    dict(type="DataCacheOperator", data_root=data_root, split=data["train"]["split"])
-]
