@@ -60,7 +60,7 @@ Datasets:
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
 [S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1) ([here](#s3dis)),
 [ArkitScene](https://github.com/apple/ARKitScenes),  
-[Semantic KITTI](http://www.semantic-kitti.org/) ([here](#semantic-kitti)),
+[SemanticKITTI](http://www.semantic-kitti.org/) ([here](#semantickitti)),
 [ModelNet40](https://modelnet.cs.princeton.edu/) ([here](#modelnet)),
 [Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)).
 
@@ -207,11 +207,18 @@ mkdir data
 ln -s ${PROCESSED_STRUCT3D_DIR} ${CODEBASE_DIR}/data/structured3d
 ```
 
-### Semantic KITTI
-- Download [Semantic KITTI](http://www.semantic-kitti.org/dataset.html#download) dataset.
+### SemanticKITTI
+- Download [SemanticKITTI](http://www.semantic-kitti.org/dataset.html#download) dataset.
 - Link dataset to codebase.
 ```bash
-# SEMANTIC_KITTI_DIR: the directory of Semantic KITTI dataset.
+# SEMANTIC_KITTI_DIR: the directory of SemanticKITTI dataset.
+# |- SEMANTIC_KITTI_DIR
+#   |- dataset
+#     |- sequences
+#       |- 00
+#       |- 01
+#       |- ...
+
 mkdir -p data
 ln -s ${SEMANTIC_KITTI_DIR} ${CODEBASE_DIR}/data/semantic_kitti
 ```
@@ -332,8 +339,8 @@ sh scripts/train.sh -g 4 -d scannet200 -c semseg-spunet-v1m1-0-base -n semseg-sp
 sh scripts/train.sh -g 4 -d s3dis -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
 # S3DIS (with normal)
 sh scripts/train.sh -g 4 -d s3dis -c semseg-spunet-v1m1-0-cn-base -n semseg-spunet-v1m1-0-cn-base
-# Semantic-KITTI
-sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
+# SemanticKITTI
+sh scripts/train.sh -g 2 -d semantic_kitti -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
 # ModelNet40
 sh scripts/train.sh -g 2 -d modelnet40 -c cls-spunet-v1m1-0-base -n cls-spunet-v1m1-0-base
 
@@ -365,8 +372,8 @@ sh scripts/train.sh -g 4 -d scannet -c semseg-minkunet34c-0-base -n semseg-minku
 sh scripts/train.sh -g 4 -d scannet200 -c semseg-minkunet34c-0-base -n semseg-minkunet34c-0-base
 # S3DIS
 sh scripts/train.sh -g 4 -d s3dis -c semseg-minkunet34c-0-base -n semseg-minkunet34c-0-base
-# Semantic-KITTI
-sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-minkunet34c-0-base -n semseg-minkunet34c-0-base
+# SemanticKITTI
+sh scripts/train.sh -g 2 -d semantic_kitti -c semseg-minkunet34c-0-base -n semseg-minkunet34c-0-base
 ```
 
 #### Point Transformers
@@ -390,6 +397,8 @@ sh scripts/train.sh -g 4 -d scannet -c semseg-pt-v2m2-1-benchmark-submit -n sems
 sh scripts/train.sh -g 4 -d scannet200 -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
 # S3DIS
 sh scripts/train.sh -g 4 -d s3dis -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
+# SemanticKITTI
+sh scripts/train.sh -g 4 -d semantic_kitti -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
 ```
 
 - **PTv2 mode1**
@@ -461,8 +470,8 @@ pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git
 ```
 2. Training with the following example scripts:
 ```bash
-# Semantic-KITTI
-sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-spvcnn-v1m1-0-base -n semseg-spvcnn-v1m1-0-base
+# SemanticKITTI
+sh scripts/train.sh -g 2 -d semantic_kitti -c semseg-spvcnn-v1m1-0-base -n semseg-spvcnn-v1m1-0-base
 ```
 
 #### OctFormer

@@ -4,7 +4,7 @@ _base_ = ["../_base_/default_runtime.py"]
 batch_size = 8  # bs: total bs in all gpus
 mix_prob = 0
 empty_cache = False
-enable_amp = False
+enable_amp = True
 
 # model settings
 model = dict(
@@ -77,6 +77,28 @@ learning_map = {
     258: 3,  # "moving-truck" to "truck" --------------------------------mapped
     259: 4,  # "moving-other"-vehicle to "other-vehicle" ----------------mapped
 }
+learning_map_inv = {
+    ignore_index: ignore_index,  # "unlabeled"
+    0: 10,  # "car"
+    1: 11,  # "bicycle"
+    2: 15,  # "motorcycle"
+    3: 18,  # "truck"
+    4: 20,  # "other-vehicle"
+    5: 30,  # "person"
+    6: 31,  # "bicyclist"
+    7: 32,  # "motorcyclist"
+    8: 40,  # "road"
+    9: 44,  # "parking"
+    10: 48,  # "sidewalk"
+    11: 49,  # "other-ground"
+    12: 50,  # "building"
+    13: 51,  # "fence"
+    14: 70,  # "vegetation"
+    15: 71,  # "trunk"
+    16: 72,  # "terrain"
+    17: 80,  # "pole"
+    18: 81,  # "traffic-sign"
+}
 
 data = dict(
     num_classes=19,
@@ -93,17 +115,16 @@ data = dict(
             dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.5),
             # dict(type="RandomRotate", angle=[-1/6, 1/6], axis="x", p=0.5),
             # dict(type="RandomRotate", angle=[-1/6, 1/6], axis="y", p=0.5),
-            dict(type="PointClip", point_cloud_range=(-80, -80, -3, 80, 80, 1)),
+            dict(type="PointClip", point_cloud_range=(-35.2, -35.2, -4, 35.2, 35.2, 2)),
             dict(type="RandomScale", scale=[0.9, 1.1]),
             # dict(type="RandomShift", shift=[0.2, 0.2, 0.2]),
-            # dict(type="RandomFlip", p=0.5),
-            # dict(type="RandomJitter", sigma=0.005, clip=0.02),
+            dict(type="RandomFlip", p=0.5),
+            dict(type="RandomJitter", sigma=0.005, clip=0.02),
             # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
             dict(type="GridSample", grid_size=0.05, hash_type="fnv", mode="train",
                  keys=("coord", "strength", "segment"), return_discrete_coord=True),
             # dict(type="SphereCrop", point_max=1000000, mode="random"),
-            dict(type="CenterShift", apply_z=False),
-            dict(type="NormalizeColor"),
+            # dict(type="CenterShift", apply_z=False),
             dict(type="ToTensor"),
             dict(type="Collect", keys=("coord", "discrete_coord", "segment"), feat_keys=("coord", "strength"))
         ],
@@ -114,11 +135,11 @@ data = dict(
         type=dataset_type,
         split="val",
         data_root=data_root,
+        learning_map=learning_map,
         transform=[
-            dict(type="PointClip", point_cloud_range=(-80, -80, -3, 80, 80, 1)),
+            dict(type="PointClip", point_cloud_range=(-35.2, -35.2, -4, 35.2, 35.2, 2)),
             dict(type="GridSample", grid_size=0.05, hash_type="fnv", mode="train",
                  keys=("coord", "strength", "segment"), return_discrete_coord=True),
-            # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="ToTensor"),
             dict(type="Collect", keys=("coord", "discrete_coord", "segment"), feat_keys=("coord", "strength"))
         ],
@@ -129,9 +150,9 @@ data = dict(
         type=dataset_type,
         split="val",
         data_root=data_root,
+        learning_map=learning_map,
         transform=[
-            dict(type="CenterShift", apply_z=True),
-            dict(type="NormalizeColor"),
+            dict(type="PointClip", point_cloud_range=(-35.2, -35.2, -4, 35.2, 35.2, 2)),
         ],
         test_mode=True,
         test_cfg=dict(
@@ -144,15 +165,14 @@ data = dict(
                           ),
             crop=None,
             post_transform=[
-                dict(type="CenterShift", apply_z=False),
                 dict(type="ToTensor"),
                 dict(type="Collect", keys=("coord", "discrete_coord", "index"), feat_keys=("coord", "strength"))
             ],
             aug_transform=[
                 [dict(type="RandomRotateTargetAngle", angle=[0], axis="z", center=[0, 0, 0], p=1)],
-                [dict(type="RandomRotateTargetAngle", angle=[1 / 2], axis="z", center=[0, 0, 0], p=1)],
+                [dict(type="RandomRotateTargetAngle", angle=[1/2], axis="z", center=[0, 0, 0], p=1)],
                 [dict(type="RandomRotateTargetAngle", angle=[1], axis="z", center=[0, 0, 0], p=1)],
-                [dict(type="RandomRotateTargetAngle", angle=[3 / 2], axis="z", center=[0, 0, 0], p=1)]
+                [dict(type="RandomRotateTargetAngle", angle=[3/2], axis="z", center=[0, 0, 0], p=1)]
             ]
         )
     ),

@@ -836,6 +836,8 @@ class SphereCrop(object):
                         data_crop_dict["color"] = data_dict["color"][idx_crop]
                     if "displacement" in data_dict.keys():
                         data_crop_dict["displacement"] = data_dict["displacement"][idx_crop]
+                    if "strength" in data_dict.keys():
+                        data_crop_dict["strength"] = data_dict["strength"][idx_crop]
                     data_crop_dict["weight"] = dist2[idx_crop]
                     data_crop_dict["index"] = data_dict["index"][idx_crop]
                     data_part_list.append(data_crop_dict)
@@ -874,6 +876,8 @@ class SphereCrop(object):
                 data_dict["instance"] = data_dict["instance"][idx_crop]
             if "displacement" in data_dict.keys():
                 data_dict["displacement"] = data_dict["displacement"][idx_crop]
+            if "strength" in data_dict.keys():
+                data_dict["strength"] = data_dict["strength"][idx_crop]
         return data_dict
 
 
