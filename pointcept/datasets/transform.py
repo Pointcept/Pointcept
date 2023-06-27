@@ -751,7 +751,8 @@ class GridSample(object):
                     data_part["min_coord"] = min_coord.reshape([1, 3])
                 if self.return_displacement:
                     displacement = scaled_coord - discrete_coord - 0.5  # [0, 1] -> [-0.5, 0.5] displacement to center
-                    displacement = np.sum(displacement * data_dict["normal"], axis=-1, keepdims=True)
+                    if self.project_displacement:
+                        displacement = np.sum(displacement * data_dict["normal"], axis=-1, keepdims=True)
                     data_dict["displacement"] = displacement[idx_part]
                 for key in data_dict.keys():
                     if key in self.keys:
