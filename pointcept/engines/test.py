@@ -109,6 +109,8 @@ class SemSegTester(object):
                            test_dataset.class2id[pred].reshape([-1, 1]), fmt="%d")
             if 'SemanticKITTIDataset' in cfg.dataset_type:
                 sub_path = os.path.join(save_path, "submit", '{}.label'.format(data_name))
+                data_path = os.path.dirname(sub_path)
+                os.makedirs(data_path, exist_ok=True)
                 pred = pred.astype(np.uint32)
                 pred = np.vectorize(cfg.learning_map_inv.__getitem__)(pred).astype(np.uint32)
                 pred.tofile(sub_path)
