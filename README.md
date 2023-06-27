@@ -504,7 +504,7 @@ sh scripts/train.sh -g 4 -d strcutured3d -c semseg-swin3d-v1m1-1-large -n semseg
 # Structured3D + SpUNet
 sh scripts/train.sh -g 4 -d strcutured3d -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
 # Structured3D + PTv2
-sh scripts/train.sh -g 4 -d strcutured3d -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
+sh scripts/train.sh -g 4 -d strcutured3d -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
 ```
 4. Fine-tuning with the following example scripts:
 ```bash
