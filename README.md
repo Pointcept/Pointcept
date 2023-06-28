@@ -40,11 +40,11 @@ Conference on Neural Information Processing Systems (**NeurIPS**) 2022
 IEEE International Conference on Computer Vision (**ICCV**) 2021 - Oral  
 [ Backbone ] [ PTv1 ] - [ [arXiv](https://arxiv.org/abs/2012.09164) ] [ [Bib](https://hszhao.github.io/papers/iccv21_pointtransformer_bib.txt) ] &rarr; [here](#point-transformers)
 
-Additionally, **Pointcept** integrates the following excellent work:  
+Additionally, **Pointcept** integrates the following excellent work (contain above):  
 Backbone: 
-[MinkUNet](https://github.com/NVIDIA/MinkowskiEngine) ([here](#sparseunet)), 
-[SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)), 
-[SPVCNN](https://github.com/mit-han-lab/spvnas) ([here](#spvcnn))  
+[MinkUNet](https://github.com/NVIDIA/MinkowskiEngine) ([here](#sparseunet)),
+[SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)),
+[SPVCNN](https://github.com/mit-han-lab/spvnas) ([here](#spvcnn)),
 [StratifiedFormer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)),
 [OctFormer](https://github.com/octree-nn/octformer) ([here](#octformer)),
 [Swin3D](https://github.com/microsoft/Swin3D) ([here](#swin3d));   
@@ -59,7 +59,7 @@ Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
 [S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1) ([here](#s3dis)),
-[ArkitScene](https://github.com/apple/ARKitScenes),  
+[ArkitScene](https://github.com/apple/ARKitScenes),
 [SemanticKITTI](http://www.semantic-kitti.org/) ([here](#semantickitti)),
 [ModelNet40](https://modelnet.cs.princeton.edu/) ([here](#modelnet)),
 [Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)).
