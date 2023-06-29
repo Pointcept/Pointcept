@@ -40,7 +40,7 @@ Conference on Neural Information Processing Systems (**NeurIPS**) 2022
 IEEE International Conference on Computer Vision (**ICCV**) 2021 - Oral  
 [ Backbone ] [ PTv1 ] - [ [arXiv](https://arxiv.org/abs/2012.09164) ] [ [Bib](https://hszhao.github.io/papers/iccv21_pointtransformer_bib.txt) ] &rarr; [here](#point-transformers)
 
-Additionally, **Pointcept** integrates the following excellent work (contain above):  
+Additionally, **Pointcept** integrates the following excellent work:  
 Backbone: 
 [MinkUNet](https://github.com/NVIDIA/MinkowskiEngine) ([here](#sparseunet)),
 [SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)),
