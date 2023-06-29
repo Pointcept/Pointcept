@@ -65,6 +65,7 @@ class SemanticKITTIDataset(Dataset):
         logger.info("Totally {} x {} samples in {} set.".format(len(self.data_list), self.loop, split))
 
     def prepare_train_data(self, idx):
+        name = self.get_data_name(idx)
         # load data
         data_idx = idx % len(self.data_list)
         with open(self.data_list[data_idx], 'rb') as b:
@@ -124,10 +125,10 @@ class SemanticKITTIDataset(Dataset):
         return data_dict
 
     def get_data_name(self, idx):
-        file_path = self.data_list[self.data_list[idx % len(self.data_list)]]
+        file_path = self.data_list[idx % len(self.data_list)]
         dir_path, file_name = os.path.split(file_path)
         sequence_name = os.path.basename(os.path.dirname(dir_path))
-        frame_name = os.path.splitext(sequence_name)[0]
+        frame_name = os.path.splitext(file_name)[0]
         data_name = f"{sequence_name}_{frame_name}"
         return data_name
 
