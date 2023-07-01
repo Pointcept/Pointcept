@@ -25,3 +25,11 @@ class Structured3DDataset(DefaultDataset):
         else:
             raise NotImplementedError
         return data_list
+
+    def get_data_name(self, idx):
+        file_path = self.data_list[idx % len(self.data_list)]
+        dir_path, file_name = os.path.split(file_path)
+        scene_name = os.path.basename(dir_path)
+        room_name = os.path.splitext(file_name)[0]
+        data_name = f"{scene_name}_{room_name}"
+        return data_name

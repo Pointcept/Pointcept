@@ -42,9 +42,9 @@ IEEE International Conference on Computer Vision (**ICCV**) 2021 - Oral
 
 Additionally, **Pointcept** integrates the following excellent work:  
 Backbone: 
-[MinkUNet](https://github.com/NVIDIA/MinkowskiEngine) ([here](#sparseunet)), 
-[SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)), 
-[SPVCNN](https://github.com/mit-han-lab/spvnas) ([here](#spvcnn))  
+[MinkUNet](https://github.com/NVIDIA/MinkowskiEngine) ([here](#sparseunet)),
+[SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)),
+[SPVCNN](https://github.com/mit-han-lab/spvnas) ([here](#spvcnn)),
 [StratifiedFormer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)),
 [OctFormer](https://github.com/octree-nn/octformer) ([here](#octformer)),
 [Swin3D](https://github.com/microsoft/Swin3D) ([here](#swin3d));   
@@ -59,8 +59,8 @@ Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
 [S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1) ([here](#s3dis)),
-[ArkitScene](https://github.com/apple/ARKitScenes),  
-[Semantic KITTI](http://www.semantic-kitti.org/) ([here](#semantic-kitti)),
+[ArkitScene](https://github.com/apple/ARKitScenes),
+[SemanticKITTI](http://www.semantic-kitti.org/) ([here](#semantickitti)),
 [ModelNet40](https://modelnet.cs.princeton.edu/) ([here](#modelnet)),
 [Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)).
 
@@ -200,6 +200,9 @@ Following the instruction of [Swin3D](https://arxiv.org/abs/2304.06906), we keep
 
 [//]: # (- &#40;Alternative&#41; Our preprocess data can also be downloaded [[here]&#40;&#41;], please agree the official license before download it.)
 
+- (Alternative) Our preprocess data can also be downloaded [[here](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/EaTAxo4SvEJFnDVuv9bOol4B0GCI806BeI4G-TF9Rp7lZw?e=drU9FN
+)] (with perspective views and panorama view, 471.7G after unzipping), please agree the official license before download it.
+
 - Link processed dataset to codebase.
 ```bash
 # PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
@@ -207,11 +210,18 @@ mkdir data
 ln -s ${PROCESSED_STRUCT3D_DIR} ${CODEBASE_DIR}/data/structured3d
 ```
 
-### Semantic KITTI
-- Download [Semantic KITTI](http://www.semantic-kitti.org/dataset.html#download) dataset.
+### SemanticKITTI
+- Download [SemanticKITTI](http://www.semantic-kitti.org/dataset.html#download) dataset.
 - Link dataset to codebase.
 ```bash
-# SEMANTIC_KITTI_DIR: the directory of Semantic KITTI dataset.
+# SEMANTIC_KITTI_DIR: the directory of SemanticKITTI dataset.
+# |- SEMANTIC_KITTI_DIR
+#   |- dataset
+#     |- sequences
+#       |- 00
+#       |- 01
+#       |- ...
+
 mkdir -p data
 ln -s ${SEMANTIC_KITTI_DIR} ${CODEBASE_DIR}/data/semantic_kitti
 ```
@@ -332,8 +342,8 @@ sh scripts/train.sh -g 4 -d scannet200 -c semseg-spunet-v1m1-0-base -n semseg-sp
 sh scripts/train.sh -g 4 -d s3dis -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
 # S3DIS (with normal)
 sh scripts/train.sh -g 4 -d s3dis -c semseg-spunet-v1m1-0-cn-base -n semseg-spunet-v1m1-0-cn-base
-# Semantic-KITTI
-sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
+# SemanticKITTI
+sh scripts/train.sh -g 4 -d semantic_kitti -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
 # ModelNet40
 sh scripts/train.sh -g 2 -d modelnet40 -c cls-spunet-v1m1-0-base -n cls-spunet-v1m1-0-base
 
@@ -365,8 +375,8 @@ sh scripts/train.sh -g 4 -d scannet -c semseg-minkunet34c-0-base -n semseg-minku
 sh scripts/train.sh -g 4 -d scannet200 -c semseg-minkunet34c-0-base -n semseg-minkunet34c-0-base
 # S3DIS
 sh scripts/train.sh -g 4 -d s3dis -c semseg-minkunet34c-0-base -n semseg-minkunet34c-0-base
-# Semantic-KITTI
-sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-minkunet34c-0-base -n semseg-minkunet34c-0-base
+# SemanticKITTI
+sh scripts/train.sh -g 2 -d semantic_kitti -c semseg-minkunet34c-0-base -n semseg-minkunet34c-0-base
 ```
 
 #### Point Transformers
@@ -390,6 +400,8 @@ sh scripts/train.sh -g 4 -d scannet -c semseg-pt-v2m2-1-benchmark-submit -n sems
 sh scripts/train.sh -g 4 -d scannet200 -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
 # S3DIS
 sh scripts/train.sh -g 4 -d s3dis -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
+# SemanticKITTI
+sh scripts/train.sh -g 4 -d semantic_kitti -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
 ```
 
 - **PTv2 mode1**
@@ -461,8 +473,8 @@ pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git
 ```
 2. Training with the following example scripts:
 ```bash
-# Semantic-KITTI
-sh scripts/train.sh -g 2 -d semantic-kitti -c semseg-spvcnn-v1m1-0-base -n semseg-spvcnn-v1m1-0-base
+# SemanticKITTI
+sh scripts/train.sh -g 2 -d semantic_kitti -c semseg-spvcnn-v1m1-0-base -n semseg-spvcnn-v1m1-0-base
 ```
 
 #### OctFormer
