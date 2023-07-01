@@ -200,6 +200,9 @@ Following the instruction of [Swin3D](https://arxiv.org/abs/2304.06906), we keep
 
 [//]: # (- &#40;Alternative&#41; Our preprocess data can also be downloaded [[here]&#40;&#41;], please agree the official license before download it.)
 
+- (Alternative) Our preprocess data can also be downloaded [[here](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/EaTAxo4SvEJFnDVuv9bOol4B0GCI806BeI4G-TF9Rp7lZw?e=drU9FN
+)] (with perspective views and panorama view, 471.7G after unzipping), please agree the official license before download it.
+
 - Link processed dataset to codebase.
 ```bash
 # PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
