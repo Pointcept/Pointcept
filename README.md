@@ -61,6 +61,7 @@ Datasets:
 [S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1) ([here](#s3dis)),
 [ArkitScene](https://github.com/apple/ARKitScenes),
 [SemanticKITTI](http://www.semantic-kitti.org/) ([here](#semantickitti)),
+[NuScenes](https://www.nuscenes.org/nuscenes) ([here](#nuscenes)),
 [ModelNet40](https://modelnet.cs.princeton.edu/) ([here](#modelnet)),
 [Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)).
 
@@ -227,7 +228,7 @@ ln -s ${SEMANTIC_KITTI_DIR} ${CODEBASE_DIR}/data/semantic_kitti
 ```
 
 ### NuScenes
-- Download the official [NuScene](http://www.semantic-kitti.org/dataset.html#download) dataset (with Lidar Segmentation) and organize the downloaded files as follows:
+- Download the official [NuScene](https://www.nuscenes.org/nuscenes#download) dataset (with Lidar Segmentation) and organize the downloaded files as follows:
 ```bash
 NUSCENES_DIR
 │── samples
