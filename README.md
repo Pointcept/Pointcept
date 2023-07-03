@@ -226,6 +226,53 @@ mkdir -p data
 ln -s ${SEMANTIC_KITTI_DIR} ${CODEBASE_DIR}/data/semantic_kitti
 ```
 
+### NuScenes
+- Download the official [NuScene](http://www.semantic-kitti.org/dataset.html#download) dataset (with Lidar Segmentation) and organize the downloaded files as follows:
+```bash
+NUSCENES_DIR
+│── samples
+│── sweeps
+│── lidarseg
+...
+│── v1.0-trainval 
+│── v1.0-test
+```
+- Run information preprocessing code (modified from OpenPCDet) for NuScenes as follows:
+```bash
+# NUSCENES_DIR: the directory of downloaded NuScenes dataset.
+# PROCESSED_NUSCENES_DIR: the directory of processed NuScenes dataset (output dir).
+# MAX_SWEEPS: Max number of sweeps. Default: 10.
+python pointcept/datasets/preprocessing/nuscenes/preprocess_nuscenes_info.py --dataset_root ${NUSCENES_DIR} --output_root ${PROCESSED_NUSCENES_DIR} --max_sweeps ${MAX_SWEEPS} --with_camera --grid_size 0.01 --fuse_prsp --fuse_pano
+```
+- (Alternative) Our preprocess NuScenes information data can also be downloaded [[here](
+)], please agree the official license before download it.
+
+- Link raw dataset to processed NuScene dataset folder:
+```bash
+# NUSCENES_DIR: the directory of downloaded NuScenes dataset.
+# PROCESSED_NUSCENES_DIR: the directory of processed NuScenes dataset (output dir).
+ln -s ${NUSCENES_DIR} {PROCESSED_NUSCENES_DIR}/raw
+```
+then the processed nuscenes folder is organized as follows:
+```bash
+nuscene
+|── raw
+    │── samples
+    │── sweeps
+    │── lidarseg
+    ...
+    │── v1.0-trainval
+    │── v1.0-test
+|── info
+```
+
+- Link processed dataset to codebase.
+```bash
+# PROCESSED_NUSCENES_DIR: the directory of processed NuScenes dataset (output dir).
+mkdir data
+ln -s ${PROCESSED_NUSCENES_DIR} ${CODEBASE_DIR}/data/nuscenes
+```
+
 ### ModelNet
 - Download [modelnet40_normal_resampled.zip](https://shapenet.cs.stanford.edu/media/modelnet40_normal_resampled.zip) and unzip
 - Link dataset to codebase.
