@@ -341,6 +341,7 @@ def fill_trainval_infos(data_path, nusc, train_scenes, test=False, max_sweeps=10
         )
         info = {
             "lidar_path": Path(ref_lidar_path).relative_to(data_path).__str__(),
+            "lidar_token":ref_sd_token,
             "cam_front_path": Path(ref_cam_path).relative_to(data_path).__str__(),
             "cam_intrinsic": ref_cam_intrinsic,
             "token": sample["token"],

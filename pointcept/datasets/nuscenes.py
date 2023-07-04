@@ -77,7 +77,8 @@ class NuScenesDataset(DefaultDataset):
         return data_dict
 
     def get_data_name(self, idx):
-        return self.data_list[idx % len(self.data_list)]["token"]
+        # return data name for lidar seg, optimize the code when need to support detection
+        return self.data_list[idx % len(self.data_list)]["lidar_token"]
 
     @staticmethod
     def get_learning_map(ignore_index):
