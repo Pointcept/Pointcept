@@ -1,5 +1,5 @@
 """
-Preprocessing Script for NuScenes Informantion
+Preprocessing Script for nuScenes Informantion
 modified from OpenPCDet (https://github.com/open-mmlab/OpenPCDet)
 
 Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
@@ -472,13 +472,13 @@ def fill_trainval_infos(data_path, nusc, train_scenes, test=False, max_sweeps=10
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset_root", required=True, help="Path to the NuScenes dataset.")
+    parser.add_argument("--dataset_root", required=True, help="Path to the nuScenes dataset.")
     parser.add_argument("--output_root", required=True, help="Output path where processed information located.")
     parser.add_argument("--max_sweeps", default=10, type=int, help="Max number of sweeps. Default: 10.")
     parser.add_argument("--with_camera", action="store_true", default=False, help="Whether use camera or not.")
     config = parser.parse_args()
 
-    print(f"Loading NuScenes tables for version v1.0-trainval...")
+    print(f"Loading nuScenes tables for version v1.0-trainval...")
     nusc_trainval = NuScenes(version="v1.0-trainval", dataroot=config.dataset_root, verbose=False)
     available_scenes_trainval = get_available_scenes(nusc_trainval)
     available_scene_names_trainval = [s["name"] for s in available_scenes_trainval]
@@ -486,7 +486,7 @@ if __name__ == "__main__":
     print("exist scene num:", len(available_scenes_trainval))
     assert len(available_scenes_trainval) == len(nusc_trainval.scene) == 850
 
-    print(f"Loading NuScenes tables for version v1.0-test...")
+    print(f"Loading nuScenes tables for version v1.0-test...")
     nusc_test = NuScenes(version="v1.0-test", dataroot=config.dataset_root, verbose=False)
     available_scenes_test = get_available_scenes(nusc_test)
     available_scene_names_test = [s["name"] for s in available_scenes_test]
@@ -507,7 +507,7 @@ if __name__ == "__main__":
         config.dataset_root, nusc_test, test_scenes, test=True, max_sweeps=config.max_sweeps, with_camera=config.with_camera
     )
 
-    print(f"Saving NuScenes information...")
+    print(f"Saving nuScenes information...")
     os.makedirs(os.path.join(config.output_root, "info"), exist_ok=True)
     print(f"train sample: {len(train_nusc_infos)}, val sample: {len(val_nusc_infos)}, test sample: {len(test_nusc_infos)}")
     with open(os.path.join(config.output_root, "info", f"nuscenes_infos_{config.max_sweeps}sweeps_train.pkl"), "wb") as f:

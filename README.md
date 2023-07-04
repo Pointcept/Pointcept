@@ -61,7 +61,7 @@ Datasets:
 [S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1) ([here](#s3dis)),
 [ArkitScene](https://github.com/apple/ARKitScenes),
 [SemanticKITTI](http://www.semantic-kitti.org/) ([here](#semantickitti)),
-[NuScenes](https://www.nuscenes.org/nuscenes) ([here](#nuscenes)),
+[nuScenes](https://www.nuscenes.org/nuscenes) ([here](#nuscenes)),
 [ModelNet40](https://modelnet.cs.princeton.edu/) ([here](#modelnet)),
 [Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)).
 
@@ -227,7 +227,7 @@ mkdir -p data
 ln -s ${SEMANTIC_KITTI_DIR} ${CODEBASE_DIR}/data/semantic_kitti
 ```
 
-### NuScenes
+### nuScenes
 - Download the official [NuScene](https://www.nuscenes.org/nuscenes#download) dataset (with Lidar Segmentation) and organize the downloaded files as follows:
 ```bash
 NUSCENES_DIR
@@ -238,20 +238,20 @@ NUSCENES_DIR
 │── v1.0-trainval 
 │── v1.0-test
 ```
-- Run information preprocessing code (modified from OpenPCDet) for NuScenes as follows:
+- Run information preprocessing code (modified from OpenPCDet) for nuScenes as follows:
 ```bash
-# NUSCENES_DIR: the directory of downloaded NuScenes dataset.
-# PROCESSED_NUSCENES_DIR: the directory of processed NuScenes dataset (output dir).
+# NUSCENES_DIR: the directory of downloaded nuScenes dataset.
+# PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
 # MAX_SWEEPS: Max number of sweeps. Default: 10.
 python pointcept/datasets/preprocessing/nuscenes/preprocess_nuscenes_info.py --dataset_root ${NUSCENES_DIR} --output_root ${PROCESSED_NUSCENES_DIR} --max_sweeps ${MAX_SWEEPS} --with_camera --grid_size 0.01 --fuse_prsp --fuse_pano
 ```
-- (Alternative) Our preprocess NuScenes information data can also be downloaded [[here](
+- (Alternative) Our preprocess nuScenes information data can also be downloaded [[here](
 )], please agree the official license before download it.
 
 - Link raw dataset to processed NuScene dataset folder:
 ```bash
-# NUSCENES_DIR: the directory of downloaded NuScenes dataset.
-# PROCESSED_NUSCENES_DIR: the directory of processed NuScenes dataset (output dir).
+# NUSCENES_DIR: the directory of downloaded nuScenes dataset.
+# PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
 ln -s ${NUSCENES_DIR} {PROCESSED_NUSCENES_DIR}/raw
 ```
 then the processed nuscenes folder is organized as follows:
@@ -269,7 +269,7 @@ nuscene
 
 - Link processed dataset to codebase.
 ```bash
-# PROCESSED_NUSCENES_DIR: the directory of processed NuScenes dataset (output dir).
+# PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
 mkdir data
 ln -s ${PROCESSED_NUSCENES_DIR} ${CODEBASE_DIR}/data/nuscenes
 ```
