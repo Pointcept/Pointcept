@@ -243,6 +243,7 @@ NUSCENES_DIR
 # NUSCENES_DIR: the directory of downloaded nuScenes dataset.
 # PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
 # MAX_SWEEPS: Max number of sweeps. Default: 10.
+pip install nuscenes-devkit pyquaternion
 python pointcept/datasets/preprocessing/nuscenes/preprocess_nuscenes_info.py --dataset_root ${NUSCENES_DIR} --output_root ${PROCESSED_NUSCENES_DIR} --max_sweeps ${MAX_SWEEPS} --with_camera --grid_size 0.01 --fuse_prsp --fuse_pano
 ```
 - (Alternative) Our preprocess nuScenes information data can also be downloaded [[here](
@@ -392,6 +393,8 @@ sh scripts/train.sh -g 4 -d s3dis -c semseg-spunet-v1m1-0-base -n semseg-spunet-
 sh scripts/train.sh -g 4 -d s3dis -c semseg-spunet-v1m1-0-cn-base -n semseg-spunet-v1m1-0-cn-base
 # SemanticKITTI
 sh scripts/train.sh -g 4 -d semantic_kitti -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
+# nuScenes
+sh scripts/train.sh -g 4 -d nuscenes -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
 # ModelNet40
 sh scripts/train.sh -g 2 -d modelnet40 -c cls-spunet-v1m1-0-base -n cls-spunet-v1m1-0-base
 
@@ -450,6 +453,8 @@ sh scripts/train.sh -g 4 -d scannet200 -c semseg-pt-v2m2-0-base -n semseg-pt-v2m
 sh scripts/train.sh -g 4 -d s3dis -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
 # SemanticKITTI
 sh scripts/train.sh -g 4 -d semantic_kitti -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
+# nuScenes
+sh scripts/train.sh -g 4 -d nuscenes -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
 ```
 
 - **PTv2 mode1**
