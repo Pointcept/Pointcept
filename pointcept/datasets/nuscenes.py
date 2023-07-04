@@ -65,7 +65,7 @@ class NuScenesDataset(DefaultDataset):
         lidar_path = os.path.join(self.data_root, "raw", data['lidar_path'])
         points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])
         coord = points[:, :3]
-        strength = points[:, 3:].reshape([coord.shape[0], -1])
+        strength = points[:, 3].reshape([-1, 1]) / 127.5 - 1  # scale strength to [-1, 1]
 
         if "gt_segment_path" in data.keys():
             gt_segment_path = os.path.join(self.data_root, "raw", data["gt_segment_path"])
@@ -77,7 +77,7 @@ class NuScenesDataset(DefaultDataset):
         return data_dict
 
     def get_data_name(self, idx):
-        return os.path.basename(self.data_list[idx % len(self.data_list)]).split(".")[0]
+        return self.data_list[idx % len(self.data_list)]["token"]
 
     @staticmethod
     def get_learning_map(ignore_index):
