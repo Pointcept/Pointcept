@@ -40,21 +40,25 @@ Conference on Neural Information Processing Systems (**NeurIPS**) 2022
 IEEE International Conference on Computer Vision (**ICCV**) 2021 - Oral  
 [ Backbone ] [ PTv1 ] - [ [arXiv](https://arxiv.org/abs/2012.09164) ] [ [Bib](https://hszhao.github.io/papers/iccv21_pointtransformer_bib.txt) ] &rarr; [here](#point-transformers)
 
-Additionally, **Pointcept** integrates the following excellent work:  
+Additionally, **Pointcept** integrates the following excellent work (contain above):  
 Backbone: 
 [MinkUNet](https://github.com/NVIDIA/MinkowskiEngine) ([here](#sparseunet)),
 [SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)),
 [SPVCNN](https://github.com/mit-han-lab/spvnas) ([here](#spvcnn)),
+[PTv1](https://arxiv.org/abs/2012.09164) ([here](#point-transformers)),
+[PTv2](https://arxiv.org/abs/2210.05666) ([here](#point-transformers)),
 [StratifiedFormer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)),
 [OctFormer](https://github.com/octree-nn/octformer) ([here](#octformer)),
 [Swin3D](https://github.com/microsoft/Swin3D) ([here](#swin3d));   
+Semantic Segmentation:
+[Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5)),
+[CAC](https://arxiv.org/abs/2303.11633) ([here](#context-aware-classifier));  
 Instance Segmentation: 
 [PointGroup](https://github.com/dvlab-research/PointGroup) ([here](#pointgroup));  
 Pre-training: 
 [PointContrast](https://github.com/facebookresearch/PointContrast) ([here](#pointcontrast)), 
-[Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts));  
-Augmentation: 
-[Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5));  
+[Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts)),
+[Masked Scene Contrast](https://arxiv.org/abs/2303.14191) ([here](#masked-scene-contrast));  
 Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
