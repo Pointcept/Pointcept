@@ -1,7 +1,7 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 8  # bs: total bs in all gpus
+batch_size = 12  # bs: total bs in all gpus
 mix_prob = 0
 empty_cache = False
 enable_amp = True
@@ -11,7 +11,7 @@ model = dict(
     type="DefaultSegmentor",
     backbone=dict(
         type="PT-v2m2",
-        in_channels=5,
+        in_channels=4,
         num_classes=16,
         patch_embed_depth=1,
         patch_embed_channels=48,
@@ -56,10 +56,8 @@ scheduler = dict(type="OneCycleLR",
 dataset_type = "NuScenesDataset"
 data_root = "data/nuscenes"
 ignore_index = -1
-names = ["barrier", "bicycle", "bus", "car", "construction_vehicle",
-         "motorcycle", "pedestrian", "traffic_cone", "trailer", "truck",
-         "driveable_surface", "other_flat", "sidewalk", "terrain", "manmade",
-         "vegetation"]
+names = ["barrier", "bicycle", "bus", "car", "construction_vehicle", "motorcycle", "pedestrian", "traffic_cone",
+         "trailer", "truck", "driveable_surface", "other_flat", "sidewalk", "terrain", "manmade", "vegetation"]
 
 data = dict(
     num_classes=16,
