@@ -248,7 +248,7 @@ NUSCENES_DIR
 # PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
 # MAX_SWEEPS: Max number of sweeps. Default: 10.
 pip install nuscenes-devkit pyquaternion
-python pointcept/datasets/preprocessing/nuscenes/preprocess_nuscenes_info.py --dataset_root ${NUSCENES_DIR} --output_root ${PROCESSED_NUSCENES_DIR} --max_sweeps ${MAX_SWEEPS} --with_camera --grid_size 0.01 --fuse_prsp --fuse_pano
+python pointcept/datasets/preprocessing/nuscenes/preprocess_nuscenes_info.py --dataset_root ${NUSCENES_DIR} --output_root ${PROCESSED_NUSCENES_DIR} --max_sweeps ${MAX_SWEEPS} --with_camera
 ```
 - (Alternative) Our preprocess nuScenes information data can also be downloaded [[here](
 )], please agree the official license before download it.
