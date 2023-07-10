@@ -5,6 +5,7 @@ batch_size = 8  # bs: total bs in all gpus
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
+evaluate = False
 
 # model settings
 model = dict(
@@ -132,7 +133,7 @@ data = dict(
     names=names,
     train=dict(
         type=dataset_type,
-        split="train",
+        split=["train", "val"],
         data_root=data_root,
         learning_map=learning_map,
         transform=[
@@ -157,25 +158,9 @@ data = dict(
         ],
         test_mode=False,
     ),
-
-    val=dict(
-        type=dataset_type,
-        split="val",
-        data_root=data_root,
-        learning_map=learning_map,
-        transform=[
-            dict(type="GridSample", grid_size=0.05, hash_type="fnv", mode="train",
-                 keys=("coord", "strength", "segment"), return_discrete_coord=True),
-            dict(type="PointClip", point_cloud_range=(-35.2, -35.2, -4, 35.2, 35.2, 2)),
-            dict(type="ToTensor"),
-            dict(type="Collect", keys=("coord", "discrete_coord", "segment"), feat_keys=("coord", "strength"))
-        ],
-        test_mode=False,
-    ),
-
     test=dict(
         type=dataset_type,
-        split="val",
+        split="test",
         data_root=data_root,
         learning_map=learning_map,
         transform=[
