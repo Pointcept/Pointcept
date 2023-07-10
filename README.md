@@ -11,10 +11,13 @@
 </p>
 
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
+- **Towards Large-scale 3D Representation Learning with Multi-dataset Point Prompt Training**
+[ Pretrain ] [PPT] - [ arXiv ] &rarr; [here](#point-prompt-training-ppt)
+
 - **Masked Scene Contrast: A Scalable Framework for Unsupervised 3D Representation Learning**   
 *Xiaoyang Wu, Xin Wen, Xihui Liu, Hengshuang Zhao*  
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2023  
-[ Pretrain ] [ MSC ] - [ [arXiv](https://arxiv.org/abs/2303.14191) ] [ [Bib](https://xywu.me/research/msc/bib.txt) ] &rarr; [here](#masked-scene-contrast)
+[ Pretrain ] [ MSC ] - [ [arXiv](https://arxiv.org/abs/2303.14191) ] [ [Bib](https://xywu.me/research/msc/bib.txt) ] &rarr; [here](#masked-scene-contrast-msc)
 
 
 - **Understanding Imbalanced Semantic Segmentation Through Neural Collapse** (3D Part)  
@@ -58,7 +61,8 @@ Instance Segmentation:
 Pre-training: 
 [PointContrast](https://github.com/facebookresearch/PointContrast) ([here](#pointcontrast)), 
 [Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts)),
-[Masked Scene Contrast](https://arxiv.org/abs/2303.14191) ([here](#masked-scene-contrast));  
+[Masked Scene Contrast](https://arxiv.org/abs/2303.14191) ([here](#masked-scene-contrast-msc)),
+Point Prompt Training ([here](#point-prompt-training-ppt));
 Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
@@ -624,7 +628,7 @@ sh scripts/train.sh -g 4 -d scannet -c insseg-pointgroup-v1m1-0-spunet-base -n i
 ```
 
 ### 3. Pre-training
-#### Masked Scene Contrast
+#### Masked Scene Contrast (MSC)
 1. Pre-training with the following example scripts:
 ```bash
 # ScanNet
@@ -641,6 +645,8 @@ sh scripts/train.sh -g 4 -d scannet -w exp/scannet/pretrain-msc-v1m1-0-spunet-ba
 ```
 3. Example log and weight: [[Pretrain](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/EYvNV4XUJ_5Mlk-g15RelN4BW_P8lVBfC_zhjC_BlBDARg?e=UoGFWH)] [[Semseg](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/EQkDiv5xkOFKgCpGiGtAlLwBon7i8W6my3TIbGVxuiTttQ?e=tQFnbr)]
 
+#### Point Prompt Training (PPT)
+
 #### PointContrast
 1. Preprocess and link ScanNet-Pair dataset (pair-wise matching with ScanNet raw RGB-D frame, ~1.5T):
 ```bash
@@ -654,7 +660,7 @@ ln -s ${PROCESSED_SCANNET_PAIR_DIR} ${CODEBASE_DIR}/data/scannet
 # ScanNet
 sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m1-1-spunet-pointcontrast -n pretrain-msc-v1m1-1-spunet-pointcontrast
 ```
-3. Fine-tuning refer [MSC](#masked-scene-contrast).
+3. Fine-tuning refer [MSC](#masked-scene-contrast-msc).
 
 #### Contrastive Scene Contexts
 1. Preprocess and link ScanNet-Pair dataset (refer [PointContrast](#pointcontrast)):
@@ -663,7 +669,7 @@ sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m1-1-spunet-pointcontrast 
 # ScanNet
 sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m2-0-spunet-csc -n pretrain-msc-v1m2-0-spunet-csc
 ```
-3. Fine-tuning refer [MSC](#masked-scene-contrast).
+3. Fine-tuning refer [MSC](#masked-scene-contrast-msc).
 
 ## Citation
 If you find _Pointcept_ useful to your research, please cite our work:
