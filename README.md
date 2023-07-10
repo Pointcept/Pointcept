@@ -40,27 +40,32 @@ Conference on Neural Information Processing Systems (**NeurIPS**) 2022
 IEEE International Conference on Computer Vision (**ICCV**) 2021 - Oral  
 [ Backbone ] [ PTv1 ] - [ [arXiv](https://arxiv.org/abs/2012.09164) ] [ [Bib](https://hszhao.github.io/papers/iccv21_pointtransformer_bib.txt) ] &rarr; [here](#point-transformers)
 
-Additionally, **Pointcept** integrates the following excellent work:  
+Additionally, **Pointcept** integrates the following excellent work (contain above):  
 Backbone: 
 [MinkUNet](https://github.com/NVIDIA/MinkowskiEngine) ([here](#sparseunet)),
 [SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)),
 [SPVCNN](https://github.com/mit-han-lab/spvnas) ([here](#spvcnn)),
+[PTv1](https://arxiv.org/abs/2012.09164) ([here](#point-transformers)),
+[PTv2](https://arxiv.org/abs/2210.05666) ([here](#point-transformers)),
 [StratifiedFormer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)),
 [OctFormer](https://github.com/octree-nn/octformer) ([here](#octformer)),
 [Swin3D](https://github.com/microsoft/Swin3D) ([here](#swin3d));   
+Semantic Segmentation:
+[Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5)),
+[CAC](https://arxiv.org/abs/2303.11633) ([here](#context-aware-classifier));  
 Instance Segmentation: 
 [PointGroup](https://github.com/dvlab-research/PointGroup) ([here](#pointgroup));  
 Pre-training: 
 [PointContrast](https://github.com/facebookresearch/PointContrast) ([here](#pointcontrast)), 
-[Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts));  
-Augmentation: 
-[Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5));  
+[Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts)),
+[Masked Scene Contrast](https://arxiv.org/abs/2303.14191) ([here](#masked-scene-contrast));  
 Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
 [S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1) ([here](#s3dis)),
 [ArkitScene](https://github.com/apple/ARKitScenes),
 [SemanticKITTI](http://www.semantic-kitti.org/) ([here](#semantickitti)),
+[nuScenes](https://www.nuscenes.org/nuscenes) ([here](#nuscenes)),
 [ModelNet40](https://modelnet.cs.princeton.edu/) ([here](#modelnet)),
 [Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)).
 
@@ -226,6 +231,54 @@ mkdir -p data
 ln -s ${SEMANTIC_KITTI_DIR} ${CODEBASE_DIR}/data/semantic_kitti
 ```
 
+### nuScenes
+- Download the official [NuScene](https://www.nuscenes.org/nuscenes#download) dataset (with Lidar Segmentation) and organize the downloaded files as follows:
+```bash
+NUSCENES_DIR
+│── samples
+│── sweeps
+│── lidarseg
+...
+│── v1.0-trainval 
+│── v1.0-test
+```
+- Run information preprocessing code (modified from OpenPCDet) for nuScenes as follows:
+```bash
+# NUSCENES_DIR: the directory of downloaded nuScenes dataset.
+# PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
+# MAX_SWEEPS: Max number of sweeps. Default: 10.
+pip install nuscenes-devkit pyquaternion
+python pointcept/datasets/preprocessing/nuscenes/preprocess_nuscenes_info.py --dataset_root ${NUSCENES_DIR} --output_root ${PROCESSED_NUSCENES_DIR} --max_sweeps ${MAX_SWEEPS} --with_camera
+```
+- (Alternative) Our preprocess nuScenes information data can also be downloaded [[here](
+)], please agree the official license before download it.
+
+- Link raw dataset to processed NuScene dataset folder:
+```bash
+# NUSCENES_DIR: the directory of downloaded nuScenes dataset.
+# PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
+ln -s ${NUSCENES_DIR} {PROCESSED_NUSCENES_DIR}/raw
+```
+then the processed nuscenes folder is organized as follows:
+```bash
+nuscene
+|── raw
+    │── samples
+    │── sweeps
+    │── lidarseg
+    ...
+    │── v1.0-trainval
+    │── v1.0-test
+|── info
+```
+
+- Link processed dataset to codebase.
+```bash
+# PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
+mkdir data
+ln -s ${PROCESSED_NUSCENES_DIR} ${CODEBASE_DIR}/data/nuscenes
+```
+
 ### ModelNet
 - Download [modelnet40_normal_resampled.zip](https://shapenet.cs.stanford.edu/media/modelnet40_normal_resampled.zip) and unzip
 - Link dataset to codebase.
@@ -344,6 +397,8 @@ sh scripts/train.sh -g 4 -d s3dis -c semseg-spunet-v1m1-0-base -n semseg-spunet-
 sh scripts/train.sh -g 4 -d s3dis -c semseg-spunet-v1m1-0-cn-base -n semseg-spunet-v1m1-0-cn-base
 # SemanticKITTI
 sh scripts/train.sh -g 4 -d semantic_kitti -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
+# nuScenes
+sh scripts/train.sh -g 4 -d nuscenes -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
 # ModelNet40
 sh scripts/train.sh -g 2 -d modelnet40 -c cls-spunet-v1m1-0-base -n cls-spunet-v1m1-0-base
 
@@ -402,6 +457,8 @@ sh scripts/train.sh -g 4 -d scannet200 -c semseg-pt-v2m2-0-base -n semseg-pt-v2m
 sh scripts/train.sh -g 4 -d s3dis -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
 # SemanticKITTI
 sh scripts/train.sh -g 4 -d semantic_kitti -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
+# nuScenes
+sh scripts/train.sh -g 4 -d nuscenes -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
 ```
 
 - **PTv2 mode1**

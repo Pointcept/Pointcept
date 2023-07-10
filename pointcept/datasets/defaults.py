@@ -36,8 +36,8 @@ class DefaultDataset(Dataset):
         self.test_cfg = test_cfg if test_mode else None
 
         if test_mode:
-            self.test_voxelize = TRANSFORMS.build(self.test_cfg.voxelize)
-            self.test_crop = TRANSFORMS.build(self.test_cfg.crop) if self.test_cfg.crop else None
+            self.test_voxelize = TRANSFORMS.build(self.test_cfg.voxelize) if self.test_cfg.voxelize is not None else None
+            self.test_crop = TRANSFORMS.build(self.test_cfg.crop) if self.test_cfg.crop is not None else None
             self.post_transform = Compose(self.test_cfg.post_transform)
             self.aug_transform = [Compose(aug) for aug in self.test_cfg.aug_transform]
 
@@ -90,9 +90,13 @@ class DefaultDataset(Dataset):
 
         input_dict_list = []
         for data in data_dict_list:
-            data_part_list = self.test_voxelize(data)
+            if self.test_voxelize is not None:
+                data_part_list = self.test_voxelize(data)
+            else:
+                data["index"] = np.arange(data["coord"].shape[0])
+                data_part_list = [data]
             for data_part in data_part_list:
-                if self.test_crop:
+                if self.test_crop is not None:
                     data_part = self.test_crop(data_part)
                 else:
                     data_part = [data_part]

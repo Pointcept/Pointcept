@@ -103,16 +103,14 @@ class Swin3DUNet(nn.Module):
     def forward(self, data_dict):
         discrete_coord = data_dict["discrete_coord"]
         feat = data_dict["feat"]
+        coord_feat = data_dict["coord_feat"]
         coord = data_dict["coord"]
-        color = data_dict["color"]
-        normal = data_dict["normal"]
         offset = data_dict["offset"]
         batch = offset2batch(offset)
         in_field = ME.TensorField(
             features=torch.cat([batch.unsqueeze(-1),
                                 coord / self.base_grid_size,
-                                color / 1.001,
-                                normal / 1.001,
+                                coord_feat / 1.001,
                                 feat
                                 ], dim=1),
             coordinates=torch.cat([batch.unsqueeze(-1).int(), discrete_coord.int()], dim=1),
@@ -122,12 +120,12 @@ class Swin3DUNet(nn.Module):
 
         sp = in_field.sparse()
         coords_sp = SparseTensor(
-            features=sp.F[:, :10],
+            features=sp.F[:, :coord_feat.shape[-1] + 4],
             coordinate_map_key=sp.coordinate_map_key,
             coordinate_manager=sp.coordinate_manager,
         )
         sp = SparseTensor(
-            features=sp.F[:, 10:],
+            features=sp.F[:, coord_feat.shape[-1] + 4:],
             coordinate_map_key=sp.coordinate_map_key,
             coordinate_manager=sp.coordinate_manager,
         )

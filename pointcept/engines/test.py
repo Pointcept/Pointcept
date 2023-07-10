@@ -42,12 +42,19 @@ class SemSegTester(object):
         save_path = os.path.join(cfg.save_path, "result", "test_epoch{}".format(cfg.test_epoch))
         make_dirs(save_path)
         # create submit folder only on main process
-        if "ScanNet" in cfg.dataset_type and comm.is_main_process():
-            sub_path = os.path.join(save_path, "submit")
-            make_dirs(sub_path)
-        if 'SemanticKITTI' in cfg.dataset_type and comm.is_main_process():
-            sub_path = os.path.join(save_path, "submit")
-            make_dirs(sub_path)
+        if  cfg.dataset_type == 'ScanNetDataset' and comm.is_main_process():
+            make_dirs(os.path.join(save_path, "submit"))
+        if  cfg.dataset_type == "SemanticKITTIDataset" and comm.is_main_process():
+            make_dirs(os.path.join(save_path, "submit"))
+        if cfg.dataset_type == "NuScenesDataset" and comm.is_main_process():
+            import json
+            make_dirs(os.path.join(save_path, "submit", "liderseg", "test"))
+            make_dirs(os.path.join(save_path, "submit", "test"))
+            submission = dict(meta=dict(
+                use_camera=False, use_lidar=True, use_radar=False, use_map=False, use_external=False
+            ))
+            with open(os.path.join(save_path, "submit", "test", "submission.json"), "w") as f:
+                json.dump(submission, f, indent=4)
         comm.synchronize()
         # fragment inference
         for idx, data_dict in enumerate(test_loader):
@@ -104,10 +111,10 @@ class SemSegTester(object):
                         'mIoU {iou:.4f} ({m_iou:.4f})'.format(data_name, idx + 1, len(test_loader), segment.size,
                                                               batch_time=batch_time, acc=acc, m_acc=m_acc,
                                                               iou=iou, m_iou=m_iou))
-            if "ScanNet" in cfg.dataset_type:
+            if cfg.dataset_type == "ScanNetDataset":
                 np.savetxt(os.path.join(save_path, "submit", '{}.txt'.format(data_name)),
                            test_dataset.class2id[pred].reshape([-1, 1]), fmt="%d")
-            if "SemanticKITTI" in cfg.dataset_type:
+            elif cfg.dataset_type == "SemanticKITTIDataset":
                 # 00_000000 -> 00, 000000
                 sequence_name, frame_name = data_name.split("_")
                 os.makedirs(
@@ -118,6 +125,11 @@ class SemSegTester(object):
                 pred.tofile(
                     os.path.join(save_path, "submit", "sequences", sequence_name, "predictions", f"{frame_name}.label")
                 )
+            elif cfg.dataset_type == "NuScenesDataset":
+                np.array(pred + 1).astype(np.uint8).tofile(
+                    os.path.join(save_path, "submit", "liderseg", "test", '{}_lidarseg.bin'.format(data_name)))
+
+
 
         logger.info("Syncing ...")
         comm.synchronize()

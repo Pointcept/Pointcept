@@ -93,23 +93,6 @@ data = dict(
         ],
         test_mode=False,
     ),
-
-    val=dict(
-        type=dataset_type,
-        split="val",
-        data_root=data_root,
-        transform=[
-            dict(type="CenterShift", apply_z=True),
-            dict(type="GridSample", grid_size=0.02, hash_type="fnv", mode="train", return_min_coord=True),
-            # dict(type="SphereCrop", point_max=1000000, mode="center"),
-            dict(type="CenterShift", apply_z=False),
-            dict(type="NormalizeColor"),
-            dict(type="ToTensor"),
-            dict(type="Collect", keys=("coord", "segment"), feat_keys=("coord", "color", "normal"))
-        ],
-        test_mode=False,
-    ),
-
     test=dict(
         type=dataset_type,
         split="test",

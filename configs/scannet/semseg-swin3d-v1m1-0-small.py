@@ -87,8 +87,9 @@ data = dict(
             dict(type="ShufflePoint"),
             dict(type="ToTensor"),
             dict(type="Collect",
-                 keys=("coord", "color", "normal", "discrete_coord", "segment"),
-                 feat_keys=("color", "normal", "displacement"))
+                 keys=("coord", "discrete_coord", "segment"),
+                 feat_keys=("color", "normal", "displacement"),
+                 coord_feat_keys=("color", "normal"))
         ],
         test_mode=False,
     ),
@@ -106,8 +107,9 @@ data = dict(
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
             dict(type="Collect",
-                 keys=("coord", "color", "normal", "discrete_coord", "segment"),
-                 feat_keys=("color", "normal", "displacement"))
+                 keys=("coord", "discrete_coord", "segment"),
+                 feat_keys=("color", "normal", "displacement"),
+                 coord_feat_keys=("color", "normal"))
         ],
         test_mode=False,
     ),
@@ -135,8 +137,9 @@ data = dict(
                 dict(type="CenterShift", apply_z=False),
                 dict(type="ToTensor"),
                 dict(type="Collect",
-                     keys=("coord", "color", "normal", "discrete_coord", "index"),
-                     feat_keys=("color", "normal", "displacement"))
+                     keys=("coord", "discrete_coord", "index"),
+                     feat_keys=("color", "normal", "displacement"),
+                     coord_feat_keys=("color", "normal"))
             ],
             aug_transform=[
                 [dict(type="RandomRotateTargetAngle", angle=[0], axis="z", center=[0, 0, 0], p=1)],
