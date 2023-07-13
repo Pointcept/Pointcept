@@ -306,10 +306,10 @@ For example:
 ```bash
 # By script (Recommended)
 # -p is default set as python and can be ignored
-sh scripts/train.sh -p python -d scannet -c semseg-ptv2m2-0-base -n semseg-ptv2m2-0-base
+sh scripts/train.sh -p python -d scannet -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
 # Direct
 export PYTHONPATH=./
-python tools/train.py --config-file configs/scannet/semseg-pt-v2m2-0-base.py --options save_path=exp/scannet/semseg-ptv2m2-0-base
+python tools/train.py --config-file configs/scannet/semseg-pt-v2m2-0-base.py --options save_path=exp/scannet/semseg-pt-v2m2-0-base
 ```
 **Resume training from checkpoint.** If the training process is interrupted by accident, the following script can resume training from a given checkpoint.
 ```bash
@@ -337,10 +337,10 @@ For example:
 # By script (Based on experiment folder created by training script)
 # -p is default set as python and can be ignored
 # -w is default set as model_best and can be ignored
-sh scripts/test.sh -p python -d scannet -n semseg-ptv2m2-0-base -w model_best
+sh scripts/test.sh -p python -d scannet -n semseg-pt-v2m2-0-base -w model_best
 # Direct
 export PYTHONPATH=./
-python tools/test.py --config-file configs/scannet/semseg-pt-v2m2-0-base.py --options save_path=exp/scannet/semseg-ptv2m2-0-base weight=exp/scannet/semseg-ptv2m2-0-base/models/model_best.pth
+python tools/test.py --config-file configs/scannet/semseg-pt-v2m2-0-base.py --options save_path=exp/scannet/semseg-pt-v2m2-0-base weight=exp/scannet/semseg-pt-v2m2-0-base/models/model_best.pth
 ```
 
 The TTA can be disabled by replace `data.test.test_cfg.aug_transform = [...]` with:
