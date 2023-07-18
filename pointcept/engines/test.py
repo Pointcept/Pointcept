@@ -48,7 +48,7 @@ class SemSegTester(object):
             make_dirs(os.path.join(save_path, "submit"))
         if cfg.dataset_type == "NuScenesDataset" and comm.is_main_process():
             import json
-            make_dirs(os.path.join(save_path, "submit", "liderseg", "test"))
+            make_dirs(os.path.join(save_path, "submit", "lidarseg", "test"))
             make_dirs(os.path.join(save_path, "submit", "test"))
             submission = dict(meta=dict(
                 use_camera=False, use_lidar=True, use_radar=False, use_map=False, use_external=False
