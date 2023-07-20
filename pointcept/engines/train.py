@@ -70,6 +70,7 @@ class TrainerBase:
                 # => after epoch
                 self.after_epoch()
             # => after train
+            comm.synchronize()
             self.after_train()
 
     def before_train(self):
