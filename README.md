@@ -565,27 +565,27 @@ pip install ./Swin3D
 3. Pre-Training with the following example scripts (Structured3D preprocessing refer [here](#structured3d)):
 ```bash
 # Structured3D + Swin-S
-sh scripts/train.sh -g 4 -d strcutured3d -c semseg-swin3d-v1m1-0-small -n semseg-swin3d-v1m1-0-small
+sh scripts/train.sh -g 4 -d structured3d -c semseg-swin3d-v1m1-0-small -n semseg-swin3d-v1m1-0-small
 # Structured3D + Swin-L
-sh scripts/train.sh -g 4 -d strcutured3d -c semseg-swin3d-v1m1-1-large -n semseg-swin3d-v1m1-1-large
+sh scripts/train.sh -g 4 -d structured3d -c semseg-swin3d-v1m1-1-large -n semseg-swin3d-v1m1-1-large
 
 # Addition
 # Structured3D + SpUNet
-sh scripts/train.sh -g 4 -d strcutured3d -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
+sh scripts/train.sh -g 4 -d structured3d -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
 # Structured3D + PTv2
-sh scripts/train.sh -g 4 -d strcutured3d -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
+sh scripts/train.sh -g 4 -d structured3d -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-0-base
 ```
 4. Fine-tuning with the following example scripts:
 ```bash
 # ScanNet + Swin-S
-sh scripts/train.sh -g 4 -d scannet -w exp/strcutured3d/semseg-swin3d-v1m1-1-large/model/model_last.pth -c semseg-swin3d-v1m1-0-small -n semseg-swin3d-v1m1-0-small
+sh scripts/train.sh -g 4 -d scannet -w exp/structured3d/semseg-swin3d-v1m1-1-large/model/model_last.pth -c semseg-swin3d-v1m1-0-small -n semseg-swin3d-v1m1-0-small
 # ScanNet + Swin-L
-sh scripts/train.sh -g 4 -d scannet -w exp/strcutured3d/semseg-swin3d-v1m1-1-large/model/model_last.pth -c semseg-swin3d-v1m1-1-large -n semseg-swin3d-v1m1-1-large
+sh scripts/train.sh -g 4 -d scannet -w exp/structured3d/semseg-swin3d-v1m1-1-large/model/model_last.pth -c semseg-swin3d-v1m1-1-large -n semseg-swin3d-v1m1-1-large
 
 # S3DIS + Swin-S (here we provide config support S3DIS normal vector)
-sh scripts/train.sh -g 4 -d s3dis -w exp/strcutured3d/semseg-swin3d-v1m1-1-large/model/model_last.pth -c semseg-swin3d-v1m1-0-small -n semseg-swin3d-v1m1-0-small
+sh scripts/train.sh -g 4 -d s3dis -w exp/structured3d/semseg-swin3d-v1m1-1-large/model/model_last.pth -c semseg-swin3d-v1m1-0-small -n semseg-swin3d-v1m1-0-small
 # S3DIS + Swin-L (here we provide config support S3DIS normal vector)
-sh scripts/train.sh -g 4 -d s3dis -w exp/strcutured3d/semseg-swin3d-v1m1-1-large/model/model_last.pth -c semseg-swin3d-v1m1-1-large -n semseg-swin3d-v1m1-1-large
+sh scripts/train.sh -g 4 -d s3dis -w exp/structured3d/semseg-swin3d-v1m1-1-large/model/model_last.pth -c semseg-swin3d-v1m1-1-large -n semseg-swin3d-v1m1-1-large
 ```
 
 #### Context-Aware Classifier
