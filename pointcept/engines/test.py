@@ -127,7 +127,7 @@ class SemSegTester(object):
                 )
             elif cfg.dataset_type == "NuScenesDataset":
                 np.array(pred + 1).astype(np.uint8).tofile(
-                    os.path.join(save_path, "submit", "liderseg", "test", '{}_lidarseg.bin'.format(data_name)))
+                    os.path.join(save_path, "submit", "lidarseg", "test", '{}_lidarseg.bin'.format(data_name)))
 
 
 
