@@ -71,6 +71,7 @@ Datasets:
 
 
 ## Highlights
+- *Jul, 2023*: **PTv2** also achieved fully reproducible SOTA performance on NuScenes (val mIoU 80.2% and test mIoU 82.6%) and Semantic-KITTI (val mIoU 70.3%) semantic segmentation.
 - *Mar, 2023*: We released our codebase, **Pointcept**, a highly potent tool for point cloud representation learning and perception. We welcome new work to join the _Pointcept_ family and highly recommend reading [Quick Start](#quick-start) before starting your trail.
 - *Feb, 2023*: **MSC** and **CeCo** accepted by CVPR 2023. _MSC_ is a highly efficient and effective pretraining framework that facilitates cross-dataset large-scale pretraining, while _CeCo_ is a segmentation method specifically designed for long-tail datasets. Both approaches are compatible with all existing backbone models in our codebase, and we will soon make the code available for public use.
 - *Jan, 2023*: **CAC**, oral work of AAAI 2023, has expanded its 3D result with the incorporation of Pointcept. This addition will allow CAC to serve as a pluggable segmentor within our codebase.
