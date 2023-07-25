@@ -40,12 +40,12 @@ model = dict(
 epoch = 600
 optimizer = dict(type="AdamW", lr=0.006, weight_decay=0.05)
 scheduler = dict(type="OneCycleLR",
-                 max_lr=optimizer["lr"],
+                 max_lr=[0.006, 0.0006],
                  pct_start=0.05,
                  anneal_strategy="cos",
                  div_factor=10.0,
                  final_div_factor=1000.0)
-param_dicts = [dict(keyword="blocks", lr=0.00015)]
+param_dicts = [dict(keyword="blocks", lr=0.0006)]
 
 # dataset settings
 dataset_type = "ScanNetDataset"
@@ -87,8 +87,9 @@ data = dict(
             dict(type="ShufflePoint"),
             dict(type="ToTensor"),
             dict(type="Collect",
-                 keys=("coord", "color", "normal", "discrete_coord", "segment"),
-                 feat_keys=("color", "normal", "displacement"))
+                 keys=("coord", "discrete_coord", "segment"),
+                 feat_keys=("color", "normal", "displacement"),
+                 coord_feat_keys=("color", "normal"))
         ],
         test_mode=False,
     ),
@@ -106,8 +107,9 @@ data = dict(
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
             dict(type="Collect",
-                 keys=("coord", "color", "normal", "discrete_coord", "segment"),
-                 feat_keys=("color", "normal", "displacement"))
+                 keys=("coord", "discrete_coord", "segment"),
+                 feat_keys=("color", "normal", "displacement"),
+                 coord_feat_keys=("color", "normal"))
         ],
         test_mode=False,
     ),
@@ -135,8 +137,9 @@ data = dict(
                 dict(type="CenterShift", apply_z=False),
                 dict(type="ToTensor"),
                 dict(type="Collect",
-                     keys=("coord", "color", "normal", "discrete_coord", "index"),
-                     feat_keys=("color", "normal", "displacement"))
+                     keys=("coord", "discrete_coord", "index"),
+                     feat_keys=("color", "normal", "displacement"),
+                     coord_feat_keys=("color", "normal"))
             ],
             aug_transform=[
                 [dict(type="RandomRotateTargetAngle", angle=[0], axis="z", center=[0, 0, 0], p=1)],
