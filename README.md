@@ -560,7 +560,7 @@ Swin3D from _Swin3D: A Pretrained Transformer Backbone for 3D Indoor Scene Under
 cd libs
 git clone https://github.com/microsoft/Swin3D.git
 cd Swin3D
-pip install ./Swin3D
+pip install ./
 ```
 2. Uncomment `# from .swin3d import *` in `pointcept/models/__init__.py`.
 3. Pre-Training with the following example scripts (Structured3D preprocessing refer [here](#structured3d)):
