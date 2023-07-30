@@ -611,8 +611,7 @@ sh scripts/train.sh -g 4 -d scannet200 -c semseg-cac-v1m1-2-ptv2-lovasz -n semse
 ```bash
 conda install -c bioconda google-sparsehash 
 cd libs/pointgroup_ops
-python setup.py build_ext --include-dirs=${CONDA_PREFIX}/include
-python setup.py install
+python setup.py install --include_dirs=${CONDA_PREFIX}/include
 cd ../..
 ```
 2. Uncomment `# from .point_group import *` in `pointcept/models/__init__.py`.
