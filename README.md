@@ -341,7 +341,7 @@ For example:
 sh scripts/test.sh -p python -d scannet -n semseg-pt-v2m2-0-base -w model_best
 # Direct
 export PYTHONPATH=./
-python tools/test.py --config-file configs/scannet/semseg-pt-v2m2-0-base.py --options save_path=exp/scannet/semseg-pt-v2m2-0-base weight=exp/scannet/semseg-pt-v2m2-0-base/models/model_best.pth
+python tools/test.py --config-file configs/scannet/semseg-pt-v2m2-0-base.py --options save_path=exp/scannet/semseg-pt-v2m2-0-base weight=exp/scannet/semseg-pt-v2m2-0-base/model/model_best.pth
 ```
 
 The TTA can be disabled by replace `data.test.test_cfg.aug_transform = [...]` with:
