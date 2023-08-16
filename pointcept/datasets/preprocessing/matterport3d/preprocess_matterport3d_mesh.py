@@ -82,7 +82,7 @@ def handle_process(mesh_path, output_path, mapping, train_scenes, val_scenes):
 
     # Get the normals
     normals = np.vstack([vertex_data['nx'], vertex_data['ny'], vertex_data['nz']]).T
-    save_dict = dict(coord=coords, color=colors, normal=normals, scene_id=scene_id)
+    save_dict = dict(coord=coords.astype("float32"), color=colors.astype("uint8"), normal=normals.astype("float32"), scene_id=scene_id+"_"+region_name)
 
     # Load segments file
     face_data = plydata['face'].data
@@ -102,10 +102,9 @@ def handle_process(mesh_path, output_path, mapping, train_scenes, val_scenes):
                             remapped_labels[row_id]] += 1
 
     vertex_labels = np.argmax(vertex_labels, axis=1)
-    vertex_labels[vertex_labels==0] = 256
     vertex_labels -= 1
     
-    save_dict["semantic_gt21"] = vertex_labels
+    save_dict["semantic_gt21"] = vertex_labels.astype("int16")
     
 
     # Save processed data
@@ -148,4 +147,4 @@ if __name__ == '__main__':
     # pool = ProcessPoolExecutor(max_workers=1)
     print('Processing scenes...')
     _ = list(pool.map(handle_process, scene_paths, repeat(opt.output_root), repeat(mapping), repeat(train_scenes),
-                      repeat(val_scenes), repeat(opt.parse_normals)))
+                      repeat(val_scenes)))
