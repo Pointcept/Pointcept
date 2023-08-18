@@ -1,5 +1,6 @@
 """
 Preprocessing Matterport3D
+adatpted from https://github.com/pengsongyou/openscene/blob/main/scripts/preprocess/preprocess_3d_matterport.py
 """
 import os
 import argparse
@@ -12,17 +13,6 @@ from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 from pathlib import Path
 import torch
-
-# adatpted from https://github.com/pengsongyou/openscene/blob/main/scripts/preprocess/preprocess_3d_matterport.py
-MATTERPORT_LABELS_21 = ('wall', 'floor', 'cabinet', 'bed', 'chair', 'sofa', 'table', 'door',
-                    'window', 'bookshelf', 'picture', 'counter', 'desk', 'curtain', 'refrigerator',
-                    'shower curtain', 'toilet', 'sink', 'bathtub', 'other', 'ceiling')
-
-# Map relevant classes to {0,1,...,19}, and ignored classes to 255
-remapper = np.ones(150) * (255)
-for i, x in enumerate([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39, 22]):
-    # 22 is for ceiling
-    remapper[x] = i
 
 MATTERPORT_CLASS_REMAP = np.zeros(41)
 MATTERPORT_CLASS_REMAP[1] = 1
@@ -47,12 +37,18 @@ MATTERPORT_CLASS_REMAP[34] = 18
 MATTERPORT_CLASS_REMAP[36] = 19
 MATTERPORT_CLASS_REMAP[39] = 20
 
+MATTERPORT_LABELS_21 = ('wall', 'floor', 'cabinet', 'bed', 'chair', 'sofa', 'table', 'door',
+                    'window', 'bookshelf', 'picture', 'counter', 'desk', 'curtain', 'refrigerator',
+                    'shower curtain', 'toilet', 'sink', 'bathtub', 'other', 'ceiling')
 MATTERPORT_ALLOWED_NYU_CLASSES = [
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 22, 24, 28, 33, 34, 36, 39]
 
 def handle_process(mesh_path, output_path, mapping, train_scenes, val_scenes):
+    # Get the scene id and region name from the mesh path
     scene_id = Path(mesh_path).parent.parent.name
     region_name = Path(mesh_path).stem
+    
+    # Check which split the scene belongs to (train, val, or test)
     if scene_id in train_scenes:
         output_folder = os.path.join(output_path, 'train', scene_id)
         output_file = os.path.join(output_path, 'train', scene_id, f'{region_name}.pth')
@@ -65,34 +61,42 @@ def handle_process(mesh_path, output_path, mapping, train_scenes, val_scenes):
         output_folder = os.path.join(output_path, 'test', scene_id)
         output_file = os.path.join(output_path, 'test', scene_id, f'{region_name}.pth')
         split_name = 'test'
+        
+    # Create the output directory if it doesn't exist
     os.makedirs(output_folder, exist_ok=True)
     print(f'Processing: {scene_id} in {split_name}')
     
+    # Load the vertex data
     with open(mesh_path, 'rb') as f:
         plydata = plyfile.PlyData.read(f)
-    
-    # Load the vertex data
     vertex_data = plydata['vertex'].data
 
-    # Get the coordinates
+    # Get the coordinates, colors, and normals from the vertex data
     coords = np.vstack([vertex_data['x'], vertex_data['y'], vertex_data['z']]).T
-
-    # Get the colors
     colors = np.vstack([vertex_data['red'], vertex_data['green'], vertex_data['blue']]).T
-
-    # Get the normals
     normals = np.vstack([vertex_data['nx'], vertex_data['ny'], vertex_data['nz']]).T
+    
+    # Prepare the data to be saved
     save_dict = dict(coord=coords.astype("float32"), color=colors.astype("uint8"), normal=normals.astype("float32"), scene_id=scene_id+"_"+region_name)
 
-    # Load segments file
+    # Load the face data
     face_data = plydata['face'].data
     category_id = face_data['category_id']
+    
+    # Replace -1 with 0 in category_id
     category_id[category_id==-1] = 0
+    
+    # Map the labels according to NYU40ID
     mapped_labels = mapping[category_id]
+    
+    # Replace labels not in MATTERPORT_ALLOWED_NYU_CLASSES with 0
     mapped_labels[np.logical_not(
             np.isin(mapped_labels, MATTERPORT_ALLOWED_NYU_CLASSES))] = 0
     
+    # Remap the labels to ScanNet 20 categories + ceiling
     remapped_labels = MATTERPORT_CLASS_REMAP[mapped_labels].astype(int)
+    
+    # Calculate per-vertex labels
     triangles = face_data['vertex_indices']
     vertex_labels = np.zeros((coords.shape[0], 22), dtype=np.int32)
     # calculate per-vertex labels
@@ -101,9 +105,11 @@ def handle_process(mesh_path, output_path, mapping, train_scenes, val_scenes):
             vertex_labels[triangles[row_id][i],
                             remapped_labels[row_id]] += 1
 
+    # Get the most frequent label for each vertex
     vertex_labels = np.argmax(vertex_labels, axis=1)
     vertex_labels -= 1
     
+    # Add the vertex labels to the data to be saved
     save_dict["semantic_gt21"] = vertex_labels.astype("int16")
     
 
@@ -112,7 +118,7 @@ def handle_process(mesh_path, output_path, mapping, train_scenes, val_scenes):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_root', required=True, help='Path to the ScanNet dataset containing scene folders')
+    parser.add_argument('--dataset_root', required=True, help='Path to the Matterport3D dataset containing scene folders')
     parser.add_argument('--output_root', required=True, help='Output path where train/val folders will be located')
     opt = parser.parse_args()
     
