@@ -303,7 +303,7 @@ ln -s ${PROCESSED_STRUCT3D_DIR} ${CODEBASE_DIR}/data/structured3d
     ```
 
 Following the instruction of [OpenRooms](https://github.com/ViLab-UCSD/OpenRooms), we remapped Matterport3D's categories to ScanNet 20 semantic categories with the addition of a ceiling category.
-* (Alternative) Our preprocess data can also be downloaded [here](), please agree the official license before download it.
+* (Alternative) Our preprocess data can also be downloaded [here](https://cuhko365-my.sharepoint.com/:u:/g/personal/118010378_link_cuhk_edu_cn/EURIWwxR7htAoIoViEYtKTYBWEHmCuATMAc2R01SF9Q77g?e=w1oTrG), please agree the official license before download it.
 
 ### SemanticKITTI
 - Download [SemanticKITTI](http://www.semantic-kitti.org/dataset.html#download) dataset.
