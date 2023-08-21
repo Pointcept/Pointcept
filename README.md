@@ -14,7 +14,7 @@
 - **Towards Large-scale 3D Representation Learning with Multi-dataset Point Prompt Training**  
 *Xiaoyang Wu, Zhuotao Tian, Xin Wen, Bohao Peng, Xihui Liu, Kaicheng Yu, Hengshuang Zhao*  
 arXiv Preprint 2023  
-[ Pretrain ] [PPT] - [ [arXiv](https://arxiv.org/abs/2308.09718) ] [ [Bib](https://xywu.me/research/ppt/bib.txt) ] &rarr; [here](#highlights)
+[ Pretrain ] [PPT] - [ [arXiv](https://arxiv.org/abs/2308.09718) ] [ [Bib](https://xywu.me/research/ppt/bib.txt) ] &rarr; [here](#point-prompt-training-ppt)
 
 
 - **Masked Scene Contrast: A Scalable Framework for Unsupervised 3D Representation Learning**  
@@ -650,6 +650,7 @@ sh scripts/train.sh -g 4 -d scannet -w exp/scannet/pretrain-msc-v1m1-0-spunet-ba
 3. Example log and weight: [[Pretrain](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/EYvNV4XUJ_5Mlk-g15RelN4BW_P8lVBfC_zhjC_BlBDARg?e=UoGFWH)] [[Semseg](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/EQkDiv5xkOFKgCpGiGtAlLwBon7i8W6my3TIbGVxuiTttQ?e=tQFnbr)]
 
 #### Point Prompt Training (PPT)
+PPT presents a multi-dataset pre-training framework that achieves SOTA performance in both **indoor** and **outdoor** scenarios. It is compatible with various existing pre-training frameworks and backbones.  A **pre-release** version of the code is accessible; for those interested, please feel free to contact me(xiaoyang.wu@connect.hku.hk) directly for access.
 
 #### PointContrast
 1. Preprocess and link ScanNet-Pair dataset (pair-wise matching with ScanNet raw RGB-D frame, ~1.5T):
