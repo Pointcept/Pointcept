@@ -12,7 +12,9 @@
 
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
 - **Towards Large-scale 3D Representation Learning with Multi-dataset Point Prompt Training**  
-[ Pretrain ] [PPT] - [ arXiv ] &rarr; [here](#point-prompt-training-ppt)
+*Xiaoyang Wu, Zhuotao Tian, Xin Wen, Bohao Peng, Xihui Liu, Kaicheng Yu, Hengshuang Zhao*  
+arXiv Preprint 2023  
+[ Pretrain ] [PPT] - [ [arXiv](https://arxiv.org/abs/2308.09718) ] [ [Bib](https://xywu.me/research/ppt/bib.txt) ] &rarr; soon
 
 
 - **Masked Scene Contrast: A Scalable Framework for Unsupervised 3D Representation Learning**  
