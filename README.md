@@ -11,10 +11,16 @@
 </p>
 
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
-- **Masked Scene Contrast: A Scalable Framework for Unsupervised 3D Representation Learning**   
+- **Towards Large-scale 3D Representation Learning with Multi-dataset Point Prompt Training**  
+*Xiaoyang Wu, Zhuotao Tian, Xin Wen, Bohao Peng, Xihui Liu, Kaicheng Yu, Hengshuang Zhao*  
+arXiv Preprint 2023  
+[ Pretrain ] [PPT] - [ [arXiv](https://arxiv.org/abs/2308.09718) ] [ [Bib](https://xywu.me/research/ppt/bib.txt) ] &rarr; [here](#point-prompt-training-ppt)
+
+
+- **Masked Scene Contrast: A Scalable Framework for Unsupervised 3D Representation Learning**  
 *Xiaoyang Wu, Xin Wen, Xihui Liu, Hengshuang Zhao*  
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2023  
-[ Pretrain ] [ MSC ] - [ [arXiv](https://arxiv.org/abs/2303.14191) ] [ [Bib](https://xywu.me/research/msc/bib.txt) ] &rarr; [here](#masked-scene-contrast)
+[ Pretrain ] [ MSC ] - [ [arXiv](https://arxiv.org/abs/2303.14191) ] [ [Bib](https://xywu.me/research/msc/bib.txt) ] &rarr; [here](#masked-scene-contrast-msc)
 
 
 - **Understanding Imbalanced Semantic Segmentation Through Neural Collapse** (3D Part)  
@@ -58,7 +64,8 @@ Instance Segmentation:
 Pre-training: 
 [PointContrast](https://github.com/facebookresearch/PointContrast) ([here](#pointcontrast)), 
 [Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts)),
-[Masked Scene Contrast](https://arxiv.org/abs/2303.14191) ([here](#masked-scene-contrast));  
+[Masked Scene Contrast](https://arxiv.org/abs/2303.14191) ([here](#masked-scene-contrast-msc)),
+[Point Prompt Training]() ([here](#point-prompt-training-ppt));  
 Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
@@ -71,6 +78,7 @@ Datasets:
 
 
 ## Highlights
+- *Aug, 2023*: **PPT** is released on arXiv. PPT presents a multi-dataset pre-training framework that achieves SOTA performance in both **indoor** and **outdoor** scenarios. It is compatible with various existing pre-training frameworks and backbones.  A **pre-release** version of the code is accessible; for those interested, please feel free to contact me directly for access.
 - *Jul, 2023*: **PTv2** also achieved fully reproducible SOTA performance on NuScenes (val mIoU 80.2% and test mIoU 82.6%) and Semantic-KITTI (val mIoU 70.3%) semantic segmentation.
 - *Mar, 2023*: We released our codebase, **Pointcept**, a highly potent tool for point cloud representation learning and perception. We welcome new work to join the _Pointcept_ family and highly recommend reading [Quick Start](#quick-start) before starting your trail.
 - *Feb, 2023*: **MSC** and **CeCo** accepted by CVPR 2023. _MSC_ is a highly efficient and effective pretraining framework that facilitates cross-dataset large-scale pretraining, while _CeCo_ is a segmentation method specifically designed for long-tail datasets. Both approaches are compatible with all existing backbone models in our codebase, and we will soon make the code available for public use.
@@ -624,7 +632,7 @@ sh scripts/train.sh -g 4 -d scannet -c insseg-pointgroup-v1m1-0-spunet-base -n i
 ```
 
 ### 3. Pre-training
-#### Masked Scene Contrast
+#### Masked Scene Contrast (MSC)
 1. Pre-training with the following example scripts:
 ```bash
 # ScanNet
@@ -641,6 +649,9 @@ sh scripts/train.sh -g 4 -d scannet -w exp/scannet/pretrain-msc-v1m1-0-spunet-ba
 ```
 3. Example log and weight: [[Pretrain](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/EYvNV4XUJ_5Mlk-g15RelN4BW_P8lVBfC_zhjC_BlBDARg?e=UoGFWH)] [[Semseg](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/EQkDiv5xkOFKgCpGiGtAlLwBon7i8W6my3TIbGVxuiTttQ?e=tQFnbr)]
 
+#### Point Prompt Training (PPT)
+PPT presents a multi-dataset pre-training framework that achieves SOTA performance in both **indoor** and **outdoor** scenarios. It is compatible with various existing pre-training frameworks and backbones.  A **pre-release** version of the code is accessible; for those interested, please feel free to contact me(xiaoyang.wu@connect.hku.hk) directly for access.
+
 #### PointContrast
 1. Preprocess and link ScanNet-Pair dataset (pair-wise matching with ScanNet raw RGB-D frame, ~1.5T):
 ```bash
@@ -654,7 +665,7 @@ ln -s ${PROCESSED_SCANNET_PAIR_DIR} ${CODEBASE_DIR}/data/scannet
 # ScanNet
 sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m1-1-spunet-pointcontrast -n pretrain-msc-v1m1-1-spunet-pointcontrast
 ```
-3. Fine-tuning refer [MSC](#masked-scene-contrast).
+3. Fine-tuning refer [MSC](#masked-scene-contrast-msc).
 
 #### Contrastive Scene Contexts
 1. Preprocess and link ScanNet-Pair dataset (refer [PointContrast](#pointcontrast)):
@@ -663,7 +674,7 @@ sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m1-1-spunet-pointcontrast 
 # ScanNet
 sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m2-0-spunet-csc -n pretrain-msc-v1m2-0-spunet-csc
 ```
-3. Fine-tuning refer [MSC](#masked-scene-contrast).
+3. Fine-tuning refer [MSC](#masked-scene-contrast-msc).
 
 ## Citation
 If you find _Pointcept_ useful to your research, please cite our work:
