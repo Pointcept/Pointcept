@@ -65,7 +65,7 @@ Pre-training:
 [PointContrast](https://github.com/facebookresearch/PointContrast) ([here](#pointcontrast)), 
 [Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts)),
 [Masked Scene Contrast](https://arxiv.org/abs/2303.14191) ([here](#masked-scene-contrast-msc)),
-[Point Prompt Training]() ([here](#point-prompt-training-ppt));  
+[Point Prompt Training](https://arxiv.org/abs/2308.09718) ([here](#point-prompt-training-ppt));  
 Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
