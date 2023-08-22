@@ -10,7 +10,7 @@ __device__ void __update(float *dists, int *dists_i, int idx1, int idx2) {
 }
 
 // input xyz: (n, 3), tmp: (b, n_max)
-// ouput idx (m)
+// output idx (m)
 template <unsigned int block_size>
 __global__ void furthestsampling_cuda_kernel(const float *xyz, const int *offset, const int *new_offset, float *tmp, int *idx)
 {
