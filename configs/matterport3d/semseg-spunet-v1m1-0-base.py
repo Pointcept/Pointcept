@@ -1,7 +1,7 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 32  # bs: total bs in all gpus
+batch_size = 12  # bs: total bs in all gpus
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -12,7 +12,7 @@ model = dict(
     backbone=dict(
         type="SpUNet-v1m1",
         in_channels=6,
-        num_classes=25,
+        num_classes=21,
         channels=(32, 64, 128, 256, 256, 128, 96, 96),
         layers=(2, 3, 4, 6, 2, 2, 2, 2)
     ),
