@@ -85,6 +85,17 @@ Datasets:
 - *Jan, 2023*: **CAC**, oral work of AAAI 2023, has expanded its 3D result with the incorporation of Pointcept. This addition will allow CAC to serve as a pluggable segmentor within our codebase.
 - *Sep, 2022*: **PTv2** accepted by NeurIPS 2022. It is a continuation of the Point Transformer. The proposed GVA theory can apply to most existing attention mechanisms, while Grid Pooling is also a practical addition to existing pooling methods.
 
+## Citation
+If you find _Pointcept_ useful to your research, please cite our work as encouragement. ଘ(੭ˊ꒳​ˋ)੭✧
+```
+@misc{pointcept2023,
+    title={Pointcept: A Codebase for Point Cloud Perception Research},
+    author={Pointcept Contributors},
+    howpublished = {\url{https://github.com/Pointcept/Pointcept}},
+    year={2023}
+}
+```
+
 ## Overview
 
 - [Installation](#installation)
@@ -675,17 +686,6 @@ sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m1-1-spunet-pointcontrast 
 sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m2-0-spunet-csc -n pretrain-msc-v1m2-0-spunet-csc
 ```
 3. Fine-tuning refer [MSC](#masked-scene-contrast-msc).
-
-## Citation
-If you find _Pointcept_ useful to your research, please cite our work:
-```
-@misc{pointcept2023,
-    title={Pointcept: A Codebase for Point Cloud Perception Research},
-    author={Pointcept Contributors},
-    howpublished = {\url{https://github.com/Pointcept/Pointcept}},
-    year={2023}
-}
-```
 
 ## Acknowledgement
 _Pointcept_ is designed by [Xiaoyang](https://xywu.me/), named by [Yixing](https://github.com/yxlao) and the logo is created by [Yuechen](https://julianjuaner.github.io/). It is derived from [Hengshuang](https://hszhao.github.io/)'s [Semseg](https://github.com/hszhao/semseg) and inspirited by several repos, e.g., [MinkowskiEngine](https://github.com/NVIDIA/MinkowskiEngine), [pointnet2](https://github.com/charlesq34/pointnet2), [mmcv](https://github.com/open-mmlab/mmcv/tree/master/mmcv), and [Detectron2](https://github.com/facebookresearch/detectron2).
