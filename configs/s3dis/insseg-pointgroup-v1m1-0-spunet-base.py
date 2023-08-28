@@ -9,8 +9,19 @@ enable_amp = True
 evaluate = True
 
 class_names = [
-    "ceiling", "floor", "wall", "beam", "column", "window", "door",
-    "table", "chair", "sofa", "bookcase", "board", "clutter"
+    "ceiling",
+    "floor",
+    "wall",
+    "beam",
+    "column",
+    "window",
+    "door",
+    "table",
+    "chair",
+    "sofa",
+    "bookcase",
+    "board",
+    "clutter",
 ]
 num_classes = 13
 segment_ignore_index = (-1,)
@@ -39,7 +50,7 @@ model = dict(
 
 # scheduler settings
 epoch = 3000
-optimizer = dict(type='SGD', lr=0.1, momentum=0.9, weight_decay=0.0001, nesterov=True)
+optimizer = dict(type="SGD", lr=0.1, momentum=0.9, weight_decay=0.0001, nesterov=True)
 scheduler = dict(type="PolyLR")
 
 # dataset settings
@@ -56,11 +67,13 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.5),
+            dict(
+                type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.5
+            ),
             # dict(type="RandomRotateTargetAngle", angle=(1/2, 1, 3/2), center=[0, 0, 0], axis='z', p=0.75),
-            dict(type="RandomRotate", angle=[-1, 1], axis='z', center=[0, 0, 0], p=0.5),
-            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis='x', p=0.5),
-            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis='y', p=0.5),
+            dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.5),
+            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.5),
+            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="y", p=0.5),
             dict(type="RandomScale", scale=[0.9, 1.1]),
             # dict(type="RandomShift", shift=[0.2, 0.2, 0.2]),
             dict(type="RandomFlip", p=0.5),
@@ -71,49 +84,84 @@ data = dict(
             dict(type="ChromaticJitter", p=0.95, std=0.005),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
-            dict(type="GridSample",
-                 grid_size=0.05,
-                 hash_type='fnv',
-                 mode='train',
-                 return_discrete_coord=True,
-                 keys=("coord", "color", "normal", "segment", "instance")),
-            dict(type="SphereCrop", sample_rate=0.8, mode='random'),
+            dict(
+                type="GridSample",
+                grid_size=0.05,
+                hash_type="fnv",
+                mode="train",
+                return_discrete_coord=True,
+                keys=("coord", "color", "normal", "segment", "instance"),
+            ),
+            dict(type="SphereCrop", sample_rate=0.8, mode="random"),
             dict(type="NormalizeColor"),
-            dict(type="InstanceParser", segment_ignore_index=segment_ignore_index, instance_ignore_index=-1),
+            dict(
+                type="InstanceParser",
+                segment_ignore_index=segment_ignore_index,
+                instance_ignore_index=-1,
+            ),
             dict(type="ToTensor"),
-            dict(type="Collect",
-                 keys=("coord", "discrete_coord", "segment", "instance", "instance_center", "bbox"),
-                 feat_keys=("color", "normal"))
+            dict(
+                type="Collect",
+                keys=(
+                    "coord",
+                    "discrete_coord",
+                    "segment",
+                    "instance",
+                    "instance_center",
+                    "bbox",
+                ),
+                feat_keys=("color", "normal"),
+            ),
         ],
         test_mode=False,
     ),
-
     val=dict(
         type=dataset_type,
         split="Area_5",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="Copy", keys_dict={
-                "coord": "origin_coord", "segment": "origin_segment", "instance": "origin_instance"
-            }),
-            dict(type="GridSample",
-                 grid_size=0.05,
-                 hash_type='fnv',
-                 mode='train',
-                 return_discrete_coord=True,
-                 keys=("coord", "color", "normal", "segment", "instance")),
+            dict(
+                type="Copy",
+                keys_dict={
+                    "coord": "origin_coord",
+                    "segment": "origin_segment",
+                    "instance": "origin_instance",
+                },
+            ),
+            dict(
+                type="GridSample",
+                grid_size=0.05,
+                hash_type="fnv",
+                mode="train",
+                return_discrete_coord=True,
+                keys=("coord", "color", "normal", "segment", "instance"),
+            ),
             # dict(type="SphereCrop", point_max=1000000, mode='center'),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
-            dict(type="InstanceParser", segment_ignore_index=segment_ignore_index, instance_ignore_index=-1),
+            dict(
+                type="InstanceParser",
+                segment_ignore_index=segment_ignore_index,
+                instance_ignore_index=-1,
+            ),
             dict(type="ToTensor"),
-            dict(type="Collect",
-                 keys=("coord", "discrete_coord", "segment",  "instance",
-                       "origin_coord", "origin_segment", "origin_instance",
-                       "instance_center", "bbox"),
-                 feat_keys=("color", "normal"),
-                 offset_keys_dict=dict(offset="coord", origin_offset="origin_coord"),)
+            dict(
+                type="Collect",
+                keys=(
+                    "coord",
+                    "discrete_coord",
+                    "segment",
+                    "instance",
+                    "origin_coord",
+                    "origin_segment",
+                    "origin_instance",
+                    "instance_center",
+                    "bbox",
+                ),
+                feat_keys=("color", "normal"),
+                offset_keys_dict=dict(offset="coord", origin_offset="origin_coord"),
+            ),
         ],
         test_mode=False,
     ),
@@ -121,9 +169,13 @@ data = dict(
 )
 
 hooks = [
-    dict(type="CheckpointLoader", keywords='module.', replacement='module.'),
+    dict(type="CheckpointLoader", keywords="module.", replacement="module."),
     dict(type="IterationTimer", warmup_iter=2),
     dict(type="InformationWriter"),
-    dict(type="InsSegEvaluator", segment_ignore_index=segment_ignore_index, instance_ignore_index=-1),
+    dict(
+        type="InsSegEvaluator",
+        segment_ignore_index=segment_ignore_index,
+        instance_ignore_index=-1,
+    ),
     dict(type="CheckpointSaver", save_freq=None),
 ]

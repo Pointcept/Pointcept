@@ -163,13 +163,16 @@ class SparseTensorLinear(nn.Module):
         x = self.linear(sp.F)
         return assign_feats(sp, x.float())
 
+
 class SparseTensorLayerNorm(nn.Module):
     def __init__(self, dim):
         super().__init__()
         self.norm = nn.LayerNorm(dim)
+
     def forward(self, sp):
         x = self.norm(sp.F)
         return assign_feats(sp, x.float())
+
 
 class MinkResBlock_v2(nn.Module):
     def __init__(self, in_channels, out_channels):

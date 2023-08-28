@@ -16,33 +16,43 @@ from .defaults import DefaultDataset
 
 @DATASETS.register_module()
 class NuScenesDataset(DefaultDataset):
-    def __init__(self,
-                 split='train',
-                 data_root='data/dataset',
-                 sweeps=10,
-                 transform=None,
-                 test_mode=False,
-                 test_cfg=None,
-                 loop=1,
-                 ignore_index=-1):
-        self.sweeps=sweeps
+    def __init__(
+        self,
+        split="train",
+        data_root="data/dataset",
+        sweeps=10,
+        transform=None,
+        test_mode=False,
+        test_cfg=None,
+        loop=1,
+        ignore_index=-1,
+    ):
+        self.sweeps = sweeps
         self.ignore_index = ignore_index
         self.learning_map = self.get_learning_map(ignore_index)
-        super().__init__(split=split,
-                         data_root=data_root,
-                         transform=transform,
-                         test_mode=test_mode,
-                         test_cfg=test_cfg,
-                         loop=loop)
+        super().__init__(
+            split=split,
+            data_root=data_root,
+            transform=transform,
+            test_mode=test_mode,
+            test_cfg=test_cfg,
+            loop=loop,
+        )
 
     def get_info_path(self, split):
         assert split in ["train", "val", "test"]
         if split == "train":
-            return os.path.join(self.data_root, "info", f"nuscenes_infos_{self.sweeps}sweeps_train.pkl")
+            return os.path.join(
+                self.data_root, "info", f"nuscenes_infos_{self.sweeps}sweeps_train.pkl"
+            )
         elif split == "val":
-            return os.path.join(self.data_root, "info", f"nuscenes_infos_{self.sweeps}sweeps_val.pkl")
+            return os.path.join(
+                self.data_root, "info", f"nuscenes_infos_{self.sweeps}sweeps_val.pkl"
+            )
         elif split == "test":
-            return os.path.join(self.data_root, "info", f"nuscenes_infos_{self.sweeps}sweeps_test.pkl")
+            return os.path.join(
+                self.data_root, "info", f"nuscenes_infos_{self.sweeps}sweeps_test.pkl"
+            )
         else:
             raise NotImplementedError
 
@@ -55,22 +65,32 @@ class NuScenesDataset(DefaultDataset):
             raise NotImplementedError
         data_list = []
         for info_path in info_paths:
-            with open(info_path, 'rb') as f:
+            with open(info_path, "rb") as f:
                 info = pickle.load(f)
                 data_list.extend(info)
         return data_list
 
     def get_data(self, idx):
         data = self.data_list[idx % len(self.data_list)]
-        lidar_path = os.path.join(self.data_root, "raw", data['lidar_path'])
-        points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])
+        lidar_path = os.path.join(self.data_root, "raw", data["lidar_path"])
+        points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape(
+            [-1, 5]
+        )
         coord = points[:, :3]
-        strength = points[:, 3].reshape([-1, 1]) / 127.5 - 1  # scale strength to [-1, 1]
+        strength = (
+            points[:, 3].reshape([-1, 1]) / 127.5 - 1
+        )  # scale strength to [-1, 1]
 
         if "gt_segment_path" in data.keys():
-            gt_segment_path = os.path.join(self.data_root, "raw", data["gt_segment_path"])
-            segment = np.fromfile(str(gt_segment_path), dtype=np.uint8, count=-1).reshape([-1])
-            segment = np.vectorize(self.learning_map.__getitem__)(segment).astype(np.int64)
+            gt_segment_path = os.path.join(
+                self.data_root, "raw", data["gt_segment_path"]
+            )
+            segment = np.fromfile(
+                str(gt_segment_path), dtype=np.uint8, count=-1
+            ).reshape([-1])
+            segment = np.vectorize(self.learning_map.__getitem__)(segment).astype(
+                np.int64
+            )
         else:
             segment = np.ones((points.shape[0],), dtype=np.int64) * self.ignore_index
         data_dict = dict(coord=coord, strength=strength, segment=segment)

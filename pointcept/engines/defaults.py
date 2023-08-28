@@ -35,7 +35,7 @@ def create_ddp_model(model, *, fp16_compression=False, **kwargs):
         kwargs["device_ids"] = [comm.get_local_rank()]
         if "output_device" not in kwargs:
             kwargs["output_device"] = [comm.get_local_rank()]
-    ddp = DistributedDataParallel(model,  **kwargs)
+    ddp = DistributedDataParallel(model, **kwargs)
     if fp16_compression:
         from torch.distributed.algorithms.ddp_comm_hooks import default as comm_hooks
 
@@ -74,11 +74,20 @@ def default_argument_parser(epilog=None):
     """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument('--config-file', default="", metavar="FILE", help="path to config file")
-    parser.add_argument("--num-gpus", type=int, default=1, help="number of gpus *per machine*")
-    parser.add_argument("--num-machines", type=int, default=1, help="total number of machines")
     parser.add_argument(
-        "--machine-rank", type=int, default=0, help="the rank of this machine (unique per machine)"
+        "--config-file", default="", metavar="FILE", help="path to config file"
+    )
+    parser.add_argument(
+        "--num-gpus", type=int, default=1, help="number of gpus *per machine*"
+    )
+    parser.add_argument(
+        "--num-machines", type=int, default=1, help="total number of machines"
+    )
+    parser.add_argument(
+        "--machine-rank",
+        type=int,
+        default=0,
+        help="the rank of this machine (unique per machine)",
     )
     # PyTorch still may leave orphan processes in multi-gpu training.
     # Therefore we use a deterministic way to obtain port,
@@ -89,9 +98,11 @@ def default_argument_parser(epilog=None):
         # default="tcp://127.0.0.1:{}".format(port),
         default="auto",
         help="initialization URL for pytorch distributed backend. See "
-             "https://pytorch.org/docs/stable/distributed.html for details.",
+        "https://pytorch.org/docs/stable/distributed.html for details.",
     )
-    parser.add_argument('--options', nargs='+', action=DictAction, help='custom options')
+    parser.add_argument(
+        "--options", nargs="+", action=DictAction, help="custom options"
+    )
     return parser
 
 
@@ -101,7 +112,7 @@ def default_config_parser(file_path, options):
         cfg = Config.fromfile(file_path)
     else:
         sep = file_path.find("-")
-        cfg = Config.fromfile(os.path.join(file_path[:sep], file_path[sep + 1:]))
+        cfg = Config.fromfile(os.path.join(file_path[:sep], file_path[sep + 1 :]))
 
     if options is not None:
         cfg.merge_from_dict(options)
@@ -126,8 +137,12 @@ def default_setup(cfg):
     assert cfg.batch_size_val is None or cfg.batch_size_val % world_size == 0
     assert cfg.batch_size_test is None or cfg.batch_size_test % world_size == 0
     cfg.batch_size_per_gpu = cfg.batch_size // world_size
-    cfg.batch_size_val_per_gpu = cfg.batch_size_val // world_size if cfg.batch_size_val is not None else 1
-    cfg.batch_size_test_per_gpu = cfg.batch_size_test // world_size if cfg.batch_size_test is not None else 1
+    cfg.batch_size_val_per_gpu = (
+        cfg.batch_size_val // world_size if cfg.batch_size_val is not None else 1
+    )
+    cfg.batch_size_test_per_gpu = (
+        cfg.batch_size_test // world_size if cfg.batch_size_test is not None else 1
+    )
     # update data loop
     assert cfg.epoch % cfg.eval_epoch == 0
     # settle random seed

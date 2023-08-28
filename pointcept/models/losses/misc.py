@@ -13,24 +13,27 @@ from .builder import LOSSES
 
 @LOSSES.register_module()
 class CrossEntropyLoss(nn.Module):
-    def __init__(self,
-                 weight=None,
-                 size_average=None,
-                 reduce=None,
-                 reduction='mean',
-                 label_smoothing=0.0,
-                 loss_weight=1.0,
-                 ignore_index=-1
-                 ):
+    def __init__(
+        self,
+        weight=None,
+        size_average=None,
+        reduce=None,
+        reduction="mean",
+        label_smoothing=0.0,
+        loss_weight=1.0,
+        ignore_index=-1,
+    ):
         super(CrossEntropyLoss, self).__init__()
         weight = torch.tensor(weight).cuda() if weight is not None else None
         self.loss_weight = loss_weight
-        self.loss = nn.CrossEntropyLoss(weight=weight,
-                                        size_average=size_average,
-                                        ignore_index=ignore_index,
-                                        reduce=reduce,
-                                        reduction=reduction,
-                                        label_smoothing=label_smoothing)
+        self.loss = nn.CrossEntropyLoss(
+            weight=weight,
+            size_average=size_average,
+            ignore_index=ignore_index,
+            reduce=reduce,
+            reduction=reduction,
+            label_smoothing=label_smoothing,
+        )
 
     def forward(self, pred, target):
         return self.loss(pred, target) * self.loss_weight
@@ -55,13 +58,8 @@ class SmoothCELoss(nn.Module):
 
 @LOSSES.register_module()
 class BinaryFocalLoss(nn.Module):
-    def __init__(self,
-                 gamma=2.0,
-                 alpha=0.5,
-                 logits=True,
-                 reduce=True,
-                 loss_weight=1.0):
-        """ Binary Focal Loss
+    def __init__(self, gamma=2.0, alpha=0.5, logits=True, reduce=True, loss_weight=1.0):
+        """Binary Focal Loss
         <https://arxiv.org/abs/1708.02002>`
         """
         super(BinaryFocalLoss, self).__init__()
@@ -97,26 +95,25 @@ class BinaryFocalLoss(nn.Module):
 
 @LOSSES.register_module()
 class FocalLoss(nn.Module):
-    def __init__(self,
-                 gamma=2.0,
-                 alpha=0.5,
-                 reduction='mean',
-                 loss_weight=1.0,
-                 ignore_index=-1):
+    def __init__(
+        self, gamma=2.0, alpha=0.5, reduction="mean", loss_weight=1.0, ignore_index=-1
+    ):
         """Focal Loss
         <https://arxiv.org/abs/1708.02002>`
         """
         super(FocalLoss, self).__init__()
-        assert reduction in ('mean', 'sum'), \
-            "AssertionError: reduction should be 'mean' or 'sum'"
-        assert isinstance(alpha, (float, list)), \
-            'AssertionError: alpha should be of type float'
-        assert isinstance(gamma, float), \
-            'AssertionError: gamma should be of type float'
-        assert isinstance(loss_weight, float), \
-            'AssertionError: loss_weight should be of type float'
-        assert isinstance(ignore_index, int), \
-            'ignore_index must be of type int'
+        assert reduction in (
+            "mean",
+            "sum",
+        ), "AssertionError: reduction should be 'mean' or 'sum'"
+        assert isinstance(
+            alpha, (float, list)
+        ), "AssertionError: alpha should be of type float"
+        assert isinstance(gamma, float), "AssertionError: gamma should be of type float"
+        assert isinstance(
+            loss_weight, float
+        ), "AssertionError: loss_weight should be of type float"
+        assert isinstance(ignore_index, int), "ignore_index must be of type int"
         self.gamma = gamma
         self.alpha = alpha
         self.reduction = reduction
@@ -141,14 +138,15 @@ class FocalLoss(nn.Module):
         pred = pred.transpose(0, 1).contiguous()
         # (B, d_1, d_2, ..., d_k) --> (B * d_1 * d_2 * ... * d_k,)
         target = target.view(-1).contiguous()
-        assert pred.size(0) == target.size(0), \
-            "The shape of pred doesn't match the shape of target"
+        assert pred.size(0) == target.size(
+            0
+        ), "The shape of pred doesn't match the shape of target"
         valid_mask = target != self.ignore_index
         target = target[valid_mask]
         pred = pred[valid_mask]
 
         if len(target) == 0:
-            return 0.
+            return 0.0
 
         num_classes = pred.size(1)
         target = F.one_hot(target, num_classes=num_classes)
@@ -159,25 +157,24 @@ class FocalLoss(nn.Module):
         pred_sigmoid = pred.sigmoid()
         target = target.type_as(pred)
         one_minus_pt = (1 - pred_sigmoid) * target + pred_sigmoid * (1 - target)
-        focal_weight = (alpha * target + (1 - alpha) *
-                        (1 - target)) * one_minus_pt.pow(self.gamma)
+        focal_weight = (alpha * target + (1 - alpha) * (1 - target)) * one_minus_pt.pow(
+            self.gamma
+        )
 
-        loss = F.binary_cross_entropy_with_logits(
-            pred, target, reduction='none') * focal_weight
-        if self.reduction == 'mean':
+        loss = (
+            F.binary_cross_entropy_with_logits(pred, target, reduction="none")
+            * focal_weight
+        )
+        if self.reduction == "mean":
             loss = loss.mean()
-        elif self.reduction == 'sum':
+        elif self.reduction == "sum":
             loss = loss.total()
         return self.loss_weight * loss
 
 
 @LOSSES.register_module()
 class DiceLoss(nn.Module):
-    def __init__(self,
-                 smooth=1,
-                 exponent=2,
-                 loss_weight=1.0,
-                 ignore_index=-1):
+    def __init__(self, smooth=1, exponent=2, loss_weight=1.0, ignore_index=-1):
         """DiceLoss.
         This loss is proposed in `V-Net: Fully Convolutional Neural Networks for
         Volumetric Medical Image Segmentation <https://arxiv.org/abs/1606.04797>`_.
@@ -188,11 +185,7 @@ class DiceLoss(nn.Module):
         self.loss_weight = loss_weight
         self.ignore_index = ignore_index
 
-    def forward(self,
-                pred,
-                target,
-                **kwargs):
-
+    def forward(self, pred, target, **kwargs):
         # [B, C, d_1, d_2, ..., d_k] -> [C, B, d_1, d_2, ..., d_k]
         pred = pred.transpose(0, 1)
         # [C, B, d_1, d_2, ..., d_k] -> [C, N]
@@ -201,8 +194,9 @@ class DiceLoss(nn.Module):
         pred = pred.transpose(0, 1).contiguous()
         # (B, d_1, d_2, ..., d_k) --> (B * d_1 * d_2 * ... * d_k,)
         target = target.view(-1).contiguous()
-        assert pred.size(0) == target.size(0), \
-            "The shape of pred doesn't match the shape of target"
+        assert pred.size(0) == target.size(
+            0
+        ), "The shape of pred doesn't match the shape of target"
         valid_mask = target != self.ignore_index
         target = target[valid_mask]
         pred = pred[valid_mask]
@@ -210,14 +204,19 @@ class DiceLoss(nn.Module):
         pred = F.softmax(pred, dim=1)
         num_classes = pred.shape[1]
         target = F.one_hot(
-            torch.clamp(target.long(), 0, num_classes - 1),
-            num_classes=num_classes)
+            torch.clamp(target.long(), 0, num_classes - 1), num_classes=num_classes
+        )
 
         total_loss = 0
         for i in range(num_classes):
             if i != self.ignore_index:
                 num = torch.sum(torch.mul(pred[:, i], target[:, i])) * 2 + self.smooth
-                den = torch.sum(pred[:, i].pow(self.exponent) + target[:, i].pow(self.exponent)) + self.smooth
+                den = (
+                    torch.sum(
+                        pred[:, i].pow(self.exponent) + target[:, i].pow(self.exponent)
+                    )
+                    + self.smooth
+                )
                 dice_loss = 1 - num / den
                 total_loss += dice_loss
         loss = total_loss / num_classes

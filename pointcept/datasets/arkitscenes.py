@@ -20,18 +20,22 @@ from .preprocessing.scannet.meta_data.scannet200_constants import VALID_CLASS_ID
 
 @DATASETS.register_module()
 class ArkitScenesDataset(Dataset):
-    def __init__(self,
-                 split="Training",
-                 data_root="data/ARKitScenesMesh",
-                 transform=None,
-                 test_mode=False,
-                 test_cfg=None,
-                 loop=1):
+    def __init__(
+        self,
+        split="Training",
+        data_root="data/ARKitScenesMesh",
+        transform=None,
+        test_mode=False,
+        test_cfg=None,
+        loop=1,
+    ):
         super(ArkitScenesDataset, self).__init__()
         self.data_root = data_root
         self.split = split
         self.transform = Compose(transform)
-        self.loop = loop if not test_mode else 1    # force make loop = 1 while in test mode
+        self.loop = (
+            loop if not test_mode else 1
+        )  # force make loop = 1 while in test mode
         self.test_mode = test_mode
         self.test_cfg = test_cfg if test_mode else None
         self.class2id = np.array(VALID_CLASS_IDS_200)
@@ -44,7 +48,11 @@ class ArkitScenesDataset(Dataset):
 
         self.data_list = self.get_data_list()
         logger = get_root_logger()
-        logger.info("Totally {} x {} samples in {} set.".format(len(self.data_list), self.loop, split))
+        logger.info(
+            "Totally {} x {} samples in {} set.".format(
+                len(self.data_list), self.loop, split
+            )
+        )
 
     def get_data_list(self):
         if isinstance(self.split, str):
@@ -83,9 +91,7 @@ class ArkitScenesDataset(Dataset):
         data_dict = self.transform(data_dict)
         data_dict_list = []
         for aug in self.aug_transform:
-            data_dict_list.append(
-                aug(deepcopy(data_dict))
-            )
+            data_dict_list.append(aug(deepcopy(data_dict)))
 
         input_dict_list = []
         for data in data_dict_list:
@@ -106,4 +112,3 @@ class ArkitScenesDataset(Dataset):
 
     def __len__(self):
         return len(self.data_list) * self.loop
-

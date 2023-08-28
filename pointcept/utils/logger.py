@@ -33,7 +33,7 @@ class _ColorfulFormatter(logging.Formatter):
         return prefix + " " + log
 
 
-def get_logger(name, log_file=None, log_level=logging.INFO, file_mode='a', color=False):
+def get_logger(name, log_file=None, log_level=logging.INFO, file_mode="a", color=False):
     """Initialize and get a logger by name.
 
     If the logger has not been initialized, this method will initialize the
@@ -86,12 +86,13 @@ def get_logger(name, log_file=None, log_level=logging.INFO, file_mode='a', color
         handlers.append(file_handler)
 
     plain_formatter = logging.Formatter(
-        "[%(asctime)s %(levelname)s %(filename)s line %(lineno)d %(process)d] %(message)s")
+        "[%(asctime)s %(levelname)s %(filename)s line %(lineno)d %(process)d] %(message)s"
+    )
     if color:
         formatter = _ColorfulFormatter(
             colored("[%(asctime)s %(name)s]: ", "green") + "%(message)s",
             datefmt="%m/%d %H:%M:%S",
-            root_name=name
+            root_name=name,
         )
     else:
         formatter = plain_formatter
@@ -127,18 +128,19 @@ def print_log(msg, logger=None, level=logging.INFO):
         print(msg)
     elif isinstance(logger, logging.Logger):
         logger.log(level, msg)
-    elif logger == 'silent':
+    elif logger == "silent":
         pass
     elif isinstance(logger, str):
         _logger = get_logger(logger)
         _logger.log(level, msg)
     else:
         raise TypeError(
-            'logger should be either a logging.Logger object, str, '
-            f'"silent" or None, but got {type(logger)}')
+            "logger should be either a logging.Logger object, str, "
+            f'"silent" or None, but got {type(logger)}'
+        )
 
 
-def get_root_logger(log_file=None, log_level=logging.INFO, file_mode='a'):
+def get_root_logger(log_file=None, log_level=logging.INFO, file_mode="a"):
     """Get the root logger.
 
     The logger will be initialized if it has not been initialized. By default a
@@ -157,7 +159,9 @@ def get_root_logger(log_file=None, log_level=logging.INFO, file_mode='a'):
     Returns:
         logging.Logger: The root logger.
     """
-    logger = get_logger(name='pointcept', log_file=log_file, log_level=log_level, file_mode=file_mode)
+    logger = get_logger(
+        name="pointcept", log_file=log_file, log_level=log_level, file_mode=file_mode
+    )
     return logger
 
 

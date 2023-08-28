@@ -23,16 +23,12 @@ model = dict(
         num_layers=5,
         stem_transformer=True,
         down_stride=3,
-        upsample='linear_attn',
+        upsample="linear_attn",
         knn_down=True,
-        cRSE='XYZ_RGB_NORM',
-        fp16_mode=1
+        cRSE="XYZ_RGB_NORM",
+        fp16_mode=1,
     ),
-    criteria=[
-        dict(type="CrossEntropyLoss",
-             loss_weight=1.0,
-             ignore_index=-1)
-    ]
+    criteria=[dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1)],
 )
 
 # scheduler settings
@@ -48,8 +44,21 @@ data_root = "data/s3dis"
 data = dict(
     num_classes=13,
     ignore_index=-1,
-    names=["ceiling", "floor", "wall", "beam", "column", "window", "door",
-           "table", "chair", "sofa", "bookcase", "board", "clutter"],
+    names=[
+        "ceiling",
+        "floor",
+        "wall",
+        "beam",
+        "column",
+        "window",
+        "door",
+        "table",
+        "chair",
+        "sofa",
+        "bookcase",
+        "board",
+        "clutter",
+    ],
     train=dict(
         type=dataset_type,
         split=("Area_1", "Area_2", "Area_3", "Area_4", "Area_6"),
@@ -71,19 +80,27 @@ data = dict(
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
-            dict(type="GridSample", grid_size=0.04, hash_type="fnv", mode="train",
-                 return_discrete_coord=True, return_displacement=True),
+            dict(
+                type="GridSample",
+                grid_size=0.04,
+                hash_type="fnv",
+                mode="train",
+                return_discrete_coord=True,
+                return_displacement=True,
+            ),
             dict(type="SphereCrop", point_max=80000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             # dict(type="ShufflePoint"),
             dict(type="ToTensor"),
-            dict(type="Collect",
-                 keys=("coord", "discrete_coord", "segment"),
-                 feat_keys=("color", "normal", "displacement"),
-                 coord_feat_keys=("color", "normal"))
+            dict(
+                type="Collect",
+                keys=("coord", "discrete_coord", "segment"),
+                feat_keys=("color", "normal", "displacement"),
+                coord_feat_keys=("color", "normal"),
+            ),
         ],
-        test_mode=False
+        test_mode=False,
     ),
     val=dict(
         type=dataset_type,
@@ -91,25 +108,31 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(type="GridSample", grid_size=0.04, hash_type="fnv", mode="train",
-                 return_discrete_coord=True, return_displacement=True),
+            dict(
+                type="GridSample",
+                grid_size=0.04,
+                hash_type="fnv",
+                mode="train",
+                return_discrete_coord=True,
+                return_displacement=True,
+            ),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
-            dict(type="Collect",
-                 keys=("coord", "discrete_coord", "segment"),
-                 feat_keys=("color", "normal", "displacement"),
-                 coord_feat_keys=("color", "normal"))
+            dict(
+                type="Collect",
+                keys=("coord", "discrete_coord", "segment"),
+                feat_keys=("color", "normal", "displacement"),
+                coord_feat_keys=("color", "normal"),
+            ),
         ],
-        test_mode=False),
+        test_mode=False,
+    ),
     test=dict(
         type=dataset_type,
         split="Area_5",
         data_root=data_root,
-        transform=[
-            dict(type="CenterShift", apply_z=True),
-            dict(type="NormalizeColor")
-        ],
+        transform=[dict(type="CenterShift", apply_z=True), dict(type="NormalizeColor")],
         test_mode=True,
         test_cfg=dict(
             voxelize=dict(
@@ -119,16 +142,18 @@ data = dict(
                 mode="test",
                 keys=("coord", "color", "normal"),
                 return_discrete_coord=True,
-                return_displacement=True
+                return_displacement=True,
             ),
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
                 dict(type="ToTensor"),
-                dict(type="Collect",
-                     keys=("coord", "discrete_coord", "index"),
-                     feat_keys=("color", "normal", "displacement"),
-                     coord_feat_keys=("color", "normal"))
+                dict(
+                    type="Collect",
+                    keys=("coord", "discrete_coord", "index"),
+                    feat_keys=("color", "normal", "displacement"),
+                    coord_feat_keys=("color", "normal"),
+                ),
             ],
             aug_transform=[
                 [dict(type="RandomScale", scale=[0.9, 0.9])],
@@ -136,17 +161,24 @@ data = dict(
                 [dict(type="RandomScale", scale=[1, 1])],
                 [dict(type="RandomScale", scale=[1.05, 1.05])],
                 [dict(type="RandomScale", scale=[1.1, 1.1])],
-                [dict(type="RandomScale", scale=[0.9, 0.9]),
-                 dict(type="RandomFlip", p=1)],
-                [dict(type="RandomScale", scale=[0.95, 0.95]),
-                 dict(type="RandomFlip", p=1)],
-                [dict(type="RandomScale", scale=[1, 1]),
-                 dict(type="RandomFlip", p=1)],
-                [dict(type="RandomScale", scale=[1.05, 1.05]),
-                 dict(type="RandomFlip", p=1)],
-                [dict(type="RandomScale", scale=[1.1, 1.1]),
-                 dict(type="RandomFlip", p=1)],
-            ]
-        )
-    )
+                [
+                    dict(type="RandomScale", scale=[0.9, 0.9]),
+                    dict(type="RandomFlip", p=1),
+                ],
+                [
+                    dict(type="RandomScale", scale=[0.95, 0.95]),
+                    dict(type="RandomFlip", p=1),
+                ],
+                [dict(type="RandomScale", scale=[1, 1]), dict(type="RandomFlip", p=1)],
+                [
+                    dict(type="RandomScale", scale=[1.05, 1.05]),
+                    dict(type="RandomFlip", p=1),
+                ],
+                [
+                    dict(type="RandomScale", scale=[1.1, 1.1]),
+                    dict(type="RandomFlip", p=1),
+                ],
+            ],
+        ),
+    ),
 )
