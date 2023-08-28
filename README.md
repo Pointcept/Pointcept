@@ -8,8 +8,9 @@
     <!-- pypi-strip -->
     </picture><br>
     <!-- /pypi-strip -->
-    <a href="https://github.com/pointcept/pointcept/actions/workflows/formatter.yml"><img src="https://github.com/pointcept/pointcept/actions/workflows/formatter.yml/badge.svg" alt="Formatter"</a>
 </p>
+
+[![Formatter](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml/badge.svg)](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml)
 
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
 - **Towards Large-scale 3D Representation Learning with Multi-dataset Point Prompt Training**  
