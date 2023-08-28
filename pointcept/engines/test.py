@@ -14,7 +14,12 @@ import torch.nn.functional as F
 
 from pointcept.utils.registry import Registry
 from pointcept.utils.logger import get_root_logger
-from pointcept.utils.misc import AverageMeter, intersection_and_union, intersection_and_union_gpu, make_dirs
+from pointcept.utils.misc import (
+    AverageMeter,
+    intersection_and_union,
+    intersection_and_union_gpu,
+    make_dirs,
+)
 from pointcept.datasets.utils import collate_fn
 import pointcept.utils.comm as comm
 
@@ -31,7 +36,7 @@ class SemSegTester(object):
         assert test_loader.batch_size == 1
         test_dataset = test_loader.dataset
         logger = get_root_logger()
-        logger.info('>>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>')
+        logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
 
         batch_time = AverageMeter()
         intersection_meter = AverageMeter()
@@ -39,21 +44,32 @@ class SemSegTester(object):
         target_meter = AverageMeter()
         model.eval()
 
-        save_path = os.path.join(cfg.save_path, "result", "test_epoch{}".format(cfg.test_epoch))
+        save_path = os.path.join(
+            cfg.save_path, "result", "test_epoch{}".format(cfg.test_epoch)
+        )
         make_dirs(save_path)
         # create submit folder only on main process
-        if  cfg.dataset_type == 'ScanNetDataset' and comm.is_main_process():
+        if cfg.dataset_type == "ScanNetDataset" and comm.is_main_process():
             make_dirs(os.path.join(save_path, "submit"))
-        if  cfg.dataset_type == "SemanticKITTIDataset" and comm.is_main_process():
+        if cfg.dataset_type == "SemanticKITTIDataset" and comm.is_main_process():
             make_dirs(os.path.join(save_path, "submit"))
         if cfg.dataset_type == "NuScenesDataset" and comm.is_main_process():
             import json
+
             make_dirs(os.path.join(save_path, "submit", "lidarseg", "test"))
             make_dirs(os.path.join(save_path, "submit", "test"))
-            submission = dict(meta=dict(
-                use_camera=False, use_lidar=True, use_radar=False, use_map=False, use_external=False
-            ))
-            with open(os.path.join(save_path, "submit", "test", "submission.json"), "w") as f:
+            submission = dict(
+                meta=dict(
+                    use_camera=False,
+                    use_lidar=True,
+                    use_radar=False,
+                    use_map=False,
+                    use_external=False,
+                )
+            )
+            with open(
+                os.path.join(save_path, "submit", "test", "submission.json"), "w"
+            ) as f:
                 json.dump(submission, f, indent=4)
         comm.synchronize()
         # fragment inference
@@ -63,15 +79,21 @@ class SemSegTester(object):
             fragment_list = data_dict.pop("fragment_list")
             segment = data_dict.pop("segment")
             data_name = data_dict.pop("name")
-            pred_save_path = os.path.join(save_path, '{}_pred.npy'.format(data_name))
+            pred_save_path = os.path.join(save_path, "{}_pred.npy".format(data_name))
             if os.path.isfile(pred_save_path):
-                logger.info('{}/{}: {}, loaded pred and label.'.format(idx + 1, len(test_loader), data_name))
+                logger.info(
+                    "{}/{}: {}, loaded pred and label.".format(
+                        idx + 1, len(test_loader), data_name
+                    )
+                )
                 pred = np.load(pred_save_path)
             else:
                 pred = torch.zeros((segment.size, cfg.data.num_classes)).cuda()
                 for i in range(len(fragment_list)):
                     fragment_batch_size = 1
-                    s_i, e_i = i * fragment_batch_size, min((i + 1) * fragment_batch_size, len(fragment_list))
+                    s_i, e_i = i * fragment_batch_size, min(
+                        (i + 1) * fragment_batch_size, len(fragment_list)
+                    )
                     input_dict = collate_fn(fragment_list[s_i:e_i])
                     for key in input_dict.keys():
                         if isinstance(input_dict[key], torch.Tensor):
@@ -84,14 +106,22 @@ class SemSegTester(object):
                         torch.cuda.empty_cache()
                     bs = 0
                     for be in input_dict["offset"]:
-                        pred[idx_part[bs: be], :] += pred_part[bs: be]
+                        pred[idx_part[bs:be], :] += pred_part[bs:be]
                         bs = be
-                    logger.info('Test: {}/{}-{data_name}, Batch: {batch_idx}/{batch_num}'.format(
-                        idx + 1, len(test_loader), data_name=data_name, batch_idx=i, batch_num=len(fragment_list)))
+                    logger.info(
+                        "Test: {}/{}-{data_name}, Batch: {batch_idx}/{batch_num}".format(
+                            idx + 1,
+                            len(test_loader),
+                            data_name=data_name,
+                            batch_idx=i,
+                            batch_num=len(fragment_list),
+                        )
+                    )
                 pred = pred.max(1)[1].data.cpu().numpy()
                 np.save(pred_save_path, pred)
-            intersection, union, target = intersection_and_union(pred, segment, cfg.data.num_classes,
-                                                                 cfg.data.ignore_index)
+            intersection, union, target = intersection_and_union(
+                pred, segment, cfg.data.num_classes, cfg.data.ignore_index
+            )
             intersection_meter.update(intersection)
             union_meter.update(union)
             target_meter.update(target)
@@ -105,31 +135,61 @@ class SemSegTester(object):
             m_acc = np.mean(intersection_meter.sum / (target_meter.sum + 1e-10))
 
             batch_time.update(time.time() - end)
-            logger.info('Test: {} [{}/{}]-{} '
-                        'Batch {batch_time.val:.3f} ({batch_time.avg:.3f}) '
-                        'Accuracy {acc:.4f} ({m_acc:.4f}) '
-                        'mIoU {iou:.4f} ({m_iou:.4f})'.format(data_name, idx + 1, len(test_loader), segment.size,
-                                                              batch_time=batch_time, acc=acc, m_acc=m_acc,
-                                                              iou=iou, m_iou=m_iou))
+            logger.info(
+                "Test: {} [{}/{}]-{} "
+                "Batch {batch_time.val:.3f} ({batch_time.avg:.3f}) "
+                "Accuracy {acc:.4f} ({m_acc:.4f}) "
+                "mIoU {iou:.4f} ({m_iou:.4f})".format(
+                    data_name,
+                    idx + 1,
+                    len(test_loader),
+                    segment.size,
+                    batch_time=batch_time,
+                    acc=acc,
+                    m_acc=m_acc,
+                    iou=iou,
+                    m_iou=m_iou,
+                )
+            )
             if cfg.dataset_type == "ScanNetDataset":
-                np.savetxt(os.path.join(save_path, "submit", '{}.txt'.format(data_name)),
-                           test_dataset.class2id[pred].reshape([-1, 1]), fmt="%d")
+                np.savetxt(
+                    os.path.join(save_path, "submit", "{}.txt".format(data_name)),
+                    test_dataset.class2id[pred].reshape([-1, 1]),
+                    fmt="%d",
+                )
             elif cfg.dataset_type == "SemanticKITTIDataset":
                 # 00_000000 -> 00, 000000
                 sequence_name, frame_name = data_name.split("_")
                 os.makedirs(
-                    os.path.join(save_path, "submit", "sequences", sequence_name, "predictions"), exist_ok=True
+                    os.path.join(
+                        save_path, "submit", "sequences", sequence_name, "predictions"
+                    ),
+                    exist_ok=True,
                 )
                 pred = pred.astype(np.uint32)
-                pred = np.vectorize(cfg.learning_map_inv.__getitem__)(pred).astype(np.uint32)
+                pred = np.vectorize(cfg.learning_map_inv.__getitem__)(pred).astype(
+                    np.uint32
+                )
                 pred.tofile(
-                    os.path.join(save_path, "submit", "sequences", sequence_name, "predictions", f"{frame_name}.label")
+                    os.path.join(
+                        save_path,
+                        "submit",
+                        "sequences",
+                        sequence_name,
+                        "predictions",
+                        f"{frame_name}.label",
+                    )
                 )
             elif cfg.dataset_type == "NuScenesDataset":
                 np.array(pred + 1).astype(np.uint8).tofile(
-                    os.path.join(save_path, "submit", "lidarseg", "test", '{}_lidarseg.bin'.format(data_name)))
-
-
+                    os.path.join(
+                        save_path,
+                        "submit",
+                        "lidarseg",
+                        "test",
+                        "{}_lidarseg.bin".format(data_name),
+                    )
+                )
 
         logger.info("Syncing ...")
         comm.synchronize()
@@ -138,7 +198,9 @@ class SemSegTester(object):
         target_meter_sync = comm.gather(target_meter, dst=0)
 
         if comm.is_main_process():
-            intersection = np.sum([meter.sum for meter in intersection_meter_sync], axis=0)
+            intersection = np.sum(
+                [meter.sum for meter in intersection_meter_sync], axis=0
+            )
             union = np.sum([meter.sum for meter in union_meter_sync], axis=0)
             target = np.sum([meter.sum for meter in target_meter_sync], axis=0)
 
@@ -148,11 +210,21 @@ class SemSegTester(object):
             mAcc = np.mean(accuracy_class)
             allAcc = sum(intersection) / (sum(target) + 1e-10)
 
-            logger.info('Val result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}'.format(mIoU, mAcc, allAcc))
+            logger.info(
+                "Val result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}".format(
+                    mIoU, mAcc, allAcc
+                )
+            )
             for i in range(cfg.data.num_classes):
-                logger.info('Class_{idx} - {name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}'.format(
-                    idx=i, name=cfg.data.names[i], iou=iou_class[i], accuracy=accuracy_class[i]))
-            logger.info('<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<')
+                logger.info(
+                    "Class_{idx} - {name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}".format(
+                        idx=i,
+                        name=cfg.data.names[i],
+                        iou=iou_class[i],
+                        accuracy=accuracy_class[i],
+                    )
+                )
+            logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
 
     @staticmethod
     def collate_fn(batch):
@@ -167,7 +239,7 @@ class ClsTester(object):
 
     def __call__(self, cfg, test_loader, model):
         logger = get_root_logger()
-        logger.info('>>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>')
+        logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
         batch_time = AverageMeter()
         intersection_meter = AverageMeter()
         union_meter = AverageMeter()
@@ -184,33 +256,54 @@ class ClsTester(object):
             output = output_dict["cls_logits"]
             pred = output.max(1)[1]
             label = input_dict["category"]
-            intersection, union, target = intersection_and_union_gpu(pred, label, cfg.data.num_classes,
-                                                                     cfg.data.ignore_index)
+            intersection, union, target = intersection_and_union_gpu(
+                pred, label, cfg.data.num_classes, cfg.data.ignore_index
+            )
             if comm.get_world_size() > 1:
-                dist.all_reduce(intersection), dist.all_reduce(union), dist.all_reduce(target)
-            intersection, union, target = intersection.cpu().numpy(), union.cpu().numpy(), target.cpu().numpy()
-            intersection_meter.update(intersection), union_meter.update(union), target_meter.update(target)
+                dist.all_reduce(intersection), dist.all_reduce(union), dist.all_reduce(
+                    target
+                )
+            intersection, union, target = (
+                intersection.cpu().numpy(),
+                union.cpu().numpy(),
+                target.cpu().numpy(),
+            )
+            intersection_meter.update(intersection), union_meter.update(
+                union
+            ), target_meter.update(target)
 
             accuracy = sum(intersection_meter.val) / (sum(target_meter.val) + 1e-10)
             batch_time.update(time.time() - end)
 
-            logger.info('Test: [{}/{}] '
-                        'Batch {batch_time.val:.3f} ({batch_time.avg:.3f}) '
-                        'Accuracy {accuracy:.4f} '.format(i + 1, len(test_loader),
-                                                          batch_time=batch_time,
-                                                          accuracy=accuracy))
+            logger.info(
+                "Test: [{}/{}] "
+                "Batch {batch_time.val:.3f} ({batch_time.avg:.3f}) "
+                "Accuracy {accuracy:.4f} ".format(
+                    i + 1, len(test_loader), batch_time=batch_time, accuracy=accuracy
+                )
+            )
 
         iou_class = intersection_meter.sum / (union_meter.sum + 1e-10)
         accuracy_class = intersection_meter.sum / (target_meter.sum + 1e-10)
         mIoU = np.mean(iou_class)
         mAcc = np.mean(accuracy_class)
         allAcc = sum(intersection_meter.sum) / (sum(target_meter.sum) + 1e-10)
-        logger.info('Val result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}.'.format(mIoU, mAcc, allAcc))
+        logger.info(
+            "Val result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}.".format(
+                mIoU, mAcc, allAcc
+            )
+        )
 
         for i in range(cfg.data.num_classes):
-            logger.info('Class_{idx} - {name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}'.format(
-                idx=i, name=cfg.data.names[i], iou=iou_class[i], accuracy=accuracy_class[i]))
-        logger.info('<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<')
+            logger.info(
+                "Class_{idx} - {name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}".format(
+                    idx=i,
+                    name=cfg.data.names[i],
+                    iou=iou_class[i],
+                    accuracy=accuracy_class[i],
+                )
+            )
+        logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
 
     @staticmethod
     def collate_fn(batch):
@@ -219,13 +312,12 @@ class ClsTester(object):
 
 @TEST.register_module()
 class PartSegTester(object):
-    """PartSegTester
-    """
+    """PartSegTester"""
 
     def __call__(self, cfg, test_loader, model):
         test_dataset = test_loader.dataset
         logger = get_root_logger()
-        logger.info('>>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>')
+        logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
 
         batch_time = AverageMeter()
 
@@ -233,7 +325,9 @@ class PartSegTester(object):
         iou_category, iou_count = np.zeros(num_categories), np.zeros(num_categories)
         model.eval()
 
-        save_path = os.path.join(cfg.save_path, "result", "test_epoch{}".format(cfg.test_epoch))
+        save_path = os.path.join(
+            cfg.save_path, "result", "test_epoch{}".format(cfg.test_epoch)
+        )
         make_dirs(save_path)
 
         for idx in range(len(test_dataset)):
@@ -244,7 +338,9 @@ class PartSegTester(object):
             pred = torch.zeros((label.size, cfg.data.num_classes)).cuda()
             batch_num = int(np.ceil(len(data_dict_list) / cfg.batch_size_test))
             for i in range(batch_num):
-                s_i, e_i = i * cfg.batch_size_test, min((i + 1) * cfg.batch_size_test, len(data_dict_list))
+                s_i, e_i = i * cfg.batch_size_test, min(
+                    (i + 1) * cfg.batch_size_test, len(data_dict_list)
+                )
                 input_dict = collate_fn(data_dict_list[s_i:e_i])
                 for key in input_dict.keys():
                     if isinstance(input_dict[key], torch.Tensor):
@@ -256,8 +352,15 @@ class PartSegTester(object):
                     torch.cuda.empty_cache()
                 pred_part = pred_part.reshape(-1, label.size, cfg.data.num_classes)
                 pred = pred + pred_part.total(dim=0)
-                logger.info('Test: {} {}/{}, Batch: {batch_idx}/{batch_num}'.format(
-                    data_name, idx + 1, len(test_dataset), batch_idx=i, batch_num=batch_num))
+                logger.info(
+                    "Test: {} {}/{}, Batch: {batch_idx}/{batch_num}".format(
+                        data_name,
+                        idx + 1,
+                        len(test_dataset),
+                        batch_idx=i,
+                        batch_num=batch_num,
+                    )
+                )
             pred = pred.max(1)[1].data.cpu().numpy()
 
             category_index = data_dict_list[0]["cls_token"]
@@ -275,20 +378,29 @@ class PartSegTester(object):
             iou_count[category_index] += 1
 
             batch_time.update(time.time() - end)
-            logger.info('Test: {} [{}/{}] '
-                        'Batch {batch_time.val:.3f} '
-                        '({batch_time.avg:.3f}) '.format(
-                data_name, idx + 1, len(test_loader), batch_time=batch_time))
+            logger.info(
+                "Test: {} [{}/{}] "
+                "Batch {batch_time.val:.3f} "
+                "({batch_time.avg:.3f}) ".format(
+                    data_name, idx + 1, len(test_loader), batch_time=batch_time
+                )
+            )
 
         ins_mIoU = iou_category.sum() / (iou_count.sum() + 1e-10)
         cat_mIoU = (iou_category / (iou_count + 1e-10)).mean()
-        logger.info('Val result: ins.mIoU/cat.mIoU {:.4f}/{:.4f}.'.format(ins_mIoU, cat_mIoU))
+        logger.info(
+            "Val result: ins.mIoU/cat.mIoU {:.4f}/{:.4f}.".format(ins_mIoU, cat_mIoU)
+        )
         for i in range(num_categories):
-            logger.info('Class_{idx}-{name} Result: iou_cat/num_sample {iou_cat:.4f}/{iou_count:.4f}'.format(
-                idx=i, name=test_loader.dataset.categories[i],
-                iou_cat=iou_category[i] / (iou_count[i] + 1e-10),
-                iou_count=int(iou_count[i])))
-        logger.info('<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<')
+            logger.info(
+                "Class_{idx}-{name} Result: iou_cat/num_sample {iou_cat:.4f}/{iou_count:.4f}".format(
+                    idx=i,
+                    name=test_loader.dataset.categories[i],
+                    iou_cat=iou_category[i] / (iou_count[i] + 1e-10),
+                    iou_count=int(iou_count[i]),
+                )
+            )
+        logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
 
     @staticmethod
     def collate_fn(batch):

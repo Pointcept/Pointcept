@@ -36,8 +36,8 @@ def build_optimizer(cfg, model, param_dicts=None):
             flag = False
             for i in range(len(param_dicts)):
                 if param_dicts[i].keyword in n:
-                    cfg.params[i+1]["names"].append(n)
-                    cfg.params[i+1]["params"].append(p)
+                    cfg.params[i + 1]["names"].append(n)
+                    cfg.params[i + 1]["params"].append(p)
                     flag = True
                     break
             if not flag:

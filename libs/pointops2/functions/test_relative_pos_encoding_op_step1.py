@@ -1,6 +1,12 @@
 import torch
 import pointops
-from torch_scatter import scatter_max, scatter_mean, scatter_add, scatter_min, scatter_sum
+from torch_scatter import (
+    scatter_max,
+    scatter_mean,
+    scatter_add,
+    scatter_min,
+    scatter_sum,
+)
 
 torch.manual_seed(1)
 
@@ -14,11 +20,11 @@ table = torch.rand(L, h, hdim, 3).cuda()
 
 index = torch.rand(M)
 index[index < 0] = 0
-index = (index*N).long().cuda()
+index = (index * N).long().cuda()
 
 rel_index = torch.rand(M, 3)
 rel_index[rel_index < 0] = 0
-rel_index = (rel_index*L).long().cuda()
+rel_index = (rel_index * L).long().cuda()
 
 query.requires_grad = True
 table.requires_grad = True
@@ -45,7 +51,11 @@ output_v2 = pointops.dot_prod_with_idx(query, index.int(), table, rel_index.int(
 loss = output_v2.mean()
 loss.backward()
 
-print("output_v2.shape: {}, output_v2[:5,:10]: {}".format(output_v2.shape, output_v2[:5,:10]))
+print(
+    "output_v2.shape: {}, output_v2[:5,:10]: {}".format(
+        output_v2.shape, output_v2[:5, :10]
+    )
+)
 print("v2: query.grad[:5, :3, :5]: ", query.grad[:5, :3, :5])
 print("v2: table.grad[:5, :3, :5, :2]: ", table.grad[:5, :3, :5, :2])
 input()
@@ -53,4 +63,3 @@ input()
 # print("((output-output_v2)**2).max(): ", ((output-output_v2)**2).max())
 
 # print("torch.max((attn_flat-attn_flat_v2)**2): ", torch.max((attn_flat-attn_flat_v2)**2))
-

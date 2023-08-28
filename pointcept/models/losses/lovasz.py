@@ -43,7 +43,9 @@ def _lovasz_hinge(logits, labels, per_image=True, ignore=None):
     """
     if per_image:
         loss = mean(
-            _lovasz_hinge_flat(*_flatten_binary_scores(log.unsqueeze(0), lab.unsqueeze(0), ignore))
+            _lovasz_hinge_flat(
+                *_flatten_binary_scores(log.unsqueeze(0), lab.unsqueeze(0), ignore)
+            )
             for log, lab in zip(logits, labels)
         )
     else:
@@ -84,7 +86,9 @@ def _flatten_binary_scores(scores, labels, ignore=None):
     return vscores, vlabels
 
 
-def _lovasz_softmax(probas, labels, classes="present", class_seen=None, per_image=False, ignore=None):
+def _lovasz_softmax(
+    probas, labels, classes="present", class_seen=None, per_image=False, ignore=None
+):
     """Multi-class Lovasz-Softmax loss
     Args:
         @param probas: [B, C, H, W] Class probabilities at each prediction (between 0 and 1).
@@ -96,12 +100,18 @@ def _lovasz_softmax(probas, labels, classes="present", class_seen=None, per_imag
     """
     if per_image:
         loss = mean(
-            _lovasz_softmax_flat(*_flatten_probas(prob.unsqueeze(0), lab.unsqueeze(0), ignore), classes=classes)
+            _lovasz_softmax_flat(
+                *_flatten_probas(prob.unsqueeze(0), lab.unsqueeze(0), ignore),
+                classes=classes
+            )
             for prob, lab in zip(probas, labels)
         )
     else:
-
-        loss = _lovasz_softmax_flat(*_flatten_probas(probas, labels, ignore), classes=classes, class_seen=class_seen)
+        loss = _lovasz_softmax_flat(
+            *_flatten_probas(probas, labels, ignore),
+            classes=classes,
+            class_seen=class_seen
+        )
     return loss
 
 
@@ -200,12 +210,12 @@ def mean(values, ignore_nan=False, empty=0):
 @LOSSES.register_module()
 class LovaszLoss(_Loss):
     def __init__(
-            self,
-            mode: str,
-            class_seen: Optional[int] = None,
-            per_image: bool = False,
-            ignore_index: Optional[int] = None,
-            loss_weight: float = 1.0,
+        self,
+        mode: str,
+        class_seen: Optional[int] = None,
+        per_image: bool = False,
+        ignore_index: Optional[int] = None,
+        loss_weight: float = 1.0,
     ):
         """Lovasz loss for segmentation task.
         It supports binary, multiclass and multilabel cases
@@ -229,13 +239,19 @@ class LovaszLoss(_Loss):
         self.loss_weight = loss_weight
 
     def forward(self, y_pred, y_true):
-
         if self.mode in {BINARY_MODE, MULTILABEL_MODE}:
-            loss = _lovasz_hinge(y_pred, y_true, per_image=self.per_image, ignore=self.ignore_index)
+            loss = _lovasz_hinge(
+                y_pred, y_true, per_image=self.per_image, ignore=self.ignore_index
+            )
         elif self.mode == MULTICLASS_MODE:
             y_pred = y_pred.softmax(dim=1)
-            loss = _lovasz_softmax(y_pred, y_true, class_seen=self.class_seen, per_image=self.per_image,
-                                   ignore=self.ignore_index)
+            loss = _lovasz_softmax(
+                y_pred,
+                y_true,
+                class_seen=self.class_seen,
+                per_image=self.per_image,
+                ignore=self.ignore_index,
+            )
         else:
             raise ValueError("Wrong mode {}.".format(self.mode))
         return loss * self.loss_weight

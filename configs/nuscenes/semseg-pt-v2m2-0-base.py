@@ -29,19 +29,14 @@ model = dict(
         attn_qkv_bias=True,
         pe_multiplier=False,
         pe_bias=True,
-        attn_drop_rate=0.,
+        attn_drop_rate=0.0,
         drop_path_rate=0.3,
         enable_checkpoint=False,
         unpool_backend="map",  # map / interp
     ),
     criteria=[
-        dict(type="CrossEntropyLoss",
-             loss_weight=1.0,
-             ignore_index=-1),
-        dict(type="LovaszLoss",
-             mode="multiclass",
-             loss_weight=1.0,
-             ignore_index=-1)
+        dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1),
+        dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0, ignore_index=-1),
     ],
 )
 
@@ -49,19 +44,37 @@ model = dict(
 epoch = 50
 eval_epoch = 50
 optimizer = dict(type="AdamW", lr=0.002, weight_decay=0.005)
-scheduler = dict(type="OneCycleLR",
-                 max_lr=optimizer["lr"],
-                 pct_start=0.04,
-                 anneal_strategy="cos",
-                 div_factor=10.0,
-                 final_div_factor=100.0)
+scheduler = dict(
+    type="OneCycleLR",
+    max_lr=optimizer["lr"],
+    pct_start=0.04,
+    anneal_strategy="cos",
+    div_factor=10.0,
+    final_div_factor=100.0,
+)
 
 # dataset settings
 dataset_type = "NuScenesDataset"
 data_root = "data/nuscenes"
 ignore_index = -1
-names = ["barrier", "bicycle", "bus", "car", "construction_vehicle", "motorcycle", "pedestrian", "traffic_cone",
-         "trailer", "truck", "driveable_surface", "other_flat", "sidewalk", "terrain", "manmade", "vegetation"]
+names = [
+    "barrier",
+    "bicycle",
+    "bus",
+    "car",
+    "construction_vehicle",
+    "motorcycle",
+    "pedestrian",
+    "traffic_cone",
+    "trailer",
+    "truck",
+    "driveable_surface",
+    "other_flat",
+    "sidewalk",
+    "terrain",
+    "manmade",
+    "vegetation",
+]
 
 data = dict(
     num_classes=16,
@@ -87,12 +100,15 @@ data = dict(
             # dict(type="SphereCrop", point_max=1000000, mode="random"),
             # dict(type="CenterShift", apply_z=False),
             dict(type="ToTensor"),
-            dict(type="Collect", keys=("coord", "segment"), feat_keys=("coord", "strength"))
+            dict(
+                type="Collect",
+                keys=("coord", "segment"),
+                feat_keys=("coord", "strength"),
+            ),
         ],
         test_mode=False,
-        ignore_index=ignore_index
+        ignore_index=ignore_index,
     ),
-
     val=dict(
         type=dataset_type,
         split="val",
@@ -102,12 +118,15 @@ data = dict(
             # dict(type="GridSample", grid_size=0.05, hash_type="fnv", mode="train",
             #      keys=("coord", "strength", "segment"), return_discrete_coord=True),
             dict(type="ToTensor"),
-            dict(type="Collect", keys=("coord", "segment"), feat_keys=("coord", "strength"))
+            dict(
+                type="Collect",
+                keys=("coord", "segment"),
+                feat_keys=("coord", "strength"),
+            ),
         ],
         test_mode=False,
-        ignore_index=ignore_index
+        ignore_index=ignore_index,
     ),
-
     test=dict(
         type=dataset_type,
         split="val",
@@ -119,7 +138,11 @@ data = dict(
             crop=None,
             post_transform=[
                 dict(type="ToTensor"),
-                dict(type="Collect", keys=("coord", "index"), feat_keys=("coord", "strength"))
+                dict(
+                    type="Collect",
+                    keys=("coord", "index"),
+                    feat_keys=("coord", "strength"),
+                ),
             ],
             aug_transform=[
                 [dict(type="RandomScale", scale=[0.9, 0.9])],
@@ -127,18 +150,25 @@ data = dict(
                 [dict(type="RandomScale", scale=[1, 1])],
                 [dict(type="RandomScale", scale=[1.05, 1.05])],
                 [dict(type="RandomScale", scale=[1.1, 1.1])],
-                [dict(type="RandomScale", scale=[0.9, 0.9]),
-                 dict(type="RandomFlip", p=1)],
-                [dict(type="RandomScale", scale=[0.95, 0.95]),
-                 dict(type="RandomFlip", p=1)],
-                [dict(type="RandomScale", scale=[1, 1]),
-                 dict(type="RandomFlip", p=1)],
-                [dict(type="RandomScale", scale=[1.05, 1.05]),
-                 dict(type="RandomFlip", p=1)],
-                [dict(type="RandomScale", scale=[1.1, 1.1]),
-                 dict(type="RandomFlip", p=1)],
-            ]
+                [
+                    dict(type="RandomScale", scale=[0.9, 0.9]),
+                    dict(type="RandomFlip", p=1),
+                ],
+                [
+                    dict(type="RandomScale", scale=[0.95, 0.95]),
+                    dict(type="RandomFlip", p=1),
+                ],
+                [dict(type="RandomScale", scale=[1, 1]), dict(type="RandomFlip", p=1)],
+                [
+                    dict(type="RandomScale", scale=[1.05, 1.05]),
+                    dict(type="RandomFlip", p=1),
+                ],
+                [
+                    dict(type="RandomScale", scale=[1.1, 1.1]),
+                    dict(type="RandomFlip", p=1),
+                ],
+            ],
         ),
-        ignore_index=ignore_index
+        ignore_index=ignore_index,
     ),
 )

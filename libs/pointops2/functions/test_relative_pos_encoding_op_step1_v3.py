@@ -1,6 +1,12 @@
 import torch
 import pointops
-from torch_scatter import scatter_max, scatter_mean, scatter_add, scatter_min, scatter_sum
+from torch_scatter import (
+    scatter_max,
+    scatter_mean,
+    scatter_add,
+    scatter_min,
+    scatter_sum,
+)
 
 torch.manual_seed(1)
 
@@ -18,32 +24,34 @@ table_k = torch.rand(L, h, hdim, 3).cuda()
 
 index_q = torch.rand(M)
 index_q[index_q < 0] = 0
-index_q = (index_q*N).long().cuda()
+index_q = (index_q * N).long().cuda()
 
 index_k = torch.rand(M)
 index_k[index_k < 0] = 0
-index_k = (index_k*N).long().cuda()
+index_k = (index_k * N).long().cuda()
 
 rel_index = torch.rand(M, 3)
 rel_index[rel_index < 0] = 0
-rel_index = (rel_index*L).long().cuda()
+rel_index = (rel_index * L).long().cuda()
 
 
 # rearrange index for acceleration
-index_q, indices = torch.sort(index_q) #[M,]
-index_k = index_k[indices] #[M,]
+index_q, indices = torch.sort(index_q)  # [M,]
+index_k = index_k[indices]  # [M,]
 rel_index = rel_index[indices]
 index_q_counts = index_q.bincount()
 
 print("index_q_counts.shape: ", index_q_counts.shape)
 
 n_max = index_q_counts.max()
-index_q_offsets = index_q_counts.cumsum(dim=-1) #[N]
+index_q_offsets = index_q_counts.cumsum(dim=-1)  # [N]
 
 print("v1 index_q_offsets.shape: ", index_q_offsets.shape)
 
-index_q_offsets = torch.cat([torch.zeros(1, dtype=torch.long).cuda(), index_q_offsets], 0) #[N+1]
-        
+index_q_offsets = torch.cat(
+    [torch.zeros(1, dtype=torch.long).cuda(), index_q_offsets], 0
+)  # [N+1]
+
 # print("index_q[:100]: ", index_q[:100])
 print("n_max: ", n_max)
 print("index_q_offsets.shape: ", index_q_offsets.shape)
@@ -75,7 +83,16 @@ loss.backward()
 # print("index_q.is_contiguous(): ", index_q.is_contiguous())
 # print("index_k.is_contiguous(): ", index_k.is_contiguous())
 
-output_v2 = pointops.dot_prod_with_idx_v3(query, index_q_offsets.int(), n_max, key, index_k.int(), table_q, table_k, rel_index.int())
+output_v2 = pointops.dot_prod_with_idx_v3(
+    query,
+    index_q_offsets.int(),
+    n_max,
+    key,
+    index_k.int(),
+    table_q,
+    table_k,
+    rel_index.int(),
+)
 # loss = output_v2.mean()
 # loss.backward()
 
@@ -86,5 +103,4 @@ output_v2 = pointops.dot_prod_with_idx_v3(query, index_q_offsets.int(), n_max, k
 # print("v2 table_k.grad[:5, :3, :5, :2]: ", table_k.grad[:5, :3, :5, :2])
 # input()
 
-print("((output-output_v2)**2).max(): ", ((output-output_v2)**2).max())
-
+print("((output-output_v2)**2).max(): ", ((output - output_v2) ** 2).max())

@@ -28,12 +28,13 @@ class DefaultSegmentor(nn.Module):
 
 @MODELS.register_module()
 class DefaultClassifier(nn.Module):
-    def __init__(self,
-                 backbone=None,
-                 criteria=None,
-                 num_classes=40,
-                 backbone_embed_dim=256,
-                 ):
+    def __init__(
+        self,
+        backbone=None,
+        criteria=None,
+        num_classes=40,
+        backbone_embed_dim=256,
+    ):
         super().__init__()
         self.backbone = build_model(backbone)
         self.criteria = build_criteria(criteria)
@@ -48,7 +49,7 @@ class DefaultClassifier(nn.Module):
             nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.5),
-            nn.Linear(128, num_classes)
+            nn.Linear(128, num_classes),
         )
 
     def forward(self, input_dict):

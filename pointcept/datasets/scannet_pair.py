@@ -21,13 +21,15 @@ from .transform import Compose, TRANSFORMS
 
 @DATASETS.register_module()
 class ScanNetPairDataset(Dataset):
-    def __init__(self,
-                 data_root='data/scannet_pair',
-                 overlap_threshold=0.3,
-                 view1_transform=None,
-                 view2_transform=None,
-                 loop=1,
-                 **kwargs):
+    def __init__(
+        self,
+        data_root="data/scannet_pair",
+        overlap_threshold=0.3,
+        view1_transform=None,
+        view2_transform=None,
+        loop=1,
+        **kwargs
+    ):
         super(ScanNetPairDataset, self).__init__()
         self.data_root = data_root
         self.overlap_threshold = overlap_threshold
@@ -40,12 +42,20 @@ class ScanNetPairDataset(Dataset):
 
     def get_data_list(self):
         data_list = []
-        overlap_list = glob.glob(os.path.join(self.data_root, "*", "pcd", "overlap.txt"))
+        overlap_list = glob.glob(
+            os.path.join(self.data_root, "*", "pcd", "overlap.txt")
+        )
         for overlap_file in overlap_list:
             with open(overlap_file) as f:
                 overlap = f.readlines()
             overlap = [pair.strip().split() for pair in overlap]
-            data_list.extend([pair[: 2] for pair in overlap if float(pair[2]) > self.overlap_threshold])
+            data_list.extend(
+                [
+                    pair[:2]
+                    for pair in overlap
+                    if float(pair[2]) > self.overlap_threshold
+                ]
+            )
         return data_list
 
     def get_data(self, idx):

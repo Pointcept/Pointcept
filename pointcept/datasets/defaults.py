@@ -20,30 +20,46 @@ from .transform import Compose, TRANSFORMS
 
 @DATASETS.register_module()
 class DefaultDataset(Dataset):
-    def __init__(self,
-                 split='train',
-                 data_root='data/dataset',
-                 transform=None,
-                 test_mode=False,
-                 test_cfg=None,
-                 loop=1):
+    def __init__(
+        self,
+        split="train",
+        data_root="data/dataset",
+        transform=None,
+        test_mode=False,
+        test_cfg=None,
+        loop=1,
+    ):
         super(DefaultDataset, self).__init__()
         self.data_root = data_root
         self.split = split
         self.transform = Compose(transform)
-        self.loop = loop if not test_mode else 1  # force make loop = 1 while in test mode
+        self.loop = (
+            loop if not test_mode else 1
+        )  # force make loop = 1 while in test mode
         self.test_mode = test_mode
         self.test_cfg = test_cfg if test_mode else None
 
         if test_mode:
-            self.test_voxelize = TRANSFORMS.build(self.test_cfg.voxelize) if self.test_cfg.voxelize is not None else None
-            self.test_crop = TRANSFORMS.build(self.test_cfg.crop) if self.test_cfg.crop is not None else None
+            self.test_voxelize = (
+                TRANSFORMS.build(self.test_cfg.voxelize)
+                if self.test_cfg.voxelize is not None
+                else None
+            )
+            self.test_crop = (
+                TRANSFORMS.build(self.test_cfg.crop)
+                if self.test_cfg.crop is not None
+                else None
+            )
             self.post_transform = Compose(self.test_cfg.post_transform)
             self.aug_transform = [Compose(aug) for aug in self.test_cfg.aug_transform]
 
         self.data_list = self.get_data_list()
         logger = get_root_logger()
-        logger.info("Totally {} x {} samples in {} set.".format(len(self.data_list), self.loop, split))
+        logger.info(
+            "Totally {} x {} samples in {} set.".format(
+                len(self.data_list), self.loop, split
+            )
+        )
 
     def get_data_list(self):
         if isinstance(self.split, str):
@@ -84,9 +100,7 @@ class DefaultDataset(Dataset):
         data_dict = self.transform(data_dict)
         data_dict_list = []
         for aug in self.aug_transform:
-            data_dict_list.append(
-                aug(deepcopy(data_dict))
-            )
+            data_dict_list.append(aug(deepcopy(data_dict)))
 
         input_dict_list = []
         for data in data_dict_list:
@@ -104,7 +118,9 @@ class DefaultDataset(Dataset):
 
         for i in range(len(input_dict_list)):
             input_dict_list[i] = self.post_transform(input_dict_list[i])
-        data_dict = dict(fragment_list=input_dict_list, segment=segment, name=self.get_data_name(idx))
+        data_dict = dict(
+            fragment_list=input_dict_list, segment=segment, name=self.get_data_name(idx)
+        )
         return data_dict
 
     def __getitem__(self, idx):
@@ -119,20 +135,27 @@ class DefaultDataset(Dataset):
 
 @DATASETS.register_module()
 class ConcatDataset(Dataset):
-    def __init__(self,
-                 datasets,
-                 loop=1):
+    def __init__(self, datasets, loop=1):
         super(ConcatDataset, self).__init__()
         self.datasets = [build_dataset(dataset) for dataset in datasets]
         self.loop = loop
         self.data_list = self.get_data_list()
         logger = get_root_logger()
-        logger.info("Totally {} x {} samples in the concat set.".format(len(self.data_list), self.loop))
+        logger.info(
+            "Totally {} x {} samples in the concat set.".format(
+                len(self.data_list), self.loop
+            )
+        )
 
     def get_data_list(self):
         data_list = []
         for i in range(len(self.datasets)):
-            data_list.extend(zip(np.ones(len(self.datasets[i]), dtype=np.long) * i, np.arange(len(self.datasets[i]))))
+            data_list.extend(
+                zip(
+                    np.ones(len(self.datasets[i]), dtype=np.long) * i,
+                    np.arange(len(self.datasets[i])),
+                )
+            )
         return data_list
 
     def get_data(self, idx):

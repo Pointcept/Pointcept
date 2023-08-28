@@ -5,4 +5,10 @@ from .interpolation import interpolation, interpolation2
 from .subtraction import subtraction
 from .aggregation import aggregation
 from .attention import attention_relation_step, attention_fusion_step
-from .utils import query_and_group, knn_query_and_group, ball_query_and_group, batch2offset, offset2batch
+from .utils import (
+    query_and_group,
+    knn_query_and_group,
+    ball_query_and_group,
+    batch2offset,
+    offset2batch,
+)

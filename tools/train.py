@@ -5,7 +5,11 @@ Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
-from pointcept.engines.defaults import default_argument_parser, default_config_parser, default_setup
+from pointcept.engines.defaults import (
+    default_argument_parser,
+    default_config_parser,
+    default_setup,
+)
 from pointcept.engines.train import Trainer
 from pointcept.engines.launch import launch
 

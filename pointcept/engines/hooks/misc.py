@@ -13,6 +13,7 @@ import time
 import torch
 import torch.utils.data
 from collections import OrderedDict
+
 if sys.version_info >= (3, 10):
     from collections.abc import Sequence
 else:
@@ -56,16 +57,18 @@ class IterationTimer(HookBase):
         remain_time = self._remain_iter * self.trainer.storage.history("batch_time").avg
         t_m, t_s = divmod(remain_time, 60)
         t_h, t_m = divmod(t_m, 60)
-        remain_time = '{:02d}:{:02d}:{:02d}'.format(int(t_h), int(t_m), int(t_s))
+        remain_time = "{:02d}:{:02d}:{:02d}".format(int(t_h), int(t_m), int(t_s))
         if "iter_info" in self.trainer.comm_info.keys():
-            info = "Data {data_time_val:.3f} ({data_time_avg:.3f}) " \
-                   "Batch {batch_time_val:.3f} ({batch_time_avg:.3f}) " \
-                   "Remain {remain_time} ".format(
-                data_time_val=self.trainer.storage.history("data_time").val,
-                data_time_avg=self.trainer.storage.history("data_time").avg,
-                batch_time_val=self.trainer.storage.history("batch_time").val,
-                batch_time_avg=self.trainer.storage.history("batch_time").avg,
-                remain_time=remain_time
+            info = (
+                "Data {data_time_val:.3f} ({data_time_avg:.3f}) "
+                "Batch {batch_time_val:.3f} ({batch_time_avg:.3f}) "
+                "Remain {remain_time} ".format(
+                    data_time_val=self.trainer.storage.history("data_time").val,
+                    data_time_avg=self.trainer.storage.history("data_time").avg,
+                    batch_time_val=self.trainer.storage.history("batch_time").val,
+                    batch_time_avg=self.trainer.storage.history("batch_time").avg,
+                    remain_time=remain_time,
+                )
             )
             self.trainer.comm_info["iter_info"] += info
         if self.trainer.comm_info["iter"] <= self._warmup_iter:
@@ -94,8 +97,10 @@ class InformationWriter(HookBase):
         #     points_num=self.trainer.comm_info["input_dict"]["offset"][-1]
         # )
         info = "Train: [{epoch}/{max_epoch}][{iter}/{max_iter}] ".format(
-            epoch=self.trainer.epoch + 1, max_epoch=self.trainer.max_epoch,
-            iter=self.trainer.comm_info["iter"] + 1, max_iter=len(self.trainer.train_loader)
+            epoch=self.trainer.epoch + 1,
+            max_epoch=self.trainer.max_epoch,
+            iter=self.trainer.comm_info["iter"] + 1,
+            max_iter=len(self.trainer.train_loader),
         )
         self.trainer.comm_info["iter_info"] += info
 
@@ -117,8 +122,11 @@ class InformationWriter(HookBase):
         if self.trainer.writer is not None:
             self.trainer.writer.add_scalar("lr", lr, self.curr_iter)
             for key in self.model_output_keys:
-                self.trainer.writer.add_scalar("train_batch/" + key, self.trainer.storage.history(key).val,
-                                               self.curr_iter)
+                self.trainer.writer.add_scalar(
+                    "train_batch/" + key,
+                    self.trainer.storage.history(key).val,
+                    self.curr_iter,
+                )
 
     def after_epoch(self):
         epoch_info = "Train result: "
@@ -129,8 +137,11 @@ class InformationWriter(HookBase):
         self.trainer.logger.info(epoch_info)
         if self.trainer.writer is not None:
             for key in self.model_output_keys:
-                self.trainer.writer.add_scalar("train/" + key, self.trainer.storage.history(key).avg,
-                                               self.trainer.epoch + 1)
+                self.trainer.writer.add_scalar(
+                    "train/" + key,
+                    self.trainer.storage.history(key).avg,
+                    self.trainer.epoch + 1,
+                )
 
 
 @HOOKS.register_module()
@@ -147,26 +158,49 @@ class CheckpointSaver(HookBase):
                 if current_metric_value > self.trainer.best_metric_value:
                     self.trainer.best_metric_value = current_metric_value
                     is_best = True
-                    self.trainer.logger.info('Best validation {} updated to: {:.4f}'.format(
-                        current_metric_name, current_metric_value))
-                self.trainer.logger.info('Currently Best {}: {:.4f}'.format(
-                    current_metric_name, self.trainer.best_metric_value))
+                    self.trainer.logger.info(
+                        "Best validation {} updated to: {:.4f}".format(
+                            current_metric_name, current_metric_value
+                        )
+                    )
+                self.trainer.logger.info(
+                    "Currently Best {}: {:.4f}".format(
+                        current_metric_name, self.trainer.best_metric_value
+                    )
+                )
 
-            filename = os.path.join(self.trainer.cfg.save_path, 'model', 'model_last.pth')
-            self.trainer.logger.info('Saving checkpoint to: ' + filename)
-            torch.save({'epoch': self.trainer.epoch + 1,
-                        'state_dict': self.trainer.model.state_dict(),
-                        'optimizer': self.trainer.optimizer.state_dict(),
-                        'scheduler': self.trainer.scheduler.state_dict(),
-                        'scaler': self.trainer.scaler.state_dict() if self.trainer.cfg.enable_amp else None,
-                        'best_metric_value': self.trainer.best_metric_value},
-                       filename + ".tmp")
+            filename = os.path.join(
+                self.trainer.cfg.save_path, "model", "model_last.pth"
+            )
+            self.trainer.logger.info("Saving checkpoint to: " + filename)
+            torch.save(
+                {
+                    "epoch": self.trainer.epoch + 1,
+                    "state_dict": self.trainer.model.state_dict(),
+                    "optimizer": self.trainer.optimizer.state_dict(),
+                    "scheduler": self.trainer.scheduler.state_dict(),
+                    "scaler": self.trainer.scaler.state_dict()
+                    if self.trainer.cfg.enable_amp
+                    else None,
+                    "best_metric_value": self.trainer.best_metric_value,
+                },
+                filename + ".tmp",
+            )
             os.replace(filename + ".tmp", filename)
             if is_best:
-                shutil.copyfile(filename, os.path.join(self.trainer.cfg.save_path, 'model', 'model_best.pth'))
+                shutil.copyfile(
+                    filename,
+                    os.path.join(self.trainer.cfg.save_path, "model", "model_best.pth"),
+                )
             if self.save_freq and self.save_freq % (self.trainer.epoch + 1) == 0:
-                shutil.copyfile(filename, os.path.join(
-                    self.trainer.cfg.save_path, 'model', f'epoch_{self.trainer.epoch + 1}.pth'))
+                shutil.copyfile(
+                    filename,
+                    os.path.join(
+                        self.trainer.cfg.save_path,
+                        "model",
+                        f"epoch_{self.trainer.epoch + 1}.pth",
+                    ),
+                )
 
 
 @HOOKS.register_module()
@@ -180,21 +214,35 @@ class CheckpointLoader(HookBase):
         self.trainer.logger.info("=> Loading checkpoint & weight ...")
         if self.trainer.cfg.weight and os.path.isfile(self.trainer.cfg.weight):
             self.trainer.logger.info(f"Loading weight at: {self.trainer.cfg.weight}")
-            checkpoint = torch.load(self.trainer.cfg.weight, map_location=lambda storage, loc: storage.cuda())
-            self.trainer.logger.info(f"Loading layer weights with keyword: {self.keywords}, "
-                                     f"replace keyword with: {self.replacement}")
-            weight = OrderedDict([(key.replace(self.keywords, self.replacement), value)
-                                  for key, value in checkpoint['state_dict'].items() if self.keywords in key])
-            load_state_info = self.trainer.model.load_state_dict(weight, strict=self.strict)
+            checkpoint = torch.load(
+                self.trainer.cfg.weight,
+                map_location=lambda storage, loc: storage.cuda(),
+            )
+            self.trainer.logger.info(
+                f"Loading layer weights with keyword: {self.keywords}, "
+                f"replace keyword with: {self.replacement}"
+            )
+            weight = OrderedDict(
+                [
+                    (key.replace(self.keywords, self.replacement), value)
+                    for key, value in checkpoint["state_dict"].items()
+                    if self.keywords in key
+                ]
+            )
+            load_state_info = self.trainer.model.load_state_dict(
+                weight, strict=self.strict
+            )
             self.trainer.logger.info(f"Missing keys: {load_state_info[0]}")
             if self.trainer.cfg.resume:
-                self.trainer.logger.info(f"Resuming train at eval epoch: {checkpoint['epoch']}")
-                self.trainer.start_epoch = checkpoint['epoch']
-                self.trainer.best_metric_value = checkpoint['best_metric_value']
-                self.trainer.optimizer.load_state_dict(checkpoint['optimizer'])
-                self.trainer.scheduler.load_state_dict(checkpoint['scheduler'])
+                self.trainer.logger.info(
+                    f"Resuming train at eval epoch: {checkpoint['epoch']}"
+                )
+                self.trainer.start_epoch = checkpoint["epoch"]
+                self.trainer.best_metric_value = checkpoint["best_metric_value"]
+                self.trainer.optimizer.load_state_dict(checkpoint["optimizer"])
+                self.trainer.scheduler.load_state_dict(checkpoint["scheduler"])
                 if self.trainer.cfg.enable_amp:
-                    self.trainer.scaler.load_state_dict(checkpoint['scaler'])
+                    self.trainer.scaler.load_state_dict(checkpoint["scaler"])
         else:
             self.trainer.logger.info(f"No weight found at: {self.trainer.cfg.weight}")
 
@@ -205,7 +253,9 @@ class PreciseEvaluator(HookBase):
         self.test_last = test_last
 
     def after_train(self):
-        self.trainer.logger.info('>>>>>>>>>>>>>>>> Start Precise Evaluation >>>>>>>>>>>>>>>>')
+        self.trainer.logger.info(
+            ">>>>>>>>>>>>>>>> Start Precise Evaluation >>>>>>>>>>>>>>>>"
+        )
         torch.cuda.empty_cache()
         cfg = self.trainer.cfg
         tester = TEST.build(cfg.test)
@@ -215,13 +265,15 @@ class PreciseEvaluator(HookBase):
             test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
         else:
             test_sampler = None
-        test_loader = torch.utils.data.DataLoader(test_dataset,
-                                                  batch_size=cfg.batch_size_test_per_gpu,
-                                                  shuffle=False,
-                                                  num_workers=cfg.batch_size_test_per_gpu,
-                                                  pin_memory=True,
-                                                  sampler=test_sampler,
-                                                  collate_fn=tester.collate_fn)
+        test_loader = torch.utils.data.DataLoader(
+            test_dataset,
+            batch_size=cfg.batch_size_test_per_gpu,
+            shuffle=False,
+            num_workers=cfg.batch_size_test_per_gpu,
+            pin_memory=True,
+            sampler=test_sampler,
+            collate_fn=tester.collate_fn,
+        )
 
         model = self.trainer.model
         if self.test_last:
@@ -229,11 +281,13 @@ class PreciseEvaluator(HookBase):
             cfg.test_epoch = cfg.eval_epoch
         else:
             self.trainer.logger.info("=> Testing on model_best ...")
-            best_path = os.path.join(self.trainer.cfg.save_path, 'model', 'model_best.pth')
+            best_path = os.path.join(
+                self.trainer.cfg.save_path, "model", "model_best.pth"
+            )
             checkpoint = torch.load(best_path)
-            state_dict = checkpoint['state_dict']
+            state_dict = checkpoint["state_dict"]
             model.load_state_dict(state_dict, strict=True)
-            cfg.test_epoch = checkpoint['epoch']
+            cfg.test_epoch = checkpoint["epoch"]
         tester(cfg, test_loader, model)
 
 
@@ -256,11 +310,13 @@ class DataCacheOperator(HookBase):
         return data_list
 
     def get_cache_name(self, data_path):
-        data_name = data_path.replace(os.path.dirname(self.data_root), '').split(".")[0]
+        data_name = data_path.replace(os.path.dirname(self.data_root), "").split(".")[0]
         return "pointcept" + data_name.replace(os.path.sep, "-")
 
     def before_train(self):
-        self.trainer.logger.info(f"=> Caching dataset: {self.data_root}, split: {self.split} ...")
+        self.trainer.logger.info(
+            f"=> Caching dataset: {self.data_root}, split: {self.split} ..."
+        )
         if is_main_process():
             for data_path in self.data_list:
                 cache_name = self.get_cache_name(data_path)
@@ -271,13 +327,15 @@ class DataCacheOperator(HookBase):
 
 @HOOKS.register_module()
 class RuntimeProfiler(HookBase):
-    def __init__(self,
-                 forward=True,
-                 backward=True,
-                 interrupt=False,
-                 warm_up=2,
-                 sort_by="cuda_time_total",
-                 row_limit=30):
+    def __init__(
+        self,
+        forward=True,
+        backward=True,
+        interrupt=False,
+        warm_up=2,
+        sort_by="cuda_time_total",
+        row_limit=30,
+    ):
         self.forward = forward
         self.backward = backward
         self.interrupt = interrupt
@@ -296,46 +354,68 @@ class RuntimeProfiler(HookBase):
                 if isinstance(input_dict[key], torch.Tensor):
                     input_dict[key] = input_dict[key].cuda(non_blocking=True)
             if self.forward:
-                with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-                             record_shapes=True, profile_memory=True, with_stack=True) as forward_prof:
+                with profile(
+                    activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+                    record_shapes=True,
+                    profile_memory=True,
+                    with_stack=True,
+                ) as forward_prof:
                     with record_function("model_inference"):
                         output_dict = self.trainer.model(input_dict)
             else:
                 output_dict = self.trainer.model(input_dict)
             loss = output_dict["loss"]
             if self.backward:
-                with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-                             record_shapes=True, profile_memory=True, with_stack=True) as backward_prof:
+                with profile(
+                    activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+                    record_shapes=True,
+                    profile_memory=True,
+                    with_stack=True,
+                ) as backward_prof:
                     with record_function("model_inference"):
                         loss.backward()
             self.trainer.logger.info(f"Profile: [{i + 1}/{self.warm_up + 1}]")
         if self.forward:
             self.trainer.logger.info(
-                "Forward profile: \n" + str(forward_prof.key_averages().table(
-                    sort_by=self.sort_by, row_limit=self.row_limit))
+                "Forward profile: \n"
+                + str(
+                    forward_prof.key_averages().table(
+                        sort_by=self.sort_by, row_limit=self.row_limit
+                    )
+                )
             )
-            forward_prof.export_chrome_trace(os.path.join(self.trainer.cfg.save_path, "forward_trace.json"))
+            forward_prof.export_chrome_trace(
+                os.path.join(self.trainer.cfg.save_path, "forward_trace.json")
+            )
 
         if self.backward:
             self.trainer.logger.info(
-                "Backward profile: \n" + str(backward_prof.key_averages().table(
-                    sort_by=self.sort_by, row_limit=self.row_limit))
+                "Backward profile: \n"
+                + str(
+                    backward_prof.key_averages().table(
+                        sort_by=self.sort_by, row_limit=self.row_limit
+                    )
+                )
             )
-            backward_prof.export_chrome_trace(os.path.join(self.trainer.cfg.save_path, "backward_trace.json"))
+            backward_prof.export_chrome_trace(
+                os.path.join(self.trainer.cfg.save_path, "backward_trace.json")
+            )
         if self.interrupt:
             sys.exit(0)
 
 
 @HOOKS.register_module()
 class RuntimeProfilerV2(HookBase):
-    def __init__(self,
-                 interrupt=False,
-                 wait=1,
-                 warmup=1,
-                 active=10,
-                 repeat=1,
-                 sort_by="cuda_time_total",
-                 row_limit=30):
+    def __init__(
+        self,
+        interrupt=False,
+        wait=1,
+        warmup=1,
+        active=10,
+        repeat=1,
+        sort_by="cuda_time_total",
+        row_limit=30,
+    ):
         self.interrupt = interrupt
         self.wait = wait
         self.warmup = warmup
@@ -346,11 +426,27 @@ class RuntimeProfilerV2(HookBase):
 
     def before_train(self):
         self.trainer.logger.info("Profiling runtime ...")
-        from torch.profiler import profile, record_function, ProfilerActivity, schedule, tensorboard_trace_handler
-        prof = profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-                       schedule=schedule(wait=self.wait, warmup=self.warmup, active=self.active, repeat=self.repeat),
-                       on_trace_ready=tensorboard_trace_handler(self.trainer.cfg.save_path),
-                       record_shapes=True, profile_memory=True, with_stack=True)
+        from torch.profiler import (
+            profile,
+            record_function,
+            ProfilerActivity,
+            schedule,
+            tensorboard_trace_handler,
+        )
+
+        prof = profile(
+            activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+            schedule=schedule(
+                wait=self.wait,
+                warmup=self.warmup,
+                active=self.active,
+                repeat=self.repeat,
+            ),
+            on_trace_ready=tensorboard_trace_handler(self.trainer.cfg.save_path),
+            record_shapes=True,
+            profile_memory=True,
+            with_stack=True,
+        )
         prof.start()
         for i, input_dict in enumerate(self.trainer.train_loader):
             if i >= (self.wait + self.warmup + self.active) * self.repeat:
@@ -364,10 +460,16 @@ class RuntimeProfilerV2(HookBase):
             with record_function("model_backward"):
                 loss.backward()
             prof.step()
-            self.trainer.logger.info(f"Profile: [{i + 1}/{(self.wait + self.warmup + self.active) * self.repeat}]")
+            self.trainer.logger.info(
+                f"Profile: [{i + 1}/{(self.wait + self.warmup + self.active) * self.repeat}]"
+            )
         self.trainer.logger.info(
-            "Profile: \n" + str(prof.key_averages().table(
-                sort_by=self.sort_by, row_limit=self.row_limit))
+            "Profile: \n"
+            + str(
+                prof.key_averages().table(
+                    sort_by=self.sort_by, row_limit=self.row_limit
+                )
+            )
         )
         prof.stop()
 

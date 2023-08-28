@@ -8,7 +8,7 @@ Please cite our work if the code is helpful to you.
 
 from pointcept.utils.registry import Registry
 
-DATASETS = Registry('datasets')
+DATASETS = Registry("datasets")
 
 
 def build_dataset(cfg):

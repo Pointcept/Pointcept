@@ -10,6 +10,7 @@ class HookBase:
     """
     Base class for hooks that can be registered with :class:`TrainerBase`.
     """
+
     trainer = None  # A weak reference to the trainer object.
 
     def before_train(self):

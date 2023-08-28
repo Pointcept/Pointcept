@@ -15,6 +15,7 @@ from importlib import import_module
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.val = 0
         self.avg = 0
@@ -36,22 +37,22 @@ class AverageMeter(object):
 
 def intersection_and_union(output, target, K, ignore_index=-1):
     # 'K' classes, output and target sizes are N or N * L or N * H * W, each value in range 0 to K - 1.
-    assert (output.ndim in [1, 2, 3])
+    assert output.ndim in [1, 2, 3]
     assert output.shape == target.shape
     output = output.reshape(output.size).copy()
     target = target.reshape(target.size)
     output[np.where(target == ignore_index)[0]] = ignore_index
     intersection = output[np.where(output == target)[0]]
-    area_intersection, _ = np.histogram(intersection, bins=np.arange(K+1))
-    area_output, _ = np.histogram(output, bins=np.arange(K+1))
-    area_target, _ = np.histogram(target, bins=np.arange(K+1))
+    area_intersection, _ = np.histogram(intersection, bins=np.arange(K + 1))
+    area_output, _ = np.histogram(output, bins=np.arange(K + 1))
+    area_target, _ = np.histogram(target, bins=np.arange(K + 1))
     area_union = area_output + area_target - area_intersection
     return area_intersection, area_union, area_target
 
 
 def intersection_and_union_gpu(output, target, k, ignore_index=-1):
     # 'K' classes, output and target sizes are N or N * L or N * H * W, each value in range 0 to K - 1.
-    assert (output.dim() in [1, 2, 3])
+    assert output.dim() in [1, 2, 3]
     assert output.shape == target.shape
     output = output.view(-1)
     target = target.view(-1)
@@ -71,6 +72,7 @@ def make_dirs(dir_name):
 
 def find_free_port():
     import socket
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # Binding to port 0 will cause the OS to find an available port for us
     sock.bind(("", 0))
@@ -138,19 +140,16 @@ def import_modules_from_strings(imports, allow_failed_imports=False):
         single_import = True
         imports = [imports]
     if not isinstance(imports, list):
-        raise TypeError(
-            f'custom_imports must be a list but got type {type(imports)}')
+        raise TypeError(f"custom_imports must be a list but got type {type(imports)}")
     imported = []
     for imp in imports:
         if not isinstance(imp, str):
-            raise TypeError(
-                f'{imp} is of type {type(imp)} and cannot be imported.')
+            raise TypeError(f"{imp} is of type {type(imp)} and cannot be imported.")
         try:
             imported_tmp = import_module(imp)
         except ImportError:
             if allow_failed_imports:
-                warnings.warn(f'{imp} failed to import and is ignored.',
-                              UserWarning)
+                warnings.warn(f"{imp} failed to import and is ignored.", UserWarning)
                 imported_tmp = None
             else:
                 raise ImportError

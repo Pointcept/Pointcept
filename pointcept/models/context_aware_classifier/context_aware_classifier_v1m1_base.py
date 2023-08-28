@@ -14,19 +14,20 @@ from pointcept.models.builder import MODELS, build_model
 
 @MODELS.register_module("CAC-v1m1")
 class CACSegmentor(nn.Module):
-    def __init__(self,
-                 num_classes,
-                 backbone_out_channels,
-                 backbone=None,
-                 criteria=None,
-                 cos_temp=15,
-                 main_weight=1,
-                 pre_weight=1,
-                 pre_self_weight=1,
-                 kl_weight=1,
-                 conf_thresh=0,
-                 detach_pre_logits=False
-                 ):
+    def __init__(
+        self,
+        num_classes,
+        backbone_out_channels,
+        backbone=None,
+        criteria=None,
+        cos_temp=15,
+        main_weight=1,
+        pre_weight=1,
+        pre_self_weight=1,
+        kl_weight=1,
+        conf_thresh=0,
+        detach_pre_logits=False,
+    ):
         super().__init__()
         self.num_classes = num_classes
         self.cos_temp = cos_temp
@@ -83,7 +84,9 @@ class CACSegmentor(nn.Module):
             tmp_proto = (feat * tmp_mask).sum(0) / (tmp_mask.sum(0) + 1e-4)  # c
             onehot_vec = torch.zeros(new_proto.shape[0], 1).cuda()  # cls, 1
             onehot_vec[tmp_y.long()] = 1
-            new_proto = new_proto * (1 - onehot_vec) + tmp_proto.unsqueeze(0) * onehot_vec
+            new_proto = (
+                new_proto * (1 - onehot_vec) + tmp_proto.unsqueeze(0) * onehot_vec
+            )
 
         new_proto = torch.cat([new_proto, proto], -1)
         new_proto = self.apd_proj(new_proto)
@@ -106,7 +109,9 @@ class CACSegmentor(nn.Module):
             pred = pred.view(n, n_cls)
             pred = F.softmax(pred, 1).permute(1, 0)  # [n, cls] -> [cls, n]
             if self.conf_thresh > 0:
-                max_pred = (pred.max(0)[0] >= self.conf_thresh).float().unsqueeze(0)  # 1, n
+                max_pred = (
+                    (pred.max(0)[0] >= self.conf_thresh).float().unsqueeze(0)
+                )  # 1, n
                 pred = pred * max_pred
             pred_proto = (pred / (pred.sum(-1).unsqueeze(-1) + 1e-7)) @ raw_x  # cls, c
 
@@ -127,9 +132,13 @@ class CACSegmentor(nn.Module):
                 pred = pred.view(n, n_cls)
                 pred = F.softmax(pred, 1).permute(1, 0)  # [n, cls] -> [cls, n]
                 if self.conf_thresh > 0:
-                    max_pred = (pred.max(0)[0] >= self.conf_thresh).float().unsqueeze(0)  # 1, n
+                    max_pred = (
+                        (pred.max(0)[0] >= self.conf_thresh).float().unsqueeze(0)
+                    )  # 1, n
                     pred = pred * max_pred
-                pred_proto = (pred / (pred.sum(-1).unsqueeze(-1) + 1e-7)) @ tmp_x  # cls, c
+                pred_proto = (
+                    pred / (pred.sum(-1).unsqueeze(-1) + 1e-7)
+                ) @ tmp_x  # cls, c
 
                 pred_proto = torch.cat([pred_proto, proto], -1)  # cls, 2c
                 pred_proto = self.proj(pred_proto)
@@ -155,7 +164,9 @@ class CACSegmentor(nn.Module):
         onehot = torch.zeros(n, c).cuda().scatter_(1, onehot.long(), 1)  # n, c
         smoothed_label = smoothness * sm_soft + (1 - smoothness) * onehot
         if eps > 0:
-            smoothed_label = smoothed_label * (1 - eps) + (1 - smoothed_label) * eps / (smoothed_label.shape[1] - 1)
+            smoothed_label = smoothed_label * (1 - eps) + (1 - smoothed_label) * eps / (
+                smoothed_label.shape[1] - 1
+            )
 
         loss = torch.mul(-1 * F.log_softmax(pred, dim=1), smoothed_label)  # b, n, h, w
         loss = loss.sum(1)
@@ -194,32 +205,66 @@ class CACSegmentor(nn.Module):
         if self.training:
             target = data_dict["segment"]
             pre_logits = seg_logits.clone()
-            refine_logits = self.post_refine_proto_batch(feat=feat, pred=seg_logits,
-                                                         proto=self.seg_head.weight.squeeze(),
-                                                         offset=offset) * self.cos_temp
+            refine_logits = (
+                self.post_refine_proto_batch(
+                    feat=feat,
+                    pred=seg_logits,
+                    proto=self.seg_head.weight.squeeze(),
+                    offset=offset,
+                )
+                * self.cos_temp
+            )
 
-            cac_pred = self.get_adaptive_perspective(feat=feat, target=target,
-                                                     new_proto=self.seg_head.weight.detach().data.squeeze(),
-                                                     proto=self.seg_head.weight.squeeze()) * self.cos_temp
+            cac_pred = (
+                self.get_adaptive_perspective(
+                    feat=feat,
+                    target=target,
+                    new_proto=self.seg_head.weight.detach().data.squeeze(),
+                    proto=self.seg_head.weight.squeeze(),
+                )
+                * self.cos_temp
+            )
 
             seg_loss = self.criteria(refine_logits, target) * self.main_weight
             pre_loss = self.criteria(cac_pred, target) * self.pre_weight
             pre_self_loss = self.criteria(pre_logits, target) * self.pre_self_weight
-            kl_loss = self.get_distill_loss(pred=refine_logits, soft=cac_pred.detach(), target=target) * self.kl_weight
+            kl_loss = (
+                self.get_distill_loss(
+                    pred=refine_logits, soft=cac_pred.detach(), target=target
+                )
+                * self.kl_weight
+            )
             loss = seg_loss + pre_loss + pre_self_loss + kl_loss
-            return dict(loss=loss, seg_loss=seg_loss, pre_loss=pre_loss,
-                        pre_self_loss=pre_self_loss, kl_loss=kl_loss)
+            return dict(
+                loss=loss,
+                seg_loss=seg_loss,
+                pre_loss=pre_loss,
+                pre_self_loss=pre_self_loss,
+                kl_loss=kl_loss,
+            )
 
         elif "segment" in data_dict.keys():
-            refine_logits = self.post_refine_proto_batch(feat=feat, pred=seg_logits,
-                                                         proto=self.seg_head.weight.squeeze(),
-                                                         offset=offset) * self.cos_temp
+            refine_logits = (
+                self.post_refine_proto_batch(
+                    feat=feat,
+                    pred=seg_logits,
+                    proto=self.seg_head.weight.squeeze(),
+                    offset=offset,
+                )
+                * self.cos_temp
+            )
 
             loss = self.criteria(seg_logits, data_dict["segment"])
             return dict(loss=loss, seg_logits=refine_logits)
 
         else:
-            refine_logits = self.post_refine_proto_batch(feat=feat, pred=seg_logits,
-                                                         proto=self.seg_head.weight.squeeze(),
-                                                         offset=offset) * self.cos_temp
+            refine_logits = (
+                self.post_refine_proto_batch(
+                    feat=feat,
+                    pred=seg_logits,
+                    proto=self.seg_head.weight.squeeze(),
+                    offset=offset,
+                )
+                * self.cos_temp
+            )
             return dict(seg_logits=refine_logits)

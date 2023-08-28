@@ -7,12 +7,13 @@ Please cite our work if the code is helpful to you.
 
 import os
 import SharedArray
+
 try:
     from multiprocessing.shared_memory import ShareableList
 except ImportError:
     import warnings
-    warnings.warn(
-        'Please update python version >= 3.8 to enable shared_memory')
+
+    warnings.warn("Please update python version >= 3.8 to enable shared_memory")
 import numpy as np
 
 
@@ -32,7 +33,7 @@ def shared_array(name, var=None):
 
 def shared_dict(name, var=None):
     name = str(name)
-    assert '.' not in name  # '.' is used as sep flag
+    assert "." not in name  # '.' is used as sep flag
     data = {}
     if var is not None:
         assert isinstance(var, dict)
@@ -44,19 +45,12 @@ def shared_dict(name, var=None):
                 keys_valid.append(key)
         keys = keys_valid
 
-        ShareableList(sequence=keys, name=name+".keys")
+        ShareableList(sequence=keys, name=name + ".keys")
         for key in keys:
             if isinstance(var[key], np.ndarray):
                 data[key] = shared_array(name=f"{name}.{key}", var=var[key])
     else:
-        keys = list(ShareableList(name=name+".keys"))
+        keys = list(ShareableList(name=name + ".keys"))
         for key in keys:
             data[key] = shared_array(name=f"{name}.{key}")
     return data
-
-
-
-
-
-
-
