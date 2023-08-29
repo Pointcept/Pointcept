@@ -192,7 +192,7 @@ class CheckpointSaver(HookBase):
                     filename,
                     os.path.join(self.trainer.cfg.save_path, "model", "model_best.pth"),
                 )
-            if self.save_freq and self.save_freq % (self.trainer.epoch + 1) == 0:
+            if self.save_freq and (self.trainer.epoch + 1) % self.save_freq == 0:
                 shutil.copyfile(
                     filename,
                     os.path.join(
