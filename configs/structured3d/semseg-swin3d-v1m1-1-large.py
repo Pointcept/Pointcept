@@ -118,8 +118,9 @@ data = dict(
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=("coord", "color", "normal", "discrete_coord", "segment"),
+                keys=("coord", "discrete_coord", "segment"),
                 feat_keys=("color", "normal", "displacement"),
+                coord_feat_keys=("color", "normal"),
             ),
         ],
         test_mode=False,
@@ -144,8 +145,9 @@ data = dict(
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=("coord", "color", "normal", "discrete_coord", "segment"),
+                keys=("coord", "discrete_coord", "segment"),
                 feat_keys=("color", "normal", "displacement"),
+                coord_feat_keys=("color", "normal"),
             ),
         ],
         test_mode=False,
@@ -175,8 +177,9 @@ data = dict(
                 dict(type="ToTensor"),
                 dict(
                     type="Collect",
-                    keys=("coord", "color", "normal", "discrete_coord", "index"),
+                    keys=("coord", "discrete_coord", "index"),
                     feat_keys=("color", "normal", "displacement"),
+                    coord_feat_keys=("color", "normal"),
                 ),
             ],
             aug_transform=[
