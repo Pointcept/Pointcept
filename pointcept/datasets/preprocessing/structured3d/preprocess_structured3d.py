@@ -220,7 +220,7 @@ def parse_scene(
                     pixel = np.transpose(np.indices((width, height)), (2, 1, 0))
                     pixel = pixel.reshape((-1, 2))
                     pixel = np.hstack((pixel, np.ones((pixel.shape[0], 1))))
-                    k = np.diag([1., 1., 1.])
+                    k = np.diag([1.0, 1.0, 1.0])
 
                     k[0, 2] = width / 2
                     k[1, 2] = height / 2
