@@ -74,7 +74,6 @@ class TrainerBase:
                 # => after epoch
                 self.after_epoch()
             # => after train
-            comm.synchronize()
             self.after_train()
 
     def before_train(self):
@@ -102,6 +101,8 @@ class TrainerBase:
         self.storage.reset_histories()
 
     def after_train(self):
+        # Sync GPU before running train hooks
+        comm.synchronize()
         for h in self.hooks:
             h.after_train()
         if comm.is_main_process():
