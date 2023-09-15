@@ -64,7 +64,7 @@ data = dict(
         type=dataset_type,
         split="train",
         data_root=data_root,
-        lr_file="data/scannet/tasks/scenes/1.txt",
+        lr_file="data/scannet/tasks/scenes/10.txt",
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(
