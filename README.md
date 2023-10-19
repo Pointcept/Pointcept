@@ -13,6 +13,12 @@
 [![Formatter](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml/badge.svg)](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml)
 
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
+- **PonderV2: Pave the Way for 3D Foundation Model with A Universal Pre-training Paradigm**  
+*Haoyi Zhu\*, Honghui Yang\*, Xiaoyang Wu\*, Di Huang\*, Sha Zhang, Xianglong He, Tong He, Hengshuang Zhao, Chunhua Shen, Yu Qiao, Wanli Ouyang*  
+arXiv Preprint 2023  
+[ Pretrain ] [PonderV2] - [ [arXiv](https://arxiv.org/abs/2310.08586) ] [ [Bib](https://xywu.me/research/ponderv2/bib.txt) ] [ [Project](https://github.com/OpenGVLab/PonderV2) ] &rarr; soon
+
+
 - **Towards Large-scale 3D Representation Learning with Multi-dataset Point Prompt Training**  
 *Xiaoyang Wu, Zhuotao Tian, Xin Wen, Bohao Peng, Xihui Liu, Kaicheng Yu, Hengshuang Zhao*  
 arXiv Preprint 2023  
@@ -23,12 +29,6 @@ arXiv Preprint 2023
 *Xiaoyang Wu, Xin Wen, Xihui Liu, Hengshuang Zhao*  
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2023  
 [ Pretrain ] [ MSC ] - [ [arXiv](https://arxiv.org/abs/2303.14191) ] [ [Bib](https://xywu.me/research/msc/bib.txt) ] &rarr; [here](#masked-scene-contrast-msc)
-
-
-- **Understanding Imbalanced Semantic Segmentation Through Neural Collapse** (3D Part)  
-*Zhisheng Zhong\*, Jiequan Cui\*, Yibo Yang\*, Xiaoyang Wu, Xiaojuan Qi, Xiangyu Zhang, Jiaya Jia*  
-IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2023  
-[ SemSeg ] [ CeCo ] - [ [arXiv](https://arxiv.org/abs/2301.01100) ] [ [Bib](https://xywu.me/research/ceco/bib.txt) ] [ [2D Part](https://github.com/dvlab-research/Imbalanced-Learning) ] &rarr; soon
 
 
 - **Learning Context-aware Classifier for Semantic Segmentation** (3D Part)  
@@ -81,7 +81,6 @@ Datasets:
 
 ## Highlights
 - *Aug, 2023*: **PPT** is released on arXiv. PPT presents a multi-dataset pre-training framework that achieves SOTA performance in both **indoor** and **outdoor** scenarios. It is compatible with various existing pre-training frameworks and backbones.  A **pre-release** version of the code is accessible; for those interested, please feel free to contact me directly for access.
-- *Jul, 2023*: **PTv2** also achieved fully reproducible SOTA performance on NuScenes (val mIoU 80.2% and test mIoU 82.6%) and Semantic-KITTI (val mIoU 70.3%) semantic segmentation.
 - *Mar, 2023*: We released our codebase, **Pointcept**, a highly potent tool for point cloud representation learning and perception. We welcome new work to join the _Pointcept_ family and highly recommend reading [Quick Start](#quick-start) before starting your trail.
 - *Feb, 2023*: **MSC** and **CeCo** accepted by CVPR 2023. _MSC_ is a highly efficient and effective pretraining framework that facilitates cross-dataset large-scale pretraining, while _CeCo_ is a segmentation method specifically designed for long-tail datasets. Both approaches are compatible with all existing backbone models in our codebase, and we will soon make the code available for public use.
 - *Jan, 2023*: **CAC**, oral work of AAAI 2023, has expanded its 3D result with the incorporation of Pointcept. This addition will allow CAC to serve as a pluggable segmentor within our codebase.
