@@ -73,10 +73,11 @@ Datasets:
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
 [S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1) ([here](#s3dis)),
 [ArkitScene](https://github.com/apple/ARKitScenes),
+[Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)),
 [SemanticKITTI](http://www.semantic-kitti.org/) ([here](#semantickitti)),
 [nuScenes](https://www.nuscenes.org/nuscenes) ([here](#nuscenes)),
 [ModelNet40](https://modelnet.cs.princeton.edu/) ([here](#modelnet)),
-[Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)).
+[Waymo](https://waymo.com/open/) ([here](#waymo)).
 
 
 ## Highlights
@@ -300,6 +301,34 @@ mkdir data
 ln -s ${PROCESSED_NUSCENES_DIR} ${CODEBASE_DIR}/data/nuscenes
 ```
 
+### Waymo
+- Download the official [Waymo](https://waymo.com/open/download/) dataset (v1.3.2 ~ v1.4.2) and organize the downloaded files as follows:
+```bash
+WAYMO_RAW_DIR
+│── training
+│── validation
+│── testing
+```
+- Install the following dependence:
+```bash
+# If shows "No matching distribution found", download whl directly from Pypi and install the package.
+pip install waymo-open-dataset-tf-2-11-0
+```
+- Run information preprocessing code as follows, the preprocessing code turns the raw Waymo dataset to a SemanticKITTI style:
+```bash
+# WAYMO_DIR: the directory of downloaded waymo dataset.
+# PROCESSED_WAYMO_DIR: the directory of processed waymo dataset (output dir).
+# NUM_WORKERS: num workers for preprocessing
+python pointcept/datasets/preprocessing/waymo/preprocess_waymo.py --dataset_root ${WAYMO_DIR} --output_root ${PROCESSED_WAYMO_DIR} --splits training validation --num_workers ${NUM_WORKERS}
+```
+
+- Link processed dataset to codebase.
+```bash
+# PROCESSED_WAYMO_DIR: the directory of processed waymo dataset (output dir).
+mkdir data
+ln -s ${PROCESSED_WAYMO_DIR} ${CODEBASE_DIR}/data/waymo
+```
+
 ### ModelNet
 - Download [modelnet40_normal_resampled.zip](https://shapenet.cs.stanford.edu/media/modelnet40_normal_resampled.zip) and unzip
 - Link dataset to codebase.
@@ -344,14 +373,14 @@ python tools/train.py --config-file ${CONFIG_PATH} --num-gpus ${NUM_GPU} --optio
 ```
 
 ### Testing
-During training, model evaluation is performed on point clouds after grid sampling (voxelization), providing an initial assessment of model performance. However, to obtain precise evaluation results, testing is **essential**. The testing process involves subsampling a dense point cloud into a sequence of voxelized point clouds, ensuring comprehensive coverage of all points. These sub-results are then predicted and collected to form a complete prediction of the entire point cloud. This approach yields  higher evaluation results compared to simply mapping/interpolating the prediction. In addition, our testing code supports TTA (test time augmentation) testing, which further enhances the stability of evaluation performance. (Currently only support testing on a single GPU, I might add support to multi-gpus testing in the future version.)
+During training, model evaluation is performed on point clouds after grid sampling (voxelization), providing an initial assessment of model performance. However, to obtain precise evaluation results, testing is **essential**. The testing process involves subsampling a dense point cloud into a sequence of voxelized point clouds, ensuring comprehensive coverage of all points. These sub-results are then predicted and collected to form a complete prediction of the entire point cloud. This approach yields  higher evaluation results compared to simply mapping/interpolating the prediction. In addition, our testing code supports TTA (test time augmentation) testing, which further enhances the stability of evaluation performance.
 
 ```bash
 # By script (Based on experiment folder created by training script)
-sh scripts/test.sh -p ${INTERPRETER_PATH} -d ${DATASET_NAME} -n ${EXP_NAME} -w ${CHECKPOINT_NAME}
+sh scripts/test.sh -p ${INTERPRETER_PATH} -g ${NUM_GPU} -d ${DATASET_NAME} -n ${EXP_NAME} -w ${CHECKPOINT_NAME}
 # Direct
 export PYTHONPATH=./
-python tools/test.py --config-file ${CONFIG_PATH} --options save_path=${SAVE_PATH} weight=${CHECKPOINT_PATH}
+python tools/test.py --config-file ${CONFIG_PATH} --num-gpus ${NUM_GPU} --options save_path=${SAVE_PATH} weight=${CHECKPOINT_PATH}
 ```
 For example:
 ```bash
@@ -662,7 +691,23 @@ sh scripts/train.sh -g 4 -d scannet -w exp/scannet/pretrain-msc-v1m1-0-spunet-ba
 3. Example log and weight: [[Pretrain](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/EYvNV4XUJ_5Mlk-g15RelN4BW_P8lVBfC_zhjC_BlBDARg?e=UoGFWH)] [[Semseg](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/EQkDiv5xkOFKgCpGiGtAlLwBon7i8W6my3TIbGVxuiTttQ?e=tQFnbr)]
 
 #### Point Prompt Training (PPT)
-PPT presents a multi-dataset pre-training framework that achieves SOTA performance in both **indoor** and **outdoor** scenarios. It is compatible with various existing pre-training frameworks and backbones.  A **pre-release** version of the code is accessible; for those interested, please feel free to contact me(xiaoyang.wu@connect.hku.hk) directly for access.
+PPT presents a multi-dataset pre-training framework, and it is compatible with various existing pre-training frameworks and backbones.
+1. PPT supervised joint training with the following example scripts:
+```bash
+# ScanNet + Structured3d, validate on ScanNet (S3DIS might cause long data time, w/o S3DIS for a quick validation) >= 3090 * 8 
+sh scripts/train.sh -g 8 -d scannet -c semseg-ppt-v1m1-0-sc-st-spunet -n semseg-ppt-v1m1-0-sc-st-spunet
+sh scripts/train.sh -g 8 -d scannet -c semseg-ppt-v1m1-1-sc-st-spunet-submit -n semseg-ppt-v1m1-1-sc-st-spunet-submit
+# ScanNet + S3DIS + Structured3d, validate on S3DIS (>= a100 * 8)
+sh scripts/train.sh -g 8 -d s3dis -c semseg-ppt-v1m1-0-s3-sc-st-spunet -n semseg-ppt-v1m1-0-s3-sc-st-spunet
+# SemanticKITTI + nuScenes + Waymo, validate on SemanticKITTI (bs12 >= 3090 * 4 >= 3090 * 8, v1m1-0 is still on tuning)
+sh scripts/train.sh -g 4 -d semantic_kitti -c semseg-ppt-v1m1-0-nu-sk-wa-spunet -n semseg-ppt-v1m1-0-nu-sk-wa-spunet
+sh scripts/train.sh -g 4 -d semantic_kitti -c semseg-ppt-v1m2-0-sk-nu-wa-spunet -n semseg-ppt-v1m2-0-sk-nu-wa-spunet
+sh scripts/train.sh -g 4 -d semantic_kitti -c semseg-ppt-v1m2-1-sk-nu-wa-spunet-submit -n semseg-ppt-v1m2-1-sk-nu-wa-spunet-submit
+# SemanticKITTI + nuScenes + Waymo, validate on nuScenes (bs12 >= 3090 * 4; bs24 >= 3090 * 8, v1m1-0 is still on tuning))
+sh scripts/train.sh -g 4 -d nuscenes -c semseg-ppt-v1m1-0-nu-sk-wa-spunet -n semseg-ppt-v1m1-0-nu-sk-wa-spunet
+sh scripts/train.sh -g 4 -d nuscenes -c semseg-ppt-v1m2-0-nu-sk-wa-spunet -n semseg-ppt-v1m2-0-nu-sk-wa-spunet
+sh scripts/train.sh -g 4 -d nuscenes -c semseg-ppt-v1m2-1-nu-sk-wa-spunet-submit -n semseg-ppt-v1m2-1-nu-sk-wa-spunet-submit
+```
 
 #### PointContrast
 1. Preprocess and link ScanNet-Pair dataset (pair-wise matching with ScanNet raw RGB-D frame, ~1.5T):

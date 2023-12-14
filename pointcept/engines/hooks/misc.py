@@ -22,9 +22,8 @@ from pointcept.utils.timer import Timer
 from pointcept.utils.comm import is_main_process, synchronize, get_world_size
 from pointcept.utils.cache import shared_dict
 
-from pointcept.datasets import build_dataset
-from pointcept.datasets.utils import collate_fn
-from pointcept.engines.test import TEST
+import pointcept.utils.comm as comm
+from pointcept.engines.test import TESTERS
 
 from .default import HookBase
 from .builder import HOOKS
@@ -222,13 +221,17 @@ class CheckpointLoader(HookBase):
                 f"Loading layer weights with keyword: {self.keywords}, "
                 f"replace keyword with: {self.replacement}"
             )
-            weight = OrderedDict(
-                [
-                    (key.replace(self.keywords, self.replacement), value)
-                    for key, value in checkpoint["state_dict"].items()
-                    if self.keywords in key
-                ]
-            )
+            weight = OrderedDict()
+            for key, value in checkpoint["state_dict"].items():
+                if not key.startswith("module."):
+                    if comm.get_world_size() > 1:
+                        key = "module." + key  # xxx.xxx -> module.xxx.xxx
+                # Now all keys contain "module." no matter DDP or not.
+                if self.keywords in key:
+                    key = key.replace(self.keywords, self.replacement)
+                if comm.get_world_size() == 1:
+                    key = key[7:]  # module.xxx.xxx -> xxx.xxx
+                weight[key] = value
             load_state_info = self.trainer.model.load_state_dict(
                 weight, strict=self.strict
             )
@@ -258,27 +261,11 @@ class PreciseEvaluator(HookBase):
         )
         torch.cuda.empty_cache()
         cfg = self.trainer.cfg
-        tester = TEST.build(cfg.test)
-        self.trainer.logger.info("=> Building test dataset & dataloader ...")
-        test_dataset = build_dataset(cfg.data.test)
-        if get_world_size() > 1:
-            test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
-        else:
-            test_sampler = None
-        test_loader = torch.utils.data.DataLoader(
-            test_dataset,
-            batch_size=cfg.batch_size_test_per_gpu,
-            shuffle=False,
-            num_workers=cfg.batch_size_test_per_gpu,
-            pin_memory=True,
-            sampler=test_sampler,
-            collate_fn=tester.collate_fn,
+        tester = TESTERS.build(
+            dict(type=cfg.test.type, cfg=cfg, model=self.trainer.model)
         )
-
-        model = self.trainer.model
         if self.test_last:
             self.trainer.logger.info("=> Testing on model_last ...")
-            cfg.test_epoch = cfg.eval_epoch
         else:
             self.trainer.logger.info("=> Testing on model_best ...")
             best_path = os.path.join(
@@ -286,9 +273,8 @@ class PreciseEvaluator(HookBase):
             )
             checkpoint = torch.load(best_path)
             state_dict = checkpoint["state_dict"]
-            model.load_state_dict(state_dict, strict=True)
-            cfg.test_epoch = checkpoint["epoch"]
-        tester(cfg, test_loader, model)
+            tester.model.load_state_dict(state_dict, strict=True)
+        tester.test()
 
 
 @HOOKS.register_module()

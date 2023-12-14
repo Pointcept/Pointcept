@@ -30,5 +30,8 @@ hooks = [
     dict(type="PreciseEvaluator", test_last=False),
 ]
 
+# Trainer
+train = dict(type="DefaultTrainer")
+
 # Tester
-test = dict(type="SemSegTester")
+test = dict(type="SemSegTester", verbose=True)

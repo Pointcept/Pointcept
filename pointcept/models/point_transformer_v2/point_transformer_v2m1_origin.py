@@ -1,5 +1,5 @@
 """
-Point Transformer V2 mode1
+Point Transformer V2 mode 1
 
 Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.

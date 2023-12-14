@@ -92,9 +92,9 @@ class MaskedSceneContrast(nn.Module):
 
         # grid partition
         mask_patch_coord = union_origin_coord.div(self.mask_grid_size)
-        mask_patch_discrete_coord = torch.floor(mask_patch_coord)
+        mask_patch_grid_coord = torch.floor(mask_patch_coord)
         mask_patch_cluster = voxel_grid(
-            pos=mask_patch_discrete_coord, size=1, batch=union_batch, start=0
+            pos=mask_patch_grid_coord, size=1, batch=union_batch, start=0
         )
         unique, cluster, counts = torch.unique(
             mask_patch_cluster, sorted=True, return_inverse=True, return_counts=True
@@ -239,11 +239,11 @@ class MaskedSceneContrast(nn.Module):
             offset=view2_offset,
         )
 
-        # SparseConv based method need discrete coord
-        if "view1_discrete_coord" in data_dict.keys():
-            view1_data_dict["discrete_coord"] = data_dict["view1_discrete_coord"]
-        if "view2_discrete_coord" in data_dict.keys():
-            view2_data_dict["discrete_coord"] = data_dict["view2_discrete_coord"]
+        # SparseConv based method need grid coord
+        if "view1_grid_coord" in data_dict.keys():
+            view1_data_dict["grid_coord"] = data_dict["view1_grid_coord"]
+        if "view2_grid_coord" in data_dict.keys():
+            view2_data_dict["grid_coord"] = data_dict["view2_grid_coord"]
 
         # view mixing strategy
         if random.random() < self.view1_mix_prob:

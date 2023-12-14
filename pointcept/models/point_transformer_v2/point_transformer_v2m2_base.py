@@ -1,5 +1,5 @@
 """
-Point Transformer V2 Mode (recommend)
+Point Transformer V2 Mode 2 (recommend)
 
 Disable Grouped Linear
 

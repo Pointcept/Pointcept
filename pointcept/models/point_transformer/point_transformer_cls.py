@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 
 from .point_transformer_seg import TransitionDown, Bottleneck
-from ..builder import MODELS
+from pointcept.models.builder import MODELS
 
 
 class PointTransformerCls(nn.Module):

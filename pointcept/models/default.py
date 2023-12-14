@@ -12,6 +12,10 @@ class DefaultSegmentor(nn.Module):
         self.criteria = build_criteria(criteria)
 
     def forward(self, input_dict):
+        if "condition" in input_dict.keys():
+            # PPT (https://arxiv.org/abs/2308.09718)
+            # currently, only support one batch one condition
+            input_dict["condition"] = input_dict["condition"][0]
         seg_logits = self.backbone(input_dict)
         # train
         if self.training:
