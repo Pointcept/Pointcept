@@ -2,6 +2,7 @@ _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
 batch_size = 12  # bs: total bs in all gpus
+num_worker = 12
 mix_prob = 0
 empty_cache = False
 enable_amp = True
@@ -94,7 +95,7 @@ data = dict(
                 grid_size=0.02,
                 hash_type="fnv",
                 mode="train",
-                return_discrete_coord=True,
+                return_grid_coord=True,
                 keys=("coord", "color", "normal", "segment", "instance"),
             ),
             dict(type="SphereCrop", sample_rate=0.8, mode="random"),
@@ -109,10 +110,10 @@ data = dict(
                 type="Collect",
                 keys=(
                     "coord",
-                    "discrete_coord",
+                    "grid_coord",
                     "segment",
                     "instance",
-                    "instance_center",
+                    "instance_centroid",
                     "bbox",
                 ),
                 feat_keys=("color", "normal"),
@@ -139,7 +140,7 @@ data = dict(
                 grid_size=0.02,
                 hash_type="fnv",
                 mode="train",
-                return_discrete_coord=True,
+                return_grid_coord=True,
                 keys=("coord", "color", "normal", "segment", "instance"),
             ),
             # dict(type="SphereCrop", point_max=1000000, mode='center'),
@@ -155,13 +156,13 @@ data = dict(
                 type="Collect",
                 keys=(
                     "coord",
-                    "discrete_coord",
+                    "grid_coord",
                     "segment",
                     "instance",
                     "origin_coord",
                     "origin_segment",
                     "origin_instance",
-                    "instance_center",
+                    "instance_centroid",
                     "bbox",
                 ),
                 feat_keys=("color", "normal"),

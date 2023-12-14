@@ -97,7 +97,7 @@ data = dict(
             dict(type="RandomJitter", sigma=0.005, clip=0.02),
             # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
             # dict(type="GridSample", grid_size=0.05, hash_type="fnv", mode="train",
-            #      keys=("coord", "strength", "segment"), return_discrete_coord=True),
+            #      keys=("coord", "strength", "segment"), return_grid_coord=True),
             # dict(type="SphereCrop", point_max=1000000, mode="random"),
             # dict(type="CenterShift", apply_z=False),
             dict(type="ToTensor"),

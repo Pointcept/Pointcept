@@ -15,7 +15,8 @@ from .point_transformer_v2 import *
 from .context_aware_classifier import *
 
 # Instance Segmentation
-# from .point_group import *
+from .point_group import *
 
 # Pretraining
 from .masked_scene_contrast import *
+from .point_prompt_training import *

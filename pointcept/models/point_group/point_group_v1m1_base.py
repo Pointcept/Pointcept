@@ -11,16 +11,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from pointgroup_ops import ballquery_batch_p, bfs_cluster
-from ..utils import offset2batch, batch2offset
+from pointcept.models.utils import offset2batch, batch2offset
 
-from ..builder import MODELS, build_model
+from pointcept.models.builder import MODELS, build_model
 
 
 @MODELS.register_module("PG-v1m1")
 class PointGroup(nn.Module):
     def __init__(
         self,
-        backbone=None,
+        backbone,
         backbone_out_channels=64,
         semantic_num_classes=20,
         semantic_ignore_index=-1,
@@ -33,16 +33,6 @@ class PointGroup(nn.Module):
         voxel_size=0.02,
     ):
         super().__init__()
-        if backbone is None:
-            backbone = dict(
-                type="SpUNet-v1m1",
-                in_channels=6,
-                num_classes=0,
-                channels=(32, 64, 128, 256, 256, 128, 96, 96),
-                layers=(2, 3, 4, 6, 2, 2, 2, 2),
-            )
-        else:
-            backbone.num_classes = 0
         norm_fn = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
         self.semantic_num_classes = semantic_num_classes
         self.segment_ignore_index = segment_ignore_index
@@ -67,7 +57,7 @@ class PointGroup(nn.Module):
         coord = data_dict["coord"]
         segment = data_dict["segment"]
         instance = data_dict["instance"]
-        instance_center = data_dict["instance_center"]
+        instance_centroid = data_dict["instance_centroid"]
         offset = data_dict["offset"]
 
         feat = self.backbone(data_dict)
@@ -78,7 +68,7 @@ class PointGroup(nn.Module):
         seg_loss = self.ce_criteria(logit_pred, segment)
 
         mask = (instance != self.instance_ignore_index).float()
-        bias_gt = instance_center - coord
+        bias_gt = instance_centroid - coord
         bias_dist = torch.sum(torch.abs(bias_pred - bias_gt), dim=-1)
         bias_l1_loss = torch.sum(bias_dist * mask) / (torch.sum(mask) + 1e-8)
 

@@ -116,7 +116,7 @@ class Swin3DUNet(nn.Module):
         self.init_weights()
 
     def forward(self, data_dict):
-        discrete_coord = data_dict["discrete_coord"]
+        grid_coord = data_dict["grid_coord"]
         feat = data_dict["feat"]
         coord_feat = data_dict["coord_feat"]
         coord = data_dict["coord"]
@@ -132,9 +132,7 @@ class Swin3DUNet(nn.Module):
                 ],
                 dim=1,
             ),
-            coordinates=torch.cat(
-                [batch.unsqueeze(-1).int(), discrete_coord.int()], dim=1
-            ),
+            coordinates=torch.cat([batch.unsqueeze(-1).int(), grid_coord.int()], dim=1),
             quantization_mode=ME.SparseTensorQuantizationMode.UNWEIGHTED_AVERAGE,
             minkowski_algorithm=ME.MinkowskiAlgorithm.SPEED_OPTIMIZED,
             device=feat.device,

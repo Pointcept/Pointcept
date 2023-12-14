@@ -96,13 +96,20 @@ class DefaultDataset(Dataset):
     def prepare_test_data(self, idx):
         # load data
         data_dict = self.get_data(idx)
-        segment = data_dict.pop("segment")
         data_dict = self.transform(data_dict)
+        result_dict = dict(
+            segment=data_dict.pop("segment"), name=self.get_data_name(idx)
+        )
+        if "origin_segment" in data_dict:
+            assert "inverse" in data_dict
+            result_dict["origin_segment"] = data_dict.pop("origin_segment")
+            result_dict["inverse"] = data_dict.pop("inverse")
+
         data_dict_list = []
         for aug in self.aug_transform:
             data_dict_list.append(aug(deepcopy(data_dict)))
 
-        input_dict_list = []
+        fragment_list = []
         for data in data_dict_list:
             if self.test_voxelize is not None:
                 data_part_list = self.test_voxelize(data)
@@ -114,14 +121,12 @@ class DefaultDataset(Dataset):
                     data_part = self.test_crop(data_part)
                 else:
                     data_part = [data_part]
-                input_dict_list += data_part
+                fragment_list += data_part
 
-        for i in range(len(input_dict_list)):
-            input_dict_list[i] = self.post_transform(input_dict_list[i])
-        data_dict = dict(
-            fragment_list=input_dict_list, segment=segment, name=self.get_data_name(idx)
-        )
-        return data_dict
+        for i in range(len(fragment_list)):
+            fragment_list[i] = self.post_transform(fragment_list[i])
+        result_dict["fragment_list"] = fragment_list
+        return result_dict
 
     def __getitem__(self, idx):
         if self.test_mode:
@@ -152,8 +157,7 @@ class ConcatDataset(Dataset):
         for i in range(len(self.datasets)):
             data_list.extend(
                 zip(
-                    np.ones(len(self.datasets[i]), dtype=np.long) * i,
-                    np.arange(len(self.datasets[i])),
+                    np.ones(len(self.datasets[i])) * i, np.arange(len(self.datasets[i]))
                 )
             )
         return data_list

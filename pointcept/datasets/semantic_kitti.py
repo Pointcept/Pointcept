@@ -7,146 +7,77 @@ Please cite our work if the code is helpful to you.
 
 import os
 import numpy as np
-from copy import deepcopy
-from torch.utils.data import Dataset
 
-from pointcept.utils.logger import get_root_logger
 from .builder import DATASETS
-from .transform import Compose, TRANSFORMS
+from .defaults import DefaultDataset
 
 
 @DATASETS.register_module()
-class SemanticKITTIDataset(Dataset):
+class SemanticKITTIDataset(DefaultDataset):
     def __init__(
         self,
         split="train",
         data_root="data/semantic_kitti",
-        learning_map=None,
         transform=None,
         test_mode=False,
         test_cfg=None,
         loop=1,
+        ignore_index=-1,
     ):
-        super(SemanticKITTIDataset, self).__init__()
-        self.data_root = data_root
-        self.split = split
-        self.learning_map = learning_map
-        self.split2seq = dict(
+        self.ignore_index = ignore_index
+        self.learning_map = self.get_learning_map(ignore_index)
+        self.learning_map_inv = self.get_learning_map_inv(ignore_index)
+        super().__init__(
+            split=split,
+            data_root=data_root,
+            transform=transform,
+            test_mode=test_mode,
+            test_cfg=test_cfg,
+            loop=loop,
+        )
+
+    def get_data_list(self):
+        split2seq = dict(
             train=[0, 1, 2, 3, 4, 5, 6, 7, 9, 10],
             val=[8],
             test=[11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
         )
-        self.transform = Compose(transform)
-        self.loop = (
-            loop if not test_mode else 1
-        )  # force make loop = 1 while in test mode
-        self.test_mode = test_mode
-        self.test_cfg = test_cfg if test_mode else None
-
-        if test_mode:
-            self.test_voxelize = TRANSFORMS.build(self.test_cfg.voxelize)
-            self.test_crop = (
-                TRANSFORMS.build(self.test_cfg.crop) if self.test_cfg.crop else None
-            )
-            self.post_transform = Compose(self.test_cfg.post_transform)
-            self.aug_transform = [Compose(aug) for aug in self.test_cfg.aug_transform]
-
         if isinstance(self.split, str):
-            seq_list = self.split2seq[split]
+            seq_list = split2seq[self.split]
         elif isinstance(self.split, list):
             seq_list = []
             for split in self.split:
-                seq_list += self.split2seq[split]
+                seq_list += split2seq[split]
         else:
             raise NotImplementedError
 
-        self.data_list = []
+        data_list = []
         for seq in seq_list:
             seq = str(seq).zfill(2)
             seq_folder = os.path.join(self.data_root, "dataset", "sequences", seq)
             seq_files = sorted(os.listdir(os.path.join(seq_folder, "velodyne")))
-            self.data_list += [
+            data_list += [
                 os.path.join(seq_folder, "velodyne", file) for file in seq_files
             ]
-        logger = get_root_logger()
-        logger.info(
-            "Totally {} x {} samples in {} set.".format(
-                len(self.data_list), self.loop, split
-            )
-        )
+        return data_list
 
-    def prepare_train_data(self, idx):
-        name = self.get_data_name(idx)
-        # load data
-        data_idx = idx % len(self.data_list)
-        with open(self.data_list[data_idx], "rb") as b:
+    def get_data(self, idx):
+        data_path = self.data_list[idx % len(self.data_list)]
+        with open(data_path, "rb") as b:
             scan = np.fromfile(b, dtype=np.float32).reshape(-1, 4)
         coord = scan[:, :3]
         strength = scan[:, -1].reshape([-1, 1])
 
-        label_file = (
-            self.data_list[data_idx]
-            .replace("velodyne", "labels")
-            .replace(".bin", ".label")
-        )
+        label_file = data_path.replace("velodyne", "labels").replace(".bin", ".label")
         if os.path.exists(label_file):
             with open(label_file, "rb") as a:
                 segment = np.fromfile(a, dtype=np.int32).reshape(-1)
+                segment = np.vectorize(self.learning_map.__getitem__)(
+                    segment & 0xFFFF
+                ).astype(np.int32)
         else:
             segment = np.zeros(scan.shape[0]).astype(np.int32)
-        segment = np.vectorize(self.learning_map.__getitem__)(segment & 0xFFFF).astype(
-            np.int64
-        )
         data_dict = dict(coord=coord, strength=strength, segment=segment)
-        data_dict = self.transform(data_dict)
-        return data_dict
-
-    def prepare_test_data(self, idx):
-        data_idx = idx % len(self.data_list)
-        with open(self.data_list[data_idx], "rb") as b:
-            scan = np.fromfile(b, dtype=np.float32).reshape(-1, 4)
-        coord = scan[:, :3]
-        strength = scan[:, -1].reshape([-1, 1])
-
-        label_file = (
-            self.data_list[data_idx]
-            .replace("velodyne", "labels")
-            .replace(".bin", ".label")
-        )
-        if os.path.exists(label_file):
-            with open(label_file, "rb") as a:
-                segment = np.fromfile(a, dtype=np.int32).reshape(-1)
-        else:
-            segment = np.zeros(coord.shape[0]).astype(np.int32)
-        segment = np.vectorize(self.learning_map.__getitem__)(segment & 0xFFFF).astype(
-            np.int64
-        )
-
-        data_dict = dict(
-            coord=coord, strength=strength, segment=segment.astype(np.int64)
-        )
-
-        segment = data_dict.pop("segment")
-        data_dict = self.transform(data_dict)
-        data_dict_list = []
-        for aug in self.aug_transform:
-            data_dict_list.append(aug(deepcopy(data_dict)))
-
-        input_dict_list = []
-        for data in data_dict_list:
-            data_part_list = self.test_voxelize(data)
-            for data_part in data_part_list:
-                if self.test_crop:
-                    data_part = self.test_crop(data_part)
-                else:
-                    data_part = [data_part]
-                input_dict_list += data_part
-
-        for i in range(len(input_dict_list)):
-            input_dict_list[i] = self.post_transform(input_dict_list[i])
-        data_dict = dict(
-            fragment_list=input_dict_list, segment=segment, name=self.get_data_name(idx)
-        )
         return data_dict
 
     def get_data_name(self, idx):
@@ -157,11 +88,68 @@ class SemanticKITTIDataset(Dataset):
         data_name = f"{sequence_name}_{frame_name}"
         return data_name
 
-    def __getitem__(self, idx):
-        if self.test_mode:
-            return self.prepare_test_data(idx)
-        else:
-            return self.prepare_train_data(idx)
+    @staticmethod
+    def get_learning_map(ignore_index):
+        learning_map = {
+            0: ignore_index,  # "unlabeled"
+            1: ignore_index,  # "outlier" mapped to "unlabeled" --------------------------mapped
+            10: 0,  # "car"
+            11: 1,  # "bicycle"
+            13: 4,  # "bus" mapped to "other-vehicle" --------------------------mapped
+            15: 2,  # "motorcycle"
+            16: 4,  # "on-rails" mapped to "other-vehicle" ---------------------mapped
+            18: 3,  # "truck"
+            20: 4,  # "other-vehicle"
+            30: 5,  # "person"
+            31: 6,  # "bicyclist"
+            32: 7,  # "motorcyclist"
+            40: 8,  # "road"
+            44: 9,  # "parking"
+            48: 10,  # "sidewalk"
+            49: 11,  # "other-ground"
+            50: 12,  # "building"
+            51: 13,  # "fence"
+            52: ignore_index,  # "other-structure" mapped to "unlabeled" ------------------mapped
+            60: 8,  # "lane-marking" to "road" ---------------------------------mapped
+            70: 14,  # "vegetation"
+            71: 15,  # "trunk"
+            72: 16,  # "terrain"
+            80: 17,  # "pole"
+            81: 18,  # "traffic-sign"
+            99: ignore_index,  # "other-object" to "unlabeled" ----------------------------mapped
+            252: 0,  # "moving-car" to "car" ------------------------------------mapped
+            253: 6,  # "moving-bicyclist" to "bicyclist" ------------------------mapped
+            254: 5,  # "moving-person" to "person" ------------------------------mapped
+            255: 7,  # "moving-motorcyclist" to "motorcyclist" ------------------mapped
+            256: 4,  # "moving-on-rails" mapped to "other-vehicle" --------------mapped
+            257: 4,  # "moving-bus" mapped to "other-vehicle" -------------------mapped
+            258: 3,  # "moving-truck" to "truck" --------------------------------mapped
+            259: 4,  # "moving-other"-vehicle to "other-vehicle" ----------------mapped
+        }
+        return learning_map
 
-    def __len__(self):
-        return len(self.data_list) * self.loop
+    @staticmethod
+    def get_learning_map_inv(ignore_index):
+        learning_map_inv = {
+            ignore_index: ignore_index,  # "unlabeled"
+            0: 10,  # "car"
+            1: 11,  # "bicycle"
+            2: 15,  # "motorcycle"
+            3: 18,  # "truck"
+            4: 20,  # "other-vehicle"
+            5: 30,  # "person"
+            6: 31,  # "bicyclist"
+            7: 32,  # "motorcyclist"
+            8: 40,  # "road"
+            9: 44,  # "parking"
+            10: 48,  # "sidewalk"
+            11: 49,  # "other-ground"
+            12: 50,  # "building"
+            13: 51,  # "fence"
+            14: 70,  # "vegetation"
+            15: 71,  # "trunk"
+            16: 72,  # "terrain"
+            17: 80,  # "pole"
+            18: 81,  # "traffic-sign"
+        }
+        return learning_map_inv

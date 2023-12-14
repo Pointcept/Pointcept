@@ -5,8 +5,8 @@ from pointcept.datasets.preprocessing.scannet.meta_data.scannet200_constants imp
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 48  # bs: total bs in all gpus
-num_worker = 24
+batch_size = 12  # bs: total bs in all gpus
+num_worker = 12
 mix_prob = 0
 empty_cache = False
 enable_amp = True
@@ -14,23 +14,11 @@ evaluate = True
 
 class_names = CLASS_LABELS_200
 num_classes = 200
-
-hooks = [
-    dict(type="CheckpointLoader", keywords="module.", replacement="module."),
-    dict(type="IterationTimer", warmup_iter=2),
-    dict(type="InformationWriter"),
-    dict(
-        type="InsSegEvaluator",
-        num_classes=num_classes,
-        class_names=class_names,
-        segment_ignore_index=(-1, 0, 2),
-    ),
-    dict(type="CheckpointSaver", save_freq=None),
-]
+segment_ignore_index = (-1, 0, 2)
 
 # model settings
 model = dict(
-    type="PointGroup",
+    type="PG-v1m1",
     backbone=dict(
         type="SpUNet-v1m1",
         in_channels=6,
@@ -41,7 +29,7 @@ model = dict(
     backbone_out_channels=96,
     semantic_num_classes=num_classes,
     semantic_ignore_index=-1,
-    segment_ignore_index=(-1, 0, 2),
+    segment_ignore_index=segment_ignore_index,
     instance_ignore_index=-1,
     cluster_thresh=1.5,
     cluster_closed_points=300,
@@ -90,14 +78,14 @@ data = dict(
                 grid_size=0.02,
                 hash_type="fnv",
                 mode="train",
-                return_discrete_coord=True,
+                return_grid_coord=True,
                 keys=("coord", "color", "normal", "segment", "instance"),
             ),
             dict(type="SphereCrop", sample_rate=0.8, mode="random"),
             dict(type="NormalizeColor"),
             dict(
                 type="InstanceParser",
-                segment_ignore_index=(-1, 0, 2),
+                segment_ignore_index=segment_ignore_index,
                 instance_ignore_index=-1,
             ),
             dict(type="ToTensor"),
@@ -105,10 +93,10 @@ data = dict(
                 type="Collect",
                 keys=(
                     "coord",
-                    "discrete_coord",
+                    "grid_coord",
                     "segment",
                     "instance",
-                    "instance_center",
+                    "instance_centroid",
                     "bbox",
                 ),
                 feat_keys=("color", "normal"),
@@ -123,11 +111,19 @@ data = dict(
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(
+                type="Copy",
+                keys_dict={
+                    "coord": "origin_coord",
+                    "segment": "origin_segment",
+                    "instance": "origin_instance",
+                },
+            ),
+            dict(
                 type="GridSample",
                 grid_size=0.02,
                 hash_type="fnv",
                 mode="train",
-                return_discrete_coord=True,
+                return_grid_coord=True,
                 keys=("coord", "color", "normal", "segment", "instance"),
             ),
             # dict(type="SphereCrop", point_max=1000000, mode='center'),
@@ -135,7 +131,7 @@ data = dict(
             dict(type="NormalizeColor"),
             dict(
                 type="InstanceParser",
-                segment_ignore_index=(-1, 0, 1),
+                segment_ignore_index=segment_ignore_index,
                 instance_ignore_index=-1,
             ),
             dict(type="ToTensor"),
@@ -143,86 +139,32 @@ data = dict(
                 type="Collect",
                 keys=(
                     "coord",
-                    "discrete_coord",
+                    "grid_coord",
                     "segment",
                     "instance",
-                    "instance_center",
+                    "origin_coord",
+                    "origin_segment",
+                    "origin_instance",
+                    "instance_centroid",
                     "bbox",
-                    "scene_id",
                 ),
                 feat_keys=("color", "normal"),
-                offset_keys_dict=dict(offset="coord"),
+                offset_keys_dict=dict(offset="coord", origin_offset="origin_coord"),
             ),
         ],
         test_mode=False,
     ),
-    test=dict(
-        type=dataset_type,
-        split="val",
-        data_root=data_root,
-        transform=[
-            dict(type="CenterShift", apply_z=True),
-            dict(type="NormalizeColor"),
-        ],
-        test_mode=True,
-        test_cfg=dict(
-            voxelize=dict(
-                type="GridSample",
-                grid_size=0.02,
-                hash_type="fnv",
-                mode="test",
-                return_discrete_coord=True,
-                keys=("color", "normal"),
-            ),
-            crop=None,
-            post_transform=[
-                dict(type="CenterShift", apply_z=False),
-                dict(type="InstanceParser", segments_ignore_index=(0, 1, -1)),
-                dict(type="ToTensor"),
-                dict(
-                    type="Collect",
-                    keys=("coord", "discrete_coord", "index"),
-                    feat_keys=("color", "normal"),
-                ),
-            ],
-            aug_transform=[
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[0],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    )
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[1 / 2],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    )
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[1],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    )
-                ],
-                [
-                    dict(
-                        type="RandomRotateTargetAngle",
-                        angle=[3 / 2],
-                        axis="z",
-                        center=[0, 0, 0],
-                        p=1,
-                    )
-                ],
-            ],
-        ),
-    ),
+    test=dict(),  # currently not available
 )
+
+hooks = [
+    dict(type="CheckpointLoader", keywords="module.", replacement="module."),
+    dict(type="IterationTimer", warmup_iter=2),
+    dict(type="InformationWriter"),
+    dict(
+        type="InsSegEvaluator",
+        segment_ignore_index=segment_ignore_index,
+        instance_ignore_index=-1,
+    ),
+    dict(type="CheckpointSaver", save_freq=None),
+]

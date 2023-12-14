@@ -7,7 +7,7 @@ PYTHON=python
 TRAIN_CODE=train.py
 
 DATASET=scannet
-CONFIG=point_transformer_v2
+CONFIG="None"
 EXP_NAME=debug
 WEIGHT="None"
 RESUME=false
@@ -53,8 +53,6 @@ echo "Python interpreter dir: $PYTHON"
 echo "Dataset: $DATASET"
 echo "Config: $CONFIG"
 echo "GPU Num: $GPU"
-
-
 
 EXP_DIR=exp/${DATASET}/${EXP_NAME}
 MODEL_DIR=${EXP_DIR}/model

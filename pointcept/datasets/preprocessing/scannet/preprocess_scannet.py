@@ -11,7 +11,6 @@ import torch
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-import sys
 import os
 import argparse
 import glob

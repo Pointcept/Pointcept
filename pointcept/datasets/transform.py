@@ -97,6 +97,19 @@ class ToTensor(object):
 
 
 @TRANSFORMS.register_module()
+class Add(object):
+    def __init__(self, keys_dict=None):
+        if keys_dict is None:
+            keys_dict = dict()
+        self.keys_dict = keys_dict
+
+    def __call__(self, data_dict):
+        for key, value in self.keys_dict.items():
+            data_dict[key] = value
+        return data_dict
+
+
+@TRANSFORMS.register_module()
 class NormalizeColor(object):
     def __call__(self, data_dict):
         if "color" in data_dict.keys():
@@ -187,7 +200,7 @@ class RandomDropout(object):
             if "sampled_index" in data_dict:
                 # for ScanNet data efficient, we need to make sure labeled point is sampled.
                 idx = np.unique(np.append(idx, data_dict["sampled_index"]))
-                mask = np.zeros_like(data_dict["segment"]).astype(np.bool)
+                mask = np.zeros_like(data_dict["segment"]).astype(bool)
                 mask[data_dict["sampled_index"]] = True
                 data_dict["sampled_index"] = np.where(mask[idx])[0]
             if "coord" in data_dict.keys():
@@ -774,7 +787,8 @@ class GridSample(object):
         hash_type="fnv",
         mode="train",
         keys=("coord", "color", "normal", "segment"),
-        return_discrete_coord=False,
+        return_inverse=False,
+        return_grid_coord=False,
         return_min_coord=False,
         return_displacement=False,
         project_displacement=False,
@@ -784,7 +798,8 @@ class GridSample(object):
         assert mode in ["train", "test"]
         self.mode = mode
         self.keys = keys
-        self.return_discrete_coord = return_discrete_coord
+        self.return_inverse = return_inverse
+        self.return_grid_coord = return_grid_coord
         self.return_min_coord = return_min_coord
         self.return_displacement = return_displacement
         self.project_displacement = project_displacement
@@ -792,10 +807,10 @@ class GridSample(object):
     def __call__(self, data_dict):
         assert "coord" in data_dict.keys()
         scaled_coord = data_dict["coord"] / np.array(self.grid_size)
-        discrete_coord = np.floor(scaled_coord).astype(int)
-        min_coord = discrete_coord.min(0) * np.array(self.grid_size)
-        discrete_coord -= discrete_coord.min(0)
-        key = self.hash(discrete_coord)
+        grid_coord = np.floor(scaled_coord).astype(int)
+        min_coord = grid_coord.min(0) * np.array(self.grid_size)
+        grid_coord -= grid_coord.min(0)
+        key = self.hash(grid_coord)
         idx_sort = np.argsort(key)
         key_sort = key[idx_sort]
         _, inverse, count = np.unique(key_sort, return_inverse=True, return_counts=True)
@@ -810,16 +825,19 @@ class GridSample(object):
                 idx_unique = np.unique(
                     np.append(idx_unique, data_dict["sampled_index"])
                 )
-                mask = np.zeros_like(data_dict["segment"]).astype(np.bool)
+                mask = np.zeros_like(data_dict["segment"]).astype(bool)
                 mask[data_dict["sampled_index"]] = True
                 data_dict["sampled_index"] = np.where(mask[idx_unique])[0]
-            if self.return_discrete_coord:
-                data_dict["discrete_coord"] = discrete_coord[idx_unique]
+            if self.return_inverse:
+                data_dict["inverse"] = np.zeros_like(inverse)
+                data_dict["inverse"][idx_sort] = inverse
+            if self.return_grid_coord:
+                data_dict["grid_coord"] = grid_coord[idx_unique]
             if self.return_min_coord:
                 data_dict["min_coord"] = min_coord.reshape([1, 3])
             if self.return_displacement:
                 displacement = (
-                    scaled_coord - discrete_coord - 0.5
+                    scaled_coord - grid_coord - 0.5
                 )  # [0, 1] -> [-0.5, 0.5] displacement to center
                 if self.project_displacement:
                     displacement = np.sum(
@@ -836,13 +854,16 @@ class GridSample(object):
                 idx_select = np.cumsum(np.insert(count, 0, 0)[0:-1]) + i % count
                 idx_part = idx_sort[idx_select]
                 data_part = dict(index=idx_part)
-                if self.return_discrete_coord:
-                    data_part["discrete_coord"] = discrete_coord[idx_part]
+                if self.return_inverse:
+                    data_dict["inverse"] = np.zeros_like(inverse)
+                    data_dict["inverse"][idx_sort] = inverse
+                if self.return_grid_coord:
+                    data_part["grid_coord"] = grid_coord[idx_part]
                 if self.return_min_coord:
                     data_part["min_coord"] = min_coord.reshape([1, 3])
                 if self.return_displacement:
                     displacement = (
-                        scaled_coord - discrete_coord - 0.5
+                        scaled_coord - grid_coord - 0.5
                     )  # [0, 1] -> [-0.5, 0.5] displacement to center
                     if self.project_displacement:
                         displacement = np.sum(
@@ -933,10 +954,8 @@ class SphereCrop(object):
                     data_crop_dict = dict()
                     if "coord" in data_dict.keys():
                         data_crop_dict["coord"] = data_dict["coord"][idx_crop]
-                    if "discrete_coord" in data_dict.keys():
-                        data_crop_dict["discrete_coord"] = data_dict["discrete_coord"][
-                            idx_crop
-                        ]
+                    if "grid_coord" in data_dict.keys():
+                        data_crop_dict["grid_coord"] = data_dict["grid_coord"][idx_crop]
                     if "normal" in data_dict.keys():
                         data_crop_dict["normal"] = data_dict["normal"][idx_crop]
                     if "color" in data_dict.keys():
@@ -981,8 +1000,8 @@ class SphereCrop(object):
                 data_dict["coord"] = data_dict["coord"][idx_crop]
             if "origin_coord" in data_dict.keys():
                 data_dict["origin_coord"] = data_dict["origin_coord"][idx_crop]
-            if "discrete_coord" in data_dict.keys():
-                data_dict["discrete_coord"] = data_dict["discrete_coord"][idx_crop]
+            if "grid_coord" in data_dict.keys():
+                data_dict["grid_coord"] = data_dict["grid_coord"][idx_crop]
             if "color" in data_dict.keys():
                 data_dict["color"] = data_dict["color"][idx_crop]
             if "normal" in data_dict.keys():
@@ -1006,8 +1025,8 @@ class ShufflePoint(object):
         np.random.shuffle(shuffle_index)
         if "coord" in data_dict.keys():
             data_dict["coord"] = data_dict["coord"][shuffle_index]
-        if "discrete_coord" in data_dict.keys():
-            data_dict["discrete_coord"] = data_dict["discrete_coord"][shuffle_index]
+        if "grid_coord" in data_dict.keys():
+            data_dict["grid_coord"] = data_dict["grid_coord"][shuffle_index]
         if "displacement" in data_dict.keys():
             data_dict["displacement"] = data_dict["displacement"][shuffle_index]
         if "color" in data_dict.keys():
@@ -1029,8 +1048,8 @@ class CropBoundary(object):
         mask = (segment != 0) * (segment != 1)
         if "coord" in data_dict.keys():
             data_dict["coord"] = data_dict["coord"][mask]
-        if "discrete_coord" in data_dict.keys():
-            data_dict["discrete_coord"] = data_dict["discrete_coord"][mask]
+        if "grid_coord" in data_dict.keys():
+            data_dict["grid_coord"] = data_dict["grid_coord"][mask]
         if "color" in data_dict.keys():
             data_dict["color"] = data_dict["color"][mask]
         if "normal" in data_dict.keys():
@@ -1085,21 +1104,31 @@ class InstanceParser(object):
         instance_num = len(unique)
         instance[mask] = inverse
         # init instance information
-        center = np.ones((coord.shape[0], 3)) * self.instance_ignore_index
-        # TODO: optimize bbox to [start_x, start_y, start_z, length_x, length_y, length_z, theta]
-        bbox = np.ones((instance_num, 6)) * self.instance_ignore_index
+        centroid = np.ones((coord.shape[0], 3)) * self.instance_ignore_index
+        bbox = np.ones((instance_num, 8)) * self.instance_ignore_index
+        vacancy = [
+            index for index in self.segment_ignore_index if index >= 0
+        ]  # vacate class index
 
         for instance_id in range(instance_num):
             mask_ = instance == instance_id
             coord_ = coord[mask_]
             bbox_min = coord_.min(0)
             bbox_max = coord_.max(0)
-            bbox_center = coord_.mean(0)
+            bbox_centroid = coord_.mean(0)
+            bbox_center = (bbox_max + bbox_min) / 2
+            bbox_size = bbox_max - bbox_min
+            bbox_theta = np.zeros(1, dtype=coord_.dtype)
+            bbox_class = np.array([segment[mask_][0]], dtype=coord_.dtype)
+            # shift class index to fill vacate class index caused by segment ignore index
+            bbox_class -= np.greater(bbox_class, vacancy).sum()
 
-            center[mask_] = bbox_center
-            bbox[instance_id] = np.concatenate([bbox_min, bbox_max])
+            centroid[mask_] = bbox_centroid
+            bbox[instance_id] = np.concatenate(
+                [bbox_center, bbox_size, bbox_theta, bbox_class]
+            )  # 3 + 3 + 1 + 1 = 8
         data_dict["instance"] = instance
-        data_dict["instance_center"] = center
+        data_dict["instance_centroid"] = centroid
         data_dict["bbox"] = bbox
         return data_dict
 

@@ -19,7 +19,7 @@ except ImportError:
     warnings.warn("Please follow `README.md` to install spconv2.`")
 
 from timm.models.layers import trunc_normal_
-from ..builder import MODELS
+from pointcept.models.builder import MODELS
 
 
 def offset2batch(offset):
@@ -253,16 +253,16 @@ class SpUNetBase(nn.Module):
             nn.init.constant_(m.weight, 1.0)
 
     def forward(self, data_dict):
-        discrete_coord = data_dict["discrete_coord"]
+        grid_coord = data_dict["grid_coord"]
         feat = data_dict["feat"]
         offset = data_dict["offset"]
 
         batch = offset2batch(offset)
-        sparse_shape = torch.add(torch.max(discrete_coord, dim=0).values, 1).tolist()
+        sparse_shape = torch.add(torch.max(grid_coord, dim=0).values, 1).tolist()
         x = spconv.SparseConvTensor(
             features=feat,
             indices=torch.cat(
-                [batch.unsqueeze(-1).int(), discrete_coord.int()], dim=1
+                [batch.unsqueeze(-1).int(), grid_coord.int()], dim=1
             ).contiguous(),
             spatial_shape=sparse_shape,
             batch_size=batch[-1].tolist() + 1,

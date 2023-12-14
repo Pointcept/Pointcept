@@ -145,8 +145,7 @@ def get_root_logger(log_file=None, log_level=logging.INFO, file_mode="a"):
 
     The logger will be initialized if it has not been initialized. By default a
     StreamHandler will be added. If `log_file` is specified, a FileHandler will
-    also be added. The name of the root logger is the top-level package name,
-    e.g., "lseg3d".
+    also be added. The name of the root logger is the top-level package name.
 
     Args:
         log_file (str | None): The log filename. If specified, a FileHandler

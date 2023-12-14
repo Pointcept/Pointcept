@@ -79,7 +79,7 @@ data = dict(
                 hash_type="fnv",
                 mode="train",
                 keys=("coord", "color", "segment"),
-                return_discrete_coord=True,
+                return_grid_coord=True,
             ),
             dict(type="SphereCrop", point_max=100000, mode="random"),
             dict(type="CenterShift", apply_z=False),
@@ -88,7 +88,7 @@ data = dict(
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=("coord", "discrete_coord", "segment"),
+                keys=("coord", "grid_coord", "segment"),
                 feat_keys=["color"],
             ),
         ],
@@ -110,7 +110,7 @@ data = dict(
                 hash_type="fnv",
                 mode="train",
                 keys=("coord", "color", "segment"),
-                return_discrete_coord=True,
+                return_grid_coord=True,
             ),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
@@ -119,7 +119,7 @@ data = dict(
                 type="Collect",
                 keys=(
                     "coord",
-                    "discrete_coord",
+                    "grid_coord",
                     "origin_coord",
                     "segment",
                     "origin_segment",
@@ -143,7 +143,7 @@ data = dict(
                 hash_type="fnv",
                 mode="test",
                 keys=("coord", "color"),
-                return_discrete_coord=True,
+                return_grid_coord=True,
             ),
             crop=None,
             post_transform=[
@@ -151,7 +151,7 @@ data = dict(
                 dict(type="ToTensor"),
                 dict(
                     type="Collect",
-                    keys=("coord", "discrete_coord", "index"),
+                    keys=("coord", "grid_coord", "index"),
                     feat_keys=("coord", "color"),
                 ),
             ],
