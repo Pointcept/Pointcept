@@ -13,6 +13,11 @@
 [![Formatter](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml/badge.svg)](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml)
 
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
+- **Point Transformer V3: Simpler, Faster, Stronger**  
+*Xiaoyang Wu, Li Jiang, Peng-Shuai Wang, Zhijian Liu, Xihui Liu, Yu Qiao, Wanli Ouyang, Tong He, Hengshuang Zhao*  
+arXiv Preprint 2023  
+[ Backbone ] [PTv3] - [ [arXiv](https://arxiv.org/abs/2312.10035) ] [ [Bib](https://xywu.me/research/ptv3/bib.txt) ] [ [Project](https://github.com/Pointcept/PointTransformerV3) ] &rarr; soon
+
 - **PonderV2: Pave the Way for 3D Foundation Model with A Universal Pre-training Paradigm**  
 *Haoyi Zhu\*, Honghui Yang\*, Xiaoyang Wu\*, Di Huang\*, Sha Zhang, Xianglong He, Tong He, Hengshuang Zhao, Chunhua Shen, Yu Qiao, Wanli Ouyang*  
 arXiv Preprint 2023  
