@@ -18,7 +18,7 @@ from pointcept.utils import comm
 
 __all__ = ["DEFAULT_TIMEOUT", "launch"]
 
-DEFAULT_TIMEOUT = timedelta(minutes=30)
+DEFAULT_TIMEOUT = timedelta(minutes=60)
 
 
 def _find_free_port():

@@ -15,9 +15,8 @@ try:
     from torchsparse.nn.utils import get_kernel_offsets
     from torchsparse import PointTensor, SparseTensor
 except ImportError:
-    import warnings
+    torchsparse = None
 
-    warnings.warn("Please follow `README.md` to install torchsparse.`")
 
 from pointcept.models.utils import offset2batch
 from pointcept.models.builder import MODELS
@@ -188,6 +187,9 @@ class SPVCNN(nn.Module):
     ):  # not implement
         super().__init__()
 
+        assert (
+            torchsparse is not None
+        ), "Please follow `README.md` to install torchsparse.`"
         assert len(layers) % 2 == 0
         assert len(layers) == len(channels)
         self.in_channels = in_channels

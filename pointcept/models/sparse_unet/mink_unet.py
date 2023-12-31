@@ -13,9 +13,7 @@ import torch.nn as nn
 try:
     import MinkowskiEngine as ME
 except ImportError:
-    import warnings
-
-    warnings.warn("Please follow `README.md` to install MinkowskiEngine.`")
+    ME = None
 
 from pointcept.models.builder import MODELS
 
@@ -167,6 +165,7 @@ class MinkUNetBase(nn.Module):
 
     def __init__(self, in_channels, out_channels, dimension=3):
         super().__init__()
+        assert ME is not None, "Please follow `README.md` to install MinkowskiEngine.`"
         self.D = dimension
         assert self.BLOCK is not None
         # Output of the first conv concated to conv6

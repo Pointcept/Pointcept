@@ -16,12 +16,12 @@
 - **Point Transformer V3: Simpler, Faster, Stronger**  
 *Xiaoyang Wu, Li Jiang, Peng-Shuai Wang, Zhijian Liu, Xihui Liu, Yu Qiao, Wanli Ouyang, Tong He, Hengshuang Zhao*  
 arXiv Preprint 2023  
-[ Backbone ] [PTv3] - [ [arXiv](https://arxiv.org/abs/2312.10035) ] [ [Bib](https://xywu.me/research/ptv3/bib.txt) ] [ [Project](https://github.com/Pointcept/PointTransformerV3) ] &rarr; soon
+[ Backbone ] [PTv3] - [ [arXiv](https://arxiv.org/abs/2312.10035) ] [ [Bib](https://xywu.me/research/ptv3/bib.txt) ] [ [Project](https://github.com/Pointcept/PointTransformerV3) ] &rarr; [here](https://github.com/Pointcept/PointTransformerV3)
 
 - **PonderV2: Pave the Way for 3D Foundation Model with A Universal Pre-training Paradigm**  
 *Haoyi Zhu\*, Honghui Yang\*, Xiaoyang Wu\*, Di Huang\*, Sha Zhang, Xianglong He, Tong He, Hengshuang Zhao, Chunhua Shen, Yu Qiao, Wanli Ouyang*  
 arXiv Preprint 2023  
-[ Pretrain ] [PonderV2] - [ [arXiv](https://arxiv.org/abs/2310.08586) ] [ [Bib](https://xywu.me/research/ponderv2/bib.txt) ] [ [Project](https://github.com/OpenGVLab/PonderV2) ] &rarr; soon
+[ Pretrain ] [PonderV2] - [ [arXiv](https://arxiv.org/abs/2310.08586) ] [ [Bib](https://xywu.me/research/ponderv2/bib.txt) ] [ [Project](https://github.com/OpenGVLab/PonderV2) ] &rarr; [here](https://github.com/OpenGVLab/PonderV2)
 
 
 - **Towards Large-scale 3D Representation Learning with Multi-dataset Point Prompt Training**  
@@ -60,6 +60,7 @@ Backbone:
 [SPVCNN](https://github.com/mit-han-lab/spvnas) ([here](#spvcnn)),
 [PTv1](https://arxiv.org/abs/2012.09164) ([here](#point-transformers)),
 [PTv2](https://arxiv.org/abs/2210.05666) ([here](#point-transformers)),
+[PTv3](https://arxiv.org/abs/2312.10035) ([here](#point-transformers)),
 [StratifiedFormer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)),
 [OctFormer](https://github.com/octree-nn/octformer) ([here](#octformer)),
 [Swin3D](https://github.com/microsoft/Swin3D) ([here](#swin3d));   
@@ -86,6 +87,7 @@ Datasets:
 
 
 ## Highlights
+- *Dec, 2023*: **PTv3** is released on arXiv and the code available in Pointcept. PTv3 is an efficient backbone model that achieves SOTA performances across indoor and outdoor scenarios.
 - *Aug, 2023*: **PPT** is released on arXiv. PPT presents a multi-dataset pre-training framework that achieves SOTA performance in both **indoor** and **outdoor** scenarios. It is compatible with various existing pre-training frameworks and backbones.  A **pre-release** version of the code is accessible; for those interested, please feel free to contact me directly for access.
 - *Mar, 2023*: We released our codebase, **Pointcept**, a highly potent tool for point cloud representation learning and perception. We welcome new work to join the _Pointcept_ family and highly recommend reading [Quick Start](#quick-start) before starting your trail.
 - *Feb, 2023*: **MSC** and **CeCo** accepted by CVPR 2023. _MSC_ is a highly efficient and effective pretraining framework that facilitates cross-dataset large-scale pretraining, while _CeCo_ is a segmentation method specifically designed for long-tail datasets. Both approaches are compatible with all existing backbone models in our codebase, and we will soon make the code available for public use.
@@ -115,9 +117,9 @@ If you find _Pointcept_ useful to your research, please cite our work as encoura
 ## Installation
 
 ### Requirements
-- Ubuntu: 18.04 or higher
-- CUDA: 11.3 or higher
-- PyTorch: 1.10.0 or higher
+- Ubuntu: 18.04 and above.
+- CUDA: 11.3 and above.
+- PyTorch: 1.10.0 and above.
 
 ### Conda Environment
 
@@ -490,7 +492,24 @@ sh scripts/train.sh -g 2 -d semantic_kitti -c semseg-minkunet34c-0-base -n semse
 ```
 
 #### Point Transformers
-- **PTv2 mode2 (recommend)**
+- **PTv3**
+
+[PTv3](https://arxiv.org/abs/2312.10035) is an efficient backbone model that achieves SOTA performances across indoor and outdoor scenarios. The full PTv3 relies on FlashAttention, while FlashAttention relies on CUDA 11.6 and above, make sure your local Pointcept environment satisfies the requirements.
+
+If you can not upgrade your local environment to satisfy the requirements (CUDA >= 11.6), then you can disable FlashAttention by setting the model parameter `enable_flash` to `false` and reducing the `enc_patch_size` and `dec_patch_size` to a level.
+
+FlashAttention force disables RPE and forces the accuracy reduced to fp16. If you require these feature, please disable `enable_flash` and adjust `enable_rpe`, `upcast_attention` and`upcast_softmax`.
+
+A more detailed instruction and experiment records (containing weights) are available on the project page. Example running script is as follows:
+```bash
+# Scratched Settings
+sh scripts/train.sh -g 4 -d scannet -c semseg-pt-v3m1-0-base -n semseg-pt-v3m1-0-base
+sh scripts/train.sh -g 4 -d scannet200 -c semseg-pt-v3m1-0-base -n semseg-pt-v3m1-0-base
+
+# More configs and exp record for PTv3 will be available soon. (Before Feb 2024) 
+```
+
+- **PTv2 mode2**
 
 The original PTv2 was trained on 4 * RTX a6000 (48G memory). Even enabling AMP, the memory cost of the original PTv2 is slightly larger than 24G. Considering GPUs with 24G memory are much more accessible, I tuned the PTv2 on the latest Pointcept and made it runnable on 4 * RTX 3090 machines.
 

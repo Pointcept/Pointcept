@@ -808,8 +808,10 @@ class GridSample(object):
         assert "coord" in data_dict.keys()
         scaled_coord = data_dict["coord"] / np.array(self.grid_size)
         grid_coord = np.floor(scaled_coord).astype(int)
-        min_coord = grid_coord.min(0) * np.array(self.grid_size)
-        grid_coord -= grid_coord.min(0)
+        min_coord = grid_coord.min(0)
+        grid_coord -= min_coord
+        scaled_coord -= min_coord
+        min_coord = min_coord * np.array(self.grid_size)
         key = self.hash(grid_coord)
         idx_sort = np.argsort(key)
         key_sort = key[idx_sort]

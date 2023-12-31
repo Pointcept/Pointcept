@@ -1,14 +1,27 @@
 import torch
 import torch.nn as nn
-import torch_points_kernels as tp
 
-from torch_points3d.modules.KPConv.kernels import KPConvLayer
+try:
+    import torch_points_kernels as tp
+except ImportError:
+    tp = None
+
+try:
+    from torch_points3d.modules.KPConv.kernels import KPConvLayer
+    from torch_points3d.core.common_modules import FastBatchNorm1d
+except ImportError:
+    KPConvLayer = None
+    FastBatchNorm1d = None
+
 from torch_scatter import scatter_softmax
 from timm.models.layers import DropPath, trunc_normal_
-from torch_points3d.core.common_modules import FastBatchNorm1d
 from torch_geometric.nn.pool import voxel_grid
 
-import pointops2.pointops as pointops
+try:
+    import pointops2.pointops as pointops
+except ImportError:
+    pointops = None
+
 from pointcept.models.builder import MODELS
 
 
@@ -659,6 +672,11 @@ class StratifiedTransformer(nn.Module):
         kp_max_neighbor=34,
     ):
         super().__init__()
+        assert (
+            KPConvLayer is not None and FastBatchNorm1d is not None
+        ), "Please make sure torch_points3d is installed"
+        assert tp is not None, "Please make sure torch_points_kernels is installed"
+        assert pointops is not None, "Please make sure pointops2 is installed"
 
         dpr = [
             x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))

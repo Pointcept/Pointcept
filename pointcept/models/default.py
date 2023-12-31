@@ -1,6 +1,7 @@
 import torch.nn as nn
 
 from pointcept.models.losses import build_criteria
+from pointcept.models.utils.structure import Point
 from .builder import MODELS, build_model
 
 
@@ -17,6 +18,41 @@ class DefaultSegmentor(nn.Module):
             # currently, only support one batch one condition
             input_dict["condition"] = input_dict["condition"][0]
         seg_logits = self.backbone(input_dict)
+        # train
+        if self.training:
+            loss = self.criteria(seg_logits, input_dict["segment"])
+            return dict(loss=loss)
+        # eval
+        elif "segment" in input_dict.keys():
+            loss = self.criteria(seg_logits, input_dict["segment"])
+            return dict(loss=loss, seg_logits=seg_logits)
+        # test
+        else:
+            return dict(seg_logits=seg_logits)
+
+
+@MODELS.register_module()
+class DefaultSegmentorV2(nn.Module):
+    def __init__(
+        self,
+        num_classes,
+        backbone_out_channels,
+        backbone=None,
+        criteria=None,
+    ):
+        super().__init__()
+        self.seg_head = (
+            nn.Linear(backbone_out_channels, num_classes)
+            if num_classes > 0
+            else nn.Identity()
+        )
+        self.backbone = build_model(backbone)
+        self.criteria = build_criteria(criteria)
+
+    def forward(self, input_dict):
+        point = Point(input_dict)
+        point = self.backbone(point)
+        seg_logits = self.seg_head(point.feat)
         # train
         if self.training:
             loss = self.criteria(seg_logits, input_dict["segment"])

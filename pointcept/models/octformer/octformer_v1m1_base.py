@@ -11,9 +11,17 @@ from typing import Optional, List, Dict
 import torch
 import torch.nn as nn
 from torch.utils.checkpoint import checkpoint
-import ocnn
-from ocnn.octree import Octree, Points
-import dwconv
+
+try:
+    import ocnn
+    from ocnn.octree import Octree, Points
+except ImportError:
+    ocnn = None
+
+try:
+    import dwconv
+except ImportError:
+    dwconv = None
 
 from pointcept.models.builder import MODELS
 from pointcept.models.utils import offset2batch
@@ -513,6 +521,9 @@ class OctFormer(torch.nn.Module):
         octree_full_depth=2,
     ):
         super().__init__()
+        assert ocnn is not None, "Please follow `README.md` to install ocnn.`"
+        assert dwconv is not None, "Please follow `README.md` to install dwconv.`"
+
         self.patch_size = patch_size
         self.dilation = dilation
         self.nempty = nempty
