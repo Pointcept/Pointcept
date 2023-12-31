@@ -87,7 +87,7 @@ Datasets:
 
 
 ## Highlights
-- *Dec, 2023*: **PTv3** is released on arXiv and the code available in Pointcept. PTv3 is an efficient backbone model that achieves SOTA performances across indoor and outdoor scenarios.
+- *Dec, 2023*: **PTv3** is released on arXiv, and the code is available in Pointcept. PTv3 is an efficient backbone model that achieves SOTA performances across indoor and outdoor scenarios.
 - *Aug, 2023*: **PPT** is released on arXiv. PPT presents a multi-dataset pre-training framework that achieves SOTA performance in both **indoor** and **outdoor** scenarios. It is compatible with various existing pre-training frameworks and backbones.  A **pre-release** version of the code is accessible; for those interested, please feel free to contact me directly for access.
 - *Mar, 2023*: We released our codebase, **Pointcept**, a highly potent tool for point cloud representation learning and perception. We welcome new work to join the _Pointcept_ family and highly recommend reading [Quick Start](#quick-start) before starting your trail.
 - *Feb, 2023*: **MSC** and **CeCo** accepted by CVPR 2023. _MSC_ is a highly efficient and effective pretraining framework that facilitates cross-dataset large-scale pretraining, while _CeCo_ is a segmentation method specifically designed for long-tail datasets. Both approaches are compatible with all existing backbone models in our codebase, and we will soon make the code available for public use.
@@ -95,7 +95,7 @@ Datasets:
 - *Sep, 2022*: **PTv2** accepted by NeurIPS 2022. It is a continuation of the Point Transformer. The proposed GVA theory can apply to most existing attention mechanisms, while Grid Pooling is also a practical addition to existing pooling methods.
 
 ## Citation
-If you find _Pointcept_ useful to your research, please cite our work as encouragement. ଘ(੭ˊ꒳​ˋ)੭✧
+If you find _Pointcept_ useful to your research, please cite our work as encouragement. (੭ˊ꒳​ˋ)੭✧
 ```
 @misc{pointcept2023,
     title={Pointcept: A Codebase for Point Cloud Perception Research},
@@ -156,14 +156,14 @@ pip install open3d
 
 ### ScanNet v2
 
-The preprocessing support semantic and instance segmentation for both `ScanNet20`, `ScanNet200` and `ScanNet Data Efficient`.
+The preprocessing supports semantic and instance segmentation for both `ScanNet20`, `ScanNet200`, and `ScanNet Data Efficient`.
 
 - Download the [ScanNet](http://www.scan-net.org/) v2 dataset.
 - Run preprocessing code for raw ScanNet as follows:
 
 ```bash
 # RAW_SCANNET_DIR: the directory of downloaded ScanNet v2 raw dataset.
-# PROCESSED_SCANNET_DIR: the directory of processed ScanNet dataset (output dir).
+# PROCESSED_SCANNET_DIR: the directory of the processed ScanNet dataset (output dir).
 python pointcept/datasets/preprocessing/scannet/preprocess_scannet.py --dataset_root ${RAW_SCANNET_DIR} --output_root ${PROCESSED_SCANNET_DIR}
 ```
 
@@ -172,7 +172,7 @@ python pointcept/datasets/preprocessing/scannet/preprocess_scannet.py --dataset_
 - (Optional) Download ScanNet Data Efficient files:
 ```bash
 # download-scannet.py is the official download script
-# or follow instruction here: https://kaldir.vc.in.tum.de/scannet_benchmark/data_efficient/documentation#download
+# or follow instructions here: https://kaldir.vc.in.tum.de/scannet_benchmark/data_efficient/documentation#download
 python download-scannet.py --data_efficient -o ${RAW_SCANNET_DIR}
 # unzip downloads
 cd ${RAW_SCANNET_DIR}/tasks
@@ -185,7 +185,7 @@ cp -r ${RAW_SCANNET_DIR}/tasks ${PROCESSED_SCANNET_DIR}
 
 - Link processed dataset to codebase:
 ```bash
-# PROCESSED_SCANNET_DIR: the directory of processed ScanNet dataset.
+# PROCESSED_SCANNET_DIR: the directory of the processed ScanNet dataset.
 mkdir data
 ln -s ${PROCESSED_SCANNET_DIR} ${CODEBASE_DIR}/data/scannet
 ```
@@ -210,7 +210,7 @@ python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root
 ```
 
 - (Alternative) Our preprocess data can also be downloaded [[here](https://connecthkuhk-my.sharepoint.com/:u:/g/personal/wuxy_connect_hku_hk/ERtd0QAyLGNMs6vsM4XnebcBseQ8YTL0UTrMmp11PmQF3g?e=MsER95
-)] (with normal vector and aligned angle), please agree the official license before download it.
+)] (with normal vector and aligned angle), please agree with the official license before downloading it.
 
 - Link processed dataset to codebase.
 ```bash
@@ -323,22 +323,22 @@ pip install waymo-open-dataset-tf-2-11-0
 ```
 - Run information preprocessing code as follows, the preprocessing code turns the raw Waymo dataset to a SemanticKITTI style:
 ```bash
-# WAYMO_DIR: the directory of downloaded waymo dataset.
-# PROCESSED_WAYMO_DIR: the directory of processed waymo dataset (output dir).
+# WAYMO_DIR: the directory of the downloaded Waymo dataset.
+# PROCESSED_WAYMO_DIR: the directory of the processed Waymo dataset (output dir).
 # NUM_WORKERS: num workers for preprocessing
 python pointcept/datasets/preprocessing/waymo/preprocess_waymo.py --dataset_root ${WAYMO_DIR} --output_root ${PROCESSED_WAYMO_DIR} --splits training validation --num_workers ${NUM_WORKERS}
 ```
 
-- Link processed dataset to codebase.
+- Link processed dataset to the codebase.
 ```bash
-# PROCESSED_WAYMO_DIR: the directory of processed waymo dataset (output dir).
+# PROCESSED_WAYMO_DIR: the directory of the processed Waymo dataset (output dir).
 mkdir data
 ln -s ${PROCESSED_WAYMO_DIR} ${CODEBASE_DIR}/data/waymo
 ```
 
 ### ModelNet
 - Download [modelnet40_normal_resampled.zip](https://shapenet.cs.stanford.edu/media/modelnet40_normal_resampled.zip) and unzip
-- Link dataset to codebase.
+- Link dataset to the codebase.
 ```bash
 mkdir -p data
 ln -s ${MODELNET_DIR} ${CODEBASE_DIR}/data/modelnet40_normal_resampled
@@ -349,7 +349,7 @@ ln -s ${MODELNET_DIR} ${CODEBASE_DIR}/data/modelnet40_normal_resampled
 ### Training
 **Train from scratch.** The training processing is based on configs in `configs` folder. 
 The training script will generate an experiment folder in `exp` folder and backup essential code in the experiment folder.
-Training config, log, tensorboard and checkpoints will also be saved into the experiment folder during the training process.
+Training config, log, tensorboard, and checkpoints will also be saved into the experiment folder during the training process.
 ```bash
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}
 # Script (Recommended)
@@ -475,7 +475,7 @@ sh scripts/train.sh -g 4 -d scannet -c semseg-spunet-v1m1-0-enable-profiler -n s
 
 - **MinkowskiEngine**
 
-The MinkowskiEngine version `SparseUNet` in the codebase was modified from original MinkowskiEngine repo, and example running script is as follows:
+The MinkowskiEngine version `SparseUNet` in the codebase was modified from the original MinkowskiEngine repo, and example running scripts are as follows:
 1. Install MinkowskiEngine, refer https://github.com/NVIDIA/MinkowskiEngine
 2. Training with the following example scripts:
 ```bash
@@ -498,15 +498,15 @@ sh scripts/train.sh -g 2 -d semantic_kitti -c semseg-minkunet34c-0-base -n semse
 
 If you can not upgrade your local environment to satisfy the requirements (CUDA >= 11.6), then you can disable FlashAttention by setting the model parameter `enable_flash` to `false` and reducing the `enc_patch_size` and `dec_patch_size` to a level.
 
-FlashAttention force disables RPE and forces the accuracy reduced to fp16. If you require these feature, please disable `enable_flash` and adjust `enable_rpe`, `upcast_attention` and`upcast_softmax`.
+FlashAttention force disables RPE and forces the accuracy reduced to fp16. If you require these features, please disable `enable_flash` and adjust `enable_rpe`, `upcast_attention` and`upcast_softmax`.
 
-A more detailed instruction and experiment records (containing weights) are available on the project page. Example running script is as follows:
+Detailed instructions and experiment records (containing weights) are available on the [project repository](https://github.com/Pointcept/PointTransformerV3). Example running scripts are as follows:
 ```bash
 # Scratched Settings
 sh scripts/train.sh -g 4 -d scannet -c semseg-pt-v3m1-0-base -n semseg-pt-v3m1-0-base
 sh scripts/train.sh -g 4 -d scannet200 -c semseg-pt-v3m1-0-base -n semseg-pt-v3m1-0-base
 
-# More configs and exp record for PTv3 will be available soon. (Before Feb 2024) 
+# More configs and exp records for PTv3 will be available soon. (Before Feb 2024) 
 ```
 
 - **PTv2 mode2**
@@ -515,7 +515,7 @@ The original PTv2 was trained on 4 * RTX a6000 (48G memory). Even enabling AMP, 
 
 `PTv2 Mode2` enables AMP and disables _Position Encoding Multiplier_ & _Grouped Linear_. During our further research, we found that precise coordinates are not necessary for point cloud understanding (Replacing precise coordinates with grid coordinates doesn't influence the performance. Also, SparseUNet is an example). As for Grouped Linear, my implementation of Grouped Linear seems to cost more memory than the Linear layer provided by PyTorch. Benefiting from the codebase and better parameter tuning, we also relieve the overfitting problem. The reproducing performance is even better than the results reported in our paper.
 
-Example running script is as follows:
+Example running scripts are as follows:
 
 ```bash
 # ptv2m2: PTv2 mode2, disable PEM & Grouped Linear, GPU memory cost < 24G (recommend)
@@ -537,7 +537,7 @@ sh scripts/train.sh -g 4 -d nuscenes -c semseg-pt-v2m2-0-base -n semseg-pt-v2m2-
 
 - **PTv2 mode1**
 
-`PTv2 mode1` is the original PTv2 we reported in our paper, example running script is as follows:
+`PTv2 mode1` is the original PTv2 we reported in our paper, example running scripts are as follows:
 
 ```bash
 # ptv2m1: PTv2 mode1, Original PTv2, GPU memory cost > 24G
@@ -567,7 +567,7 @@ sh scripts/train.sh -g 4 -d s3dis -c semseg-pt-v1-0-base -n semseg-pt-v1-0-base
 1. Additional requirements:
 ```bash
 pip install torch-points3d
-# fix dependence, caused by install torch-points3d 
+# Fix dependence, caused by installing torch-points3d 
 pip uninstall SharedArray
 pip install SharedArray==3.2.1
 
@@ -592,7 +592,7 @@ sh scripts/train.sh -g 4 -d s3dis -c semseg-st-v1m2-0-refined -n semseg-st-v1m2-
 ```
 
 #### SPVCNN
-`SPVCNN` is baseline model of [SPVNAS](https://github.com/mit-han-lab/spvnas), it is also a practical baseline for outdoor dataset.
+`SPVCNN` is a baseline model of [SPVNAS](https://github.com/mit-han-lab/spvnas), it is also a practical baseline for outdoor datasets.
 1. Install torchsparse:
 ```bash
 # refer https://github.com/mit-han-lab/torchsparse
