@@ -9,6 +9,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
+from pointcept.models.utils.structure import Point
 from pointcept.models.builder import MODELS
 from pointcept.models.losses import build_criteria
 
@@ -29,14 +30,16 @@ class PointPromptTraining(nn.Module):
         context_channels=256,
         conditions=("Structured3D", "ScanNet", "S3DIS"),
         num_classes=(25, 20, 13),
+        backbone_mode=False,
     ):
         super().__init__()
         assert len(conditions) == len(num_classes)
-        assert backbone.type in ["SpUNet-v1m3"]  # SpUNet v1m3: Sparse UNet with PDNorm
+        assert backbone.type in ["SpUNet-v1m3", "PT-v2m3", "PT-v3m1"]
         self.backbone = MODELS.build(backbone)
         self.criteria = build_criteria(criteria)
         self.conditions = conditions
         self.embedding_table = nn.Embedding(len(conditions), context_channels)
+        self.backbone_mode = backbone_mode
         self.seg_heads = nn.ModuleList(
             [nn.Linear(backbone_out_channels, num_cls) for num_cls in num_classes]
         )
@@ -50,7 +53,16 @@ class PointPromptTraining(nn.Module):
             )
         )
         data_dict["context"] = context
-        feat = self.backbone(data_dict)
+        point = self.backbone(data_dict)
+        # Backbone added after v1.5.0 return Point instead of feat and use DefaultSegmentorV2
+        # TODO: remove this part after make all backbone return Point only.
+        if isinstance(point, Point):
+            feat = point.feat
+        else:
+            feat = point
+        if self.backbone_mode:
+            # PPT serve as a multi-dataset backbone when enable backbone mode
+            return feat
         seg_head = self.seg_heads[self.conditions.index(condition)]
         seg_logits = seg_head(feat)
         # train

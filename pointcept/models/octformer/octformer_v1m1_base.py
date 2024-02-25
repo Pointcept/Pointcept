@@ -17,6 +17,8 @@ try:
     from ocnn.octree import Octree, Points
 except ImportError:
     ocnn = None
+    Octree = None
+    Points = None
 
 try:
     import dwconv

@@ -9,6 +9,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
+from pointcept.models.utils.structure import Point
 from pointcept.models.builder import MODELS
 from pointcept.models.losses import build_criteria
 
@@ -30,83 +31,25 @@ class PointPromptTraining(nn.Module):
         conditions=("Structured3D", "ScanNet", "S3DIS"),
         template="[x]",
         clip_model="ViT-B/16",
+        # fmt: off
         class_name=(
-            "wall",
-            "floor",
-            "cabinet",
-            "bed",
-            "chair",
-            "sofa",
-            "table",
-            "door",
-            "window",
-            "bookshelf",
-            "bookcase",
-            "picture",
-            "counter",
-            "desk",
-            "shelves",
-            "curtain",
-            "dresser",
-            "pillow",
-            "mirror",
-            "ceiling",
-            "refrigerator",
-            "television",
-            "shower curtain",
-            "nightstand",
-            "toilet",
-            "sink",
-            "lamp",
-            "bathtub",
-            "garbagebin",
-            "board",
-            "beam",
-            "column",
-            "clutter",
-            "otherstructure",
-            "otherfurniture",
-            "otherprop",
+            "wall", "floor", "cabinet", "bed", "chair", "sofa", "table", "door",
+            "window", "bookshelf", "bookcase", "picture", "counter", "desk", "shelves", "curtain",
+            "dresser", "pillow", "mirror", "ceiling", "refrigerator", "television", "shower curtain", "nightstand",
+            "toilet", "sink", "lamp", "bathtub", "garbagebin", "board", "beam", "column",
+            "clutter", "otherstructure", "otherfurniture", "otherprop",
         ),
         valid_index=(
-            (
-                0,
-                1,
-                2,
-                3,
-                4,
-                5,
-                6,
-                7,
-                8,
-                11,
-                13,
-                14,
-                15,
-                16,
-                17,
-                18,
-                19,
-                20,
-                21,
-                23,
-                25,
-                26,
-                33,
-                34,
-                35,
-            ),
+            (0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 25, 26, 33, 34, 35),
             (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 15, 20, 22, 24, 25, 27, 34),
             (0, 1, 4, 5, 6, 7, 8, 10, 19, 29, 30, 31, 32),
         ),
+        # fmt: on
         backbone_mode=False,
     ):
         super().__init__()
         assert len(conditions) == len(valid_index)
-        assert backbone.type in [
-            "SpUNet-v1m3",
-            "PT-v2m3",
-        ]  # SpUNet v1m3: Sparse UNet with PDNorm
+        assert backbone.type in ["SpUNet-v1m3", "PT-v2m3", "PT-v3m1"]
         self.backbone = MODELS.build(backbone)
         self.criteria = build_criteria(criteria)
         self.conditions = conditions
@@ -141,7 +84,13 @@ class PointPromptTraining(nn.Module):
             )
         )
         data_dict["context"] = context
-        feat = self.backbone(data_dict)
+        point = self.backbone(data_dict)
+        # Backbone added after v1.5.0 return Point instead of feat and use DefaultSegmentorV2
+        # TODO: remove this part after make all backbone return Point only.
+        if isinstance(point, Point):
+            feat = point.feat
+        else:
+            feat = point
         if self.backbone_mode:
             # PPT serve as a multi-dataset backbone when enable backbone mode
             return feat
