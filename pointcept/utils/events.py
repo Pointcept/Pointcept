@@ -7,7 +7,6 @@ Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
-
 import datetime
 import json
 import logging
@@ -273,16 +272,20 @@ class CommonMetricPrinter(EventWriter):
                         if "loss" in k
                     ]
                 ),
-                time="time: {:.4f}  ".format(iter_time)
-                if iter_time is not None
-                else "",
-                data_time="data_time: {:.4f}  ".format(data_time)
-                if data_time is not None
-                else "",
+                time=(
+                    "time: {:.4f}  ".format(iter_time) if iter_time is not None else ""
+                ),
+                data_time=(
+                    "data_time: {:.4f}  ".format(data_time)
+                    if data_time is not None
+                    else ""
+                ),
                 lr=lr,
-                memory="max_mem: {:.0f}M".format(max_mem_mb)
-                if max_mem_mb is not None
-                else "",
+                memory=(
+                    "max_mem: {:.0f}M".format(max_mem_mb)
+                    if max_mem_mb is not None
+                    else ""
+                ),
             )
         )
 

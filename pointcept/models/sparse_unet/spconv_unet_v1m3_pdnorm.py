@@ -6,6 +6,7 @@ Enable Prompt-Driven Normalization for Point Prompt Training
 Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
+
 from functools import partial
 from collections import OrderedDict
 
@@ -328,23 +329,25 @@ class SpUNetBase(nn.Module):
                         OrderedDict(
                             [
                                 (
-                                    f"block{i}",
-                                    block(
-                                        dec_channels + enc_channels,
-                                        dec_channels,
-                                        norm_fn=norm_fn,
-                                        indice_key=f"subm{s}",
-                                    ),
-                                )
-                                if i == 0
-                                else (
-                                    f"block{i}",
-                                    block(
-                                        dec_channels,
-                                        dec_channels,
-                                        norm_fn=norm_fn,
-                                        indice_key=f"subm{s}",
-                                    ),
+                                    (
+                                        f"block{i}",
+                                        block(
+                                            dec_channels + enc_channels,
+                                            dec_channels,
+                                            norm_fn=norm_fn,
+                                            indice_key=f"subm{s}",
+                                        ),
+                                    )
+                                    if i == 0
+                                    else (
+                                        f"block{i}",
+                                        block(
+                                            dec_channels,
+                                            dec_channels,
+                                            norm_fn=norm_fn,
+                                            indice_key=f"subm{s}",
+                                        ),
+                                    )
                                 )
                                 for i in range(layers[len(channels) - s - 1])
                             ]

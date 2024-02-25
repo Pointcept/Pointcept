@@ -6,6 +6,7 @@ Enable Prompt-Driven Normalization for Point Prompt Training
 Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
+
 from functools import partial
 from copy import deepcopy
 import math

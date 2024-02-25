@@ -26,9 +26,11 @@ def offset2batch(offset):
     return (
         torch.cat(
             [
-                torch.tensor([i] * (o - offset[i - 1]))
-                if i > 0
-                else torch.tensor([i] * o)
+                (
+                    torch.tensor([i] * (o - offset[i - 1]))
+                    if i > 0
+                    else torch.tensor([i] * o)
+                )
                 for i, o in enumerate(offset)
             ],
             dim=0,
@@ -203,23 +205,25 @@ class SpUNetBase(nn.Module):
                     OrderedDict(
                         [
                             (
-                                f"block{i}",
-                                block(
-                                    dec_channels + enc_channels,
-                                    dec_channels,
-                                    norm_fn=norm_fn,
-                                    indice_key=f"subm{s}",
-                                ),
-                            )
-                            if i == 0
-                            else (
-                                f"block{i}",
-                                block(
-                                    dec_channels,
-                                    dec_channels,
-                                    norm_fn=norm_fn,
-                                    indice_key=f"subm{s}",
-                                ),
+                                (
+                                    f"block{i}",
+                                    block(
+                                        dec_channels + enc_channels,
+                                        dec_channels,
+                                        norm_fn=norm_fn,
+                                        indice_key=f"subm{s}",
+                                    ),
+                                )
+                                if i == 0
+                                else (
+                                    f"block{i}",
+                                    block(
+                                        dec_channels,
+                                        dec_channels,
+                                        norm_fn=norm_fn,
+                                        indice_key=f"subm{s}",
+                                    ),
+                                )
                             )
                             for i in range(layers[len(channels) - s - 1])
                         ]

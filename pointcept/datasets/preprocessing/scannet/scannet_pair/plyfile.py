@@ -109,7 +109,6 @@ def make2d(array, cols=None, dtype=None):
 
 
 class PlyParseError(Exception):
-
     """
     Raised when a PLY file cannot be parsed.
 
@@ -145,7 +144,6 @@ class PlyParseError(Exception):
 
 
 class PlyData(object):
-
     """
     PLY file header and data.
 
@@ -361,7 +359,6 @@ def _open_stream(stream, read_or_write):
 
 
 class PlyElement(object):
-
     """
     PLY file element.
 
@@ -702,7 +699,6 @@ class PlyElement(object):
 
 
 class PlyProperty(object):
-
     """
     PLY property description.  This class is pure metadata; the data
     itself is contained in PlyElement instances.
@@ -801,7 +797,6 @@ class PlyProperty(object):
 
 
 class PlyListProperty(PlyProperty):
-
     """
     PLY list property description.
 

@@ -178,9 +178,11 @@ class CheckpointSaver(HookBase):
                     "state_dict": self.trainer.model.state_dict(),
                     "optimizer": self.trainer.optimizer.state_dict(),
                     "scheduler": self.trainer.scheduler.state_dict(),
-                    "scaler": self.trainer.scaler.state_dict()
-                    if self.trainer.cfg.enable_amp
-                    else None,
+                    "scaler": (
+                        self.trainer.scaler.state_dict()
+                        if self.trainer.cfg.enable_amp
+                        else None
+                    ),
                     "best_metric_value": self.trainer.best_metric_value,
                 },
                 filename + ".tmp",

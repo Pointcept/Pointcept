@@ -2,6 +2,7 @@
 The part of attention operations is written by Xin Lai.
 Email: xinlai@cse.cuhk.edu.hk
 """
+
 from typing import Tuple
 
 import torch

@@ -29,9 +29,11 @@ def offset2batch(offset):
     return (
         torch.cat(
             [
-                torch.tensor([i] * (o - offset[i - 1]))
-                if i > 0
-                else torch.tensor([i] * o)
+                (
+                    torch.tensor([i] * (o - offset[i - 1]))
+                    if i > 0
+                    else torch.tensor([i] * o)
+                )
                 for i, o in enumerate(offset)
             ],
             dim=0,
@@ -432,9 +434,9 @@ class BasicLayer(nn.Module):
                     rel_query=rel_query,
                     rel_key=rel_key,
                     rel_value=rel_value,
-                    drop_path=drop_path[i]
-                    if isinstance(drop_path, list)
-                    else drop_path,
+                    drop_path=(
+                        drop_path[i] if isinstance(drop_path, list) else drop_path
+                    ),
                     mlp_ratio=mlp_ratio,
                     qkv_bias=qkv_bias,
                     qk_scale=qk_scale,

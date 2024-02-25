@@ -4,6 +4,7 @@ Point Prompt Training with decoupled segmentation head
 Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
+
 from functools import partial
 from collections import OrderedDict
 

@@ -1,6 +1,7 @@
 """
 Preprocessing ArkitScenes
 """
+
 import os
 import argparse
 import glob

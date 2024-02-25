@@ -186,23 +186,25 @@ class SpUNetBase(nn.Module):
                         OrderedDict(
                             [
                                 (
-                                    f"block{i}",
-                                    block(
-                                        dec_channels + enc_channels,
-                                        dec_channels,
-                                        norm_fn=norm_fn,
-                                        indice_key=f"subm{s}",
-                                    ),
-                                )
-                                if i == 0
-                                else (
-                                    f"block{i}",
-                                    block(
-                                        dec_channels,
-                                        dec_channels,
-                                        norm_fn=norm_fn,
-                                        indice_key=f"subm{s}",
-                                    ),
+                                    (
+                                        f"block{i}",
+                                        block(
+                                            dec_channels + enc_channels,
+                                            dec_channels,
+                                            norm_fn=norm_fn,
+                                            indice_key=f"subm{s}",
+                                        ),
+                                    )
+                                    if i == 0
+                                    else (
+                                        f"block{i}",
+                                        block(
+                                            dec_channels,
+                                            dec_channels,
+                                            norm_fn=norm_fn,
+                                            indice_key=f"subm{s}",
+                                        ),
+                                    )
                                 )
                                 for i in range(layers[len(channels) - s - 1])
                             ]
@@ -377,23 +379,25 @@ class SpUNetNoSkipBase(nn.Module):
                     OrderedDict(
                         [
                             (
-                                f"block{i}",
-                                block(
-                                    dec_channels,
-                                    dec_channels,
-                                    norm_fn=norm_fn,
-                                    indice_key=f"subm{s}",
-                                ),
-                            )
-                            if i == 0
-                            else (
-                                f"block{i}",
-                                block(
-                                    dec_channels,
-                                    dec_channels,
-                                    norm_fn=norm_fn,
-                                    indice_key=f"subm{s}",
-                                ),
+                                (
+                                    f"block{i}",
+                                    block(
+                                        dec_channels,
+                                        dec_channels,
+                                        norm_fn=norm_fn,
+                                        indice_key=f"subm{s}",
+                                    ),
+                                )
+                                if i == 0
+                                else (
+                                    f"block{i}",
+                                    block(
+                                        dec_channels,
+                                        dec_channels,
+                                        norm_fn=norm_fn,
+                                        indice_key=f"subm{s}",
+                                    ),
+                                )
                             )
                             for i in range(layers[len(channels) - s - 1])
                         ]
