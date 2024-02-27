@@ -87,6 +87,7 @@ Datasets:
 
 
 ## Highlights
+- *Feb, 2024*: **PTv3** and **PPT** are accepted by CVPR'24, another **two** papers by our Pointcept team have also been accepted by CVPR'24 🎉🎉🎉. We will make them publicly available soon!
 - *Dec, 2023*: **PTv3** is released on arXiv, and the code is available in Pointcept. PTv3 is an efficient backbone model that achieves SOTA performances across indoor and outdoor scenarios.
 - *Aug, 2023*: **PPT** is released on arXiv. PPT presents a multi-dataset pre-training framework that achieves SOTA performance in both **indoor** and **outdoor** scenarios. It is compatible with various existing pre-training frameworks and backbones.  A **pre-release** version of the code is accessible; for those interested, please feel free to contact me directly for access.
 - *Mar, 2023*: We released our codebase, **Pointcept**, a highly potent tool for point cloud representation learning and perception. We welcome new work to join the _Pointcept_ family and highly recommend reading [Quick Start](#quick-start) before starting your trail.
