@@ -157,3 +157,8 @@ def import_modules_from_strings(imports, allow_failed_imports=False):
     if single_import:
         imported = imported[0]
     return imported
+
+
+class DummyClass:
+    def __init__(self):
+        pass
