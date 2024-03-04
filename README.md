@@ -511,7 +511,9 @@ sh scripts/train.sh -g 8 -d scannet -c semseg-pt-v3m1-1-ppt-extreme -n semseg-pt
 # Scratched ScanNet200
 sh scripts/train.sh -g 4 -d scannet200 -c semseg-pt-v3m1-0-base -n semseg-pt-v3m1-0-base
 # Fine-tuning from  PPT joint training (ScanNet + Structured3D) with ScanNet200
-# TODO
+# PTV3_PPT_WEIGHT_PATH: Path to model weight trained by PPT multi-dataset joint training
+# e.g. exp/scannet/semseg-pt-v3m1-1-ppt-extreme/model/model_best.pth
+sh scripts/train.sh -g 4 -d scannet200 -c semseg-pt-v3m1-1-ppt-ft -n semseg-pt-v3m1-1-ppt-ft -w ${PTV3_PPT_WEIGHT_PATH}
 
 # Scratched S3DIS, S3DIS rely on RPE, also an example for disable flash attention
 sh scripts/train.sh -g 4 -d s3dis -c semseg-pt-v3m1-0-rpe -n semseg-pt-v3m1-0-rpe
