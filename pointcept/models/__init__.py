@@ -9,6 +9,7 @@ from .point_transformer_v3 import *
 from .stratified_transformer import *
 from .spvcnn import *
 from .octformer import *
+from .oacnn import *
 
 # from .swin3d import *
 
