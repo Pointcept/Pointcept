@@ -212,7 +212,7 @@ class UpBlock(nn.Module):
 
 
 @MODELS.register_module()
-class OACnn(nn.Module):
+class OACNNs(nn.Module):
     def __init__(
         self,
         in_channels,

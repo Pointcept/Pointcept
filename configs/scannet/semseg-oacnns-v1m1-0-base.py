@@ -11,7 +11,7 @@ sync_bn = True
 model = dict(
     type="DefaultSegmentor",
     backbone=dict(
-        type="OACnn",
+        type="OACNNs",
         in_channels=9,
         num_classes=20,
         embed_channels=64,
@@ -23,7 +23,7 @@ model = dict(
         dec_depth=[2, 2, 2, 2],
         enc_num_ref=[16, 16, 16, 16],
     ),
-    criteria=[dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=255)],
+    criteria=[dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1)],
 )
 
 
@@ -44,7 +44,7 @@ data_root = "data/scannet"
 
 data = dict(
     num_classes=20,
-    ignore_index=255,
+    ignore_index=-1,
     names=[
         "wall",
         "floor",
