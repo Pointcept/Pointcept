@@ -29,6 +29,10 @@ arXiv Preprint 2023
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2024  
 [ Pretrain ] [PPT] - [ [arXiv](https://arxiv.org/abs/2308.09718) ] [ [Bib](https://xywu.me/research/ppt/bib.txt) ] &rarr; [here](#point-prompt-training-ppt)
 
+- **OA-CNNs: Omni-Adaptive Sparse CNNs for 3D Semantic Segmentation**  
+*Bohao Peng, Xiaoyang Wu, Li Jiang, Yukang Chen, Hengshuang Zhao, Zhuotao Tian, Jiaya Jia*  
+IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2024  
+[ Backbone ] [ OA-CNNs ] - [ [arXiv](https://arxiv.org/abs/2403.14418) ] 
 
 - **Masked Scene Contrast: A Scalable Framework for Unsupervised 3D Representation Learning**  
 *Xiaoyang Wu, Xin Wen, Xihui Liu, Hengshuang Zhao*  
