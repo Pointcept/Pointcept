@@ -11,7 +11,7 @@ sync_bn = True
 model = dict(
     type="DefaultSegmentor",
     backbone=dict(
-        type="OACnn", 
+        type="OACnn",
         in_channels=9,
         num_classes=20,
         embed_channels=64,
@@ -19,7 +19,7 @@ model = dict(
         groups=[4, 4, 8, 16],
         enc_depth=[3, 3, 9, 8],
         dec_channels=[256, 256, 256, 256],
-        point_grid_size = [[8, 12, 16, 16], [6, 9, 12, 12], [4, 6, 8, 8], [3, 4, 6, 6]],
+        point_grid_size=[[8, 12, 16, 16], [6, 9, 12, 12], [4, 6, 8, 8], [3, 4, 6, 6]],
         dec_depth=[2, 2, 2, 2],
         enc_num_ref=[16, 16, 16, 16],
     ),
@@ -28,7 +28,7 @@ model = dict(
 
 
 epoch = 900
-optimizer = dict(type='AdamW', lr=0.001, weight_decay=0.02)
+optimizer = dict(type="AdamW", lr=0.001, weight_decay=0.02)
 scheduler = dict(
     type="OneCycleLR",
     max_lr=optimizer["lr"],
@@ -96,10 +96,10 @@ data = dict(
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
-                return_min_coord=True
+                return_min_coord=True,
             ),
-            dict(type="SphereCrop", sample_rate=0.8, mode='random'),
-            dict(type="SphereCrop", point_max=100000, mode='random'),
+            dict(type="SphereCrop", sample_rate=0.8, mode="random"),
+            dict(type="SphereCrop", point_max=100000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ShufflePoint"),
@@ -107,11 +107,11 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("coord", "normal", "color"))
+                feat_keys=("coord", "normal", "color"),
+            ),
         ],
         test_mode=False,
     ),
-
     val=dict(
         type=dataset_type,
         split="val",
@@ -133,11 +133,11 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("coord", "normal", "color"))
+                feat_keys=("coord", "normal", "color"),
+            ),
         ],
         test_mode=False,
     ),
-
     test=dict(
         type=dataset_type,
         split="val",
@@ -163,7 +163,7 @@ data = dict(
                 dict(
                     type="Collect",
                     keys=("coord", "grid_coord", "index"),
-                    feat_keys=("coord", "normal", "color")
+                    feat_keys=("coord", "normal", "color"),
                 ),
             ],
             aug_transform=[
