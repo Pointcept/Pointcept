@@ -3,11 +3,9 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 import spconv.pytorch as spconv
-import math
-import pointops
-from ..utils import trunc_normal_
+from timm.models.layers import trunc_normal_
 from ..builder import MODELS
-from pcr.models.utils import offset2batch
+from ..utils import offset2batch
 from torch_geometric.nn.pool import voxel_grid
 from torch_geometric.utils import scatter
 
@@ -229,7 +227,7 @@ class OACnn(nn.Module):
     
 
     def forward(self, input_dict):
-        discrete_coord = input_dict["discrete_coord"]
+        discrete_coord = input_dict["grid_coord"]
         feat = input_dict["feat"]
         offset = input_dict["offset"]
         batch = offset2batch(offset)
