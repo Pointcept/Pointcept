@@ -15,8 +15,13 @@
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
 - **Point Transformer V3: Simpler, Faster, Stronger**  
 *Xiaoyang Wu, Li Jiang, Peng-Shuai Wang, Zhijian Liu, Xihui Liu, Yu Qiao, Wanli Ouyang, Tong He, Hengshuang Zhao*  
-IEEE Conference on Computer Vision and Pattern Recognition (CVPR) 2024  
+IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2024  
 [ Backbone ] [PTv3] - [ [arXiv](https://arxiv.org/abs/2312.10035) ] [ [Bib](https://xywu.me/research/ptv3/bib.txt) ] [ [Project](https://github.com/Pointcept/PointTransformerV3) ] &rarr; [here](https://github.com/Pointcept/PointTransformerV3)
+
+- **OA-CNNs: Omni-Adaptive Sparse CNNs for 3D Semantic Segmentation**  
+*Bohao Peng, Xiaoyang Wu, Li Jiang, Yukang Chen, Hengshuang Zhao, Zhuotao Tian, Jiaya Jia*  
+IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2024  
+[ Backbone ] [ OA-CNNs ] - [ [arXiv](https://arxiv.org/abs/2403.14418) ] [ [Bib](https://xywu.me/research/oacnns/bib.txt) ] &rarr; [here](#oa-cnns)
 
 - **PonderV2: Pave the Way for 3D Foundation Model with A Universal Pre-training Paradigm**  
 *Haoyi Zhu\*, Honghui Yang\*, Xiaoyang Wu\*, Di Huang\*, Sha Zhang, Xianglong He, Tong He, Hengshuang Zhao, Chunhua Shen, Yu Qiao, Wanli Ouyang*  
@@ -28,7 +33,6 @@ arXiv Preprint 2023
 *Xiaoyang Wu, Zhuotao Tian, Xin Wen, Bohao Peng, Xihui Liu, Kaicheng Yu, Hengshuang Zhao*  
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2024  
 [ Pretrain ] [PPT] - [ [arXiv](https://arxiv.org/abs/2308.09718) ] [ [Bib](https://xywu.me/research/ppt/bib.txt) ] &rarr; [here](#point-prompt-training-ppt)
-
 
 - **Masked Scene Contrast: A Scalable Framework for Unsupervised 3D Representation Learning**  
 *Xiaoyang Wu, Xin Wen, Xihui Liu, Hengshuang Zhao*  
@@ -58,6 +62,7 @@ Backbone:
 [MinkUNet](https://github.com/NVIDIA/MinkowskiEngine) ([here](#sparseunet)),
 [SpUNet](https://github.com/traveller59/spconv) ([here](#sparseunet)),
 [SPVCNN](https://github.com/mit-han-lab/spvnas) ([here](#spvcnn)),
+[OACNNs](https://arxiv.org/abs/2403.14418) ([here](#oa-cnns)),
 [PTv1](https://arxiv.org/abs/2012.09164) ([here](#point-transformers)),
 [PTv2](https://arxiv.org/abs/2210.05666) ([here](#point-transformers)),
 [PTv3](https://arxiv.org/abs/2312.10035) ([here](#point-transformers)),
@@ -87,6 +92,7 @@ Datasets:
 
 
 ## Highlights
+- *Mar, 2024*: We release code for **OA-CNNs**, accepted by CVPR'24. Issue related to **OA-CNNs** can @Pbihao.
 - *Feb, 2024*: **PTv3** and **PPT** are accepted by CVPR'24, another **two** papers by our Pointcept team have also been accepted by CVPR'24 🎉🎉🎉. We will make them publicly available soon!
 - *Dec, 2023*: **PTv3** is released on arXiv, and the code is available in Pointcept. PTv3 is an efficient backbone model that achieves SOTA performances across indoor and outdoor scenarios.
 - *Aug, 2023*: **PPT** is released on arXiv. PPT presents a multi-dataset pre-training framework that achieves SOTA performance in both **indoor** and **outdoor** scenarios. It is compatible with various existing pre-training frameworks and backbones.  A **pre-release** version of the code is accessible; for those interested, please feel free to contact me directly for access.
@@ -490,6 +496,13 @@ sh scripts/train.sh -g 4 -d scannet200 -c semseg-minkunet34c-0-base -n semseg-mi
 sh scripts/train.sh -g 4 -d s3dis -c semseg-minkunet34c-0-base -n semseg-minkunet34c-0-base
 # SemanticKITTI
 sh scripts/train.sh -g 2 -d semantic_kitti -c semseg-minkunet34c-0-base -n semseg-minkunet34c-0-base
+```
+
+#### OA-CNNs
+Introducing Omni-Adaptive 3D CNNs (**OA-CNNs**), a family of networks that integrates a lightweight module to greatly enhance the adaptivity of sparse CNNs at minimal computational cost. Without any self-attention modules, **OA-CNNs** favorably surpass point transformers in terms of accuracy in both indoor and outdoor scenes, with much less latency and memory cost. Issue related to **OA-CNNs** can @Pbihao.
+```bash
+# ScanNet
+sh scripts/train.sh -g 4 -d scannet -c semseg-oacnns-v1m1-0-base -n semseg-oacnns-v1m1-0-base
 ```
 
 #### Point Transformers
