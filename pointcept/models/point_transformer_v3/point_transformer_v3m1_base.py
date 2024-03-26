@@ -334,7 +334,7 @@ class Block(PointModule):
         point.feat = shortcut + point.feat
         if not self.pre_norm:
             point = self.norm2(point)
-        point.sparse_conv_feat.replace_feature(point.feat)
+        point.sparse_conv_feat = point.sparse_conv_feat.replace_feature(point.feat)
         return point
 
 
