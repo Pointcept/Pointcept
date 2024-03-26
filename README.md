@@ -547,8 +547,7 @@ sh scripts/train.sh -g 4 -d waymo -c semseg-pt-v3m1-0-base -n semseg-pt-v3m1-0-b
 # More configs and exp records for PTv3 will be available soon.
 ```
 
-Indoor semantic segmentation
-
+Indoor semantic segmentation  
 | Model | Benchmark | Additional Data | Num GPUs | Val mIoU | Config | Tensorboard | Exp Record |
 | :---: | :---: |:---------------:| :---: | :---: | :---: | :---: | :---: |
 | PTv3 | ScanNet |     &cross;     | 4 | 77.6% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-pt-v3m1-0-base.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/scannet-semseg-pt-v3m1-0-base) |
@@ -558,8 +557,7 @@ Indoor semantic segmentation
 | PTv3 | S3DIS (Area5) |     &cross;     | 4 | 73.6% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/s3dis/semseg-pt-v3m1-0-rpe.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/s3dis-semseg-pt-v3m1-0-rpe) |
 | PTv3 + PPT | S3DIS (Area5) |     &check;     | 8 | 75.4% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/s3dis/semseg-pt-v3m1-1-ppt-extreme.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/s3dis-semseg-pt-v3m1-1-ppt-extreme) |
 
-Outdoor semantic segmentation
-
+Outdoor semantic segmentation  
 | Model | Benchmark | Additional Data | Num GPUs | Val mIoU | Config | Tensorboard | Exp Record |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | PTv3 | nuScenes | &cross; | 4 | 80.3 | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/nuscenes/semseg-pt-v3m1-0-base.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard)|[link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/nuscenes-semseg-pt-v3m1-0-base) |
@@ -568,8 +566,9 @@ Outdoor semantic segmentation
 | PTv3 + PPT | SemanticKITTI | &check; | 8 | | | | |
 | PTv3 | Waymo | &cross; | 4 | 71.2 | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/waymo/semseg-pt-v3m1-0-base.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/waymo-semseg-pt-v3m1-0-base) (log only) |
 | PTv3 + PPT | Waymo | &check; | 8 | | | | |
-* Model weights trained with Waymo Open Dataset cannot be released due to the regulations. 
 
+_**\*Released model weights are temporarily invalid as the model structure of PTv3 is adjusted.**_  
+_**\*Model weights trained with Waymo Open Dataset cannot be released due to the regulations.**_
 
 - **PTv2 mode2**
 
