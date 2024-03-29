@@ -10,7 +10,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from pointgroup_ops import ballquery_batch_p, bfs_cluster
+try:
+    from pointgroup_ops import ballquery_batch_p, bfs_cluster
+except ImportError:
+    ballquery_batch_p, bfs_cluster = None, None
+
 from pointcept.models.utils import offset2batch, batch2offset
 
 from pointcept.models.builder import MODELS, build_model
