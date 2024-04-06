@@ -15,7 +15,7 @@
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
 - **Point Transformer V3: Simpler, Faster, Stronger**  
 *Xiaoyang Wu, Li Jiang, Peng-Shuai Wang, Zhijian Liu, Xihui Liu, Yu Qiao, Wanli Ouyang, Tong He, Hengshuang Zhao*  
-IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2024  
+IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2024 - Oral  
 [ Backbone ] [PTv3] - [ [arXiv](https://arxiv.org/abs/2312.10035) ] [ [Bib](https://xywu.me/research/ptv3/bib.txt) ] [ [Project](https://github.com/Pointcept/PointTransformerV3) ] &rarr; [here](https://github.com/Pointcept/PointTransformerV3)
 
 - **OA-CNNs: Omni-Adaptive Sparse CNNs for 3D Semantic Segmentation**  
@@ -92,6 +92,7 @@ Datasets:
 
 
 ## Highlights
+- *Apr, 2024*: **PTv3** is selected as one of the 90 **Oral** papers (3.3% accepted papers, 0.78% submissions) by CVPR'24!
 - *Mar, 2024*: We release code for **OA-CNNs**, accepted by CVPR'24. Issue related to **OA-CNNs** can @Pbihao.
 - *Feb, 2024*: **PTv3** and **PPT** are accepted by CVPR'24, another **two** papers by our Pointcept team have also been accepted by CVPR'24 🎉🎉🎉. We will make them publicly available soon!
 - *Dec, 2023*: **PTv3** is released on arXiv, and the code is available in Pointcept. PTv3 is an efficient backbone model that achieves SOTA performances across indoor and outdoor scenarios.
