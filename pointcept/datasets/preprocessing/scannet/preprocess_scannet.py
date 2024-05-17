@@ -7,8 +7,6 @@ Please cite our work if the code is helpful to you.
 
 import warnings
 
-import torch
-
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import os
@@ -105,13 +103,13 @@ def handle_process(
     info_file = os.path.join(scene_path, f"{scene_id}.txt")
 
     if scene_id in train_scenes:
-        output_file = os.path.join(output_path, "train", f"{scene_id}.pth")
+        output_path = os.path.join(output_path, "train", f"{scene_id}")
         split_name = "train"
     elif scene_id in val_scenes:
-        output_file = os.path.join(output_path, "val", f"{scene_id}.pth")
+        output_path = os.path.join(output_path, "val", f"{scene_id}")
         split_name = "val"
     else:
-        output_file = os.path.join(output_path, "test", f"{scene_id}.pth")
+        output_path = os.path.join(output_path, "test", f"{scene_id}")
         split_name = "test"
 
     print(f"Processing: {scene_id} in {split_name}")
@@ -119,7 +117,10 @@ def handle_process(
     vertices, faces = read_plymesh(mesh_path)
     coords = vertices[:, :3]
     colors = vertices[:, 3:6]
-    save_dict = dict(coord=coords, color=colors, scene_id=scene_id)
+    save_dict = dict(
+        coord=coords.astype(np.float32),
+        color=colors.astype(np.uint8),
+    )
 
     # # Rotating the mesh to axis aligned
     # info_dict = {}
@@ -139,7 +140,7 @@ def handle_process(
 
     # Parse Normals
     if parse_normals:
-        save_dict["normal"] = vertex_normal(coords, faces)
+        save_dict["normal"] = vertex_normal(coords, faces).astype(np.float32)
 
     # Load segments file
     if split_name != "test":
@@ -153,9 +154,9 @@ def handle_process(
             seg_groups = np.array(aggregation["segGroups"])
 
         # Generate new labels
-        semantic_gt20 = np.ones((vertices.shape[0])) * IGNORE_INDEX
-        semantic_gt200 = np.ones((vertices.shape[0])) * IGNORE_INDEX
-        instance_ids = np.ones((vertices.shape[0])) * IGNORE_INDEX
+        semantic_gt20 = np.ones((vertices.shape[0]), dtype=np.int16) * IGNORE_INDEX
+        semantic_gt200 = np.ones((vertices.shape[0]), dtype=np.int16) * IGNORE_INDEX
+        instance_ids = np.ones((vertices.shape[0]), dtype=np.int16) * IGNORE_INDEX
         for group in seg_groups:
             point_idx, label_id20, label_id200 = point_indices_from_group(
                 seg_indices, group, labels_pd
@@ -169,9 +170,9 @@ def handle_process(
         semantic_gt200 = semantic_gt200.astype(int)
         instance_ids = instance_ids.astype(int)
 
-        save_dict["semantic_gt20"] = semantic_gt20
-        save_dict["semantic_gt200"] = semantic_gt200
-        save_dict["instance_gt"] = instance_ids
+        save_dict["segment20"] = semantic_gt20
+        save_dict["segment200"] = semantic_gt200
+        save_dict["instance"] = instance_ids
 
         # Concatenate with original cloud
         processed_vertices = np.hstack((semantic_gt200, instance_ids))
@@ -182,7 +183,9 @@ def handle_process(
             raise ValueError(f"Find NaN in Scene: {scene_id}")
 
     # Save processed data
-    torch.save(save_dict, output_file)
+    os.makedirs(output_path, exist_ok=True)
+    for key in save_dict.keys():
+        np.save(os.path.join(output_path, f"{key}.npy"), save_dict[key])
 
 
 if __name__ == "__main__":
@@ -199,6 +202,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--parse_normals", default=True, type=bool, help="Whether parse point normals"
+    )
+    parser.add_argument(
+        "--num_workers",
+        default=mp.cpu_count(),
+        type=int,
+        help="Num workers for preprocessing.",
     )
     config = parser.parse_args()
 
@@ -232,8 +241,7 @@ if __name__ == "__main__":
 
     # Preprocess data.
     print("Processing scenes...")
-    pool = ProcessPoolExecutor(max_workers=mp.cpu_count())
-    # pool = ProcessPoolExecutor(max_workers=1)
+    pool = ProcessPoolExecutor(max_workers=config.num_workers)
     _ = list(
         pool.map(
             handle_process,

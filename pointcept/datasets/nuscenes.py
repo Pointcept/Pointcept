@@ -16,28 +16,11 @@ from .defaults import DefaultDataset
 
 @DATASETS.register_module()
 class NuScenesDataset(DefaultDataset):
-    def __init__(
-        self,
-        split="train",
-        data_root="data/nuscenes",
-        sweeps=10,
-        transform=None,
-        test_mode=False,
-        test_cfg=None,
-        loop=1,
-        ignore_index=-1,
-    ):
+    def __init__(self, sweeps=10, ignore_index=-1, **kwargs):
         self.sweeps = sweeps
         self.ignore_index = ignore_index
         self.learning_map = self.get_learning_map(ignore_index)
-        super().__init__(
-            split=split,
-            data_root=data_root,
-            transform=transform,
-            test_mode=test_mode,
-            test_cfg=test_cfg,
-            loop=loop,
-        )
+        super().__init__(ignore_index=ignore_index, **kwargs)
 
     def get_info_path(self, split):
         assert split in ["train", "val", "test"]

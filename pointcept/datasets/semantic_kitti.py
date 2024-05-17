@@ -14,27 +14,11 @@ from .defaults import DefaultDataset
 
 @DATASETS.register_module()
 class SemanticKITTIDataset(DefaultDataset):
-    def __init__(
-        self,
-        split="train",
-        data_root="data/semantic_kitti",
-        transform=None,
-        test_mode=False,
-        test_cfg=None,
-        loop=1,
-        ignore_index=-1,
-    ):
+    def __init__(self, ignore_index=-1, **kwargs):
         self.ignore_index = ignore_index
         self.learning_map = self.get_learning_map(ignore_index)
         self.learning_map_inv = self.get_learning_map_inv(ignore_index)
-        super().__init__(
-            split=split,
-            data_root=data_root,
-            transform=transform,
-            test_mode=test_mode,
-            test_cfg=test_cfg,
-            loop=loop,
-        )
+        super().__init__(ignore_index=ignore_index, **kwargs)
 
     def get_data_list(self):
         split2seq = dict(

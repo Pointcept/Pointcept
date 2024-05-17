@@ -200,6 +200,13 @@ class Trainer(TrainerBase):
             torch.cuda.empty_cache()
         self.comm_info["model_output_dict"] = output_dict
 
+    def after_epoch(self):
+        for h in self.hooks:
+            h.after_epoch()
+        self.storage.reset_histories()
+        if self.cfg.empty_cache_per_epoch:
+            torch.cuda.empty_cache()
+
     def build_model(self):
         model = build_model(self.cfg.model)
         if self.cfg.sync_bn:

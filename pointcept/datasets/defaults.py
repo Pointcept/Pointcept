@@ -14,12 +14,24 @@ from torch.utils.data import Dataset
 from collections.abc import Sequence
 
 from pointcept.utils.logger import get_root_logger
+from pointcept.utils.cache import shared_dict
+
 from .builder import DATASETS, build_dataset
 from .transform import Compose, TRANSFORMS
 
 
 @DATASETS.register_module()
 class DefaultDataset(Dataset):
+    VALID_ASSETS = [
+        "coord",
+        "color",
+        "normal",
+        "strength",
+        "segment",
+        "instance",
+        "pose",
+    ]
+
     def __init__(
         self,
         split="train",
@@ -27,12 +39,16 @@ class DefaultDataset(Dataset):
         transform=None,
         test_mode=False,
         test_cfg=None,
+        cache=False,
+        ignore_index=-1,
         loop=1,
     ):
         super(DefaultDataset, self).__init__()
         self.data_root = data_root
         self.split = split
         self.transform = Compose(transform)
+        self.cache = cache
+        self.ignore_index = ignore_index
         self.loop = (
             loop if not test_mode else 1
         )  # force make loop = 1 while in test mode
@@ -40,15 +56,9 @@ class DefaultDataset(Dataset):
         self.test_cfg = test_cfg if test_mode else None
 
         if test_mode:
-            self.test_voxelize = (
-                TRANSFORMS.build(self.test_cfg.voxelize)
-                if self.test_cfg.voxelize is not None
-                else None
-            )
+            self.test_voxelize = TRANSFORMS.build(self.test_cfg.voxelize)
             self.test_crop = (
-                TRANSFORMS.build(self.test_cfg.crop)
-                if self.test_cfg.crop is not None
-                else None
+                TRANSFORMS.build(self.test_cfg.crop) if self.test_cfg.crop else None
             )
             self.post_transform = Compose(self.test_cfg.post_transform)
             self.aug_transform = [Compose(aug) for aug in self.test_cfg.aug_transform]
@@ -63,29 +73,58 @@ class DefaultDataset(Dataset):
 
     def get_data_list(self):
         if isinstance(self.split, str):
-            data_list = glob.glob(os.path.join(self.data_root, self.split, "*.pth"))
+            data_list = glob.glob(os.path.join(self.data_root, self.split, "*"))
         elif isinstance(self.split, Sequence):
             data_list = []
             for split in self.split:
-                data_list += glob.glob(os.path.join(self.data_root, split, "*.pth"))
+                data_list += glob.glob(os.path.join(self.data_root, split, "*"))
         else:
             raise NotImplementedError
         return data_list
 
     def get_data(self, idx):
-        data = torch.load(self.data_list[idx % len(self.data_list)])
-        coord = data["coord"]
-        color = data["color"]
-        normal = data["normal"]
-        if "semantic_gt" in data.keys():
-            segment = data["semantic_gt"].reshape([-1])
+        data_path = self.data_list[idx % len(self.data_list)]
+        name = self.get_data_name(idx)
+        if self.cache:
+            cache_name = f"pointcept-{name}"
+            return shared_dict(cache_name)
+
+        data_dict = {}
+        assets = os.listdir(data_path)
+        for asset in assets:
+            if not asset.endswith(".npy"):
+                continue
+            if asset[:-4] not in self.VALID_ASSETS:
+                continue
+            data_dict[asset[:-4]] = np.load(os.path.join(data_path, asset))
+        data_dict["name"] = name
+
+        if "coord" in data_dict.keys():
+            data_dict["coord"] = data_dict["coord"].astype(np.float32)
+
+        if "color" in data_dict.keys():
+            data_dict["color"] = data_dict["color"].astype(np.float32)
+
+        if "normal" in data_dict.keys():
+            data_dict["normal"] = data_dict["normal"].astype(np.float32)
+
+        if "segment" in data_dict.keys():
+            data_dict["segment"] = data_dict["segment"].reshape([-1]).astype(np.int32)
         else:
-            segment = np.ones(coord.shape[0]) * -1
-        data_dict = dict(coord=coord, normal=normal, color=color, segment=segment)
+            data_dict["segment"] = (
+                np.ones(data_dict["coord"].shape[0], dtype=np.int32) * -1
+            )
+
+        if "instance" in data_dict.keys():
+            data_dict["instance"] = data_dict["instance"].reshape([-1]).astype(np.int32)
+        else:
+            data_dict["instance"] = (
+                np.ones(data_dict["coord"].shape[0], dtype=np.int32) * -1
+            )
         return data_dict
 
     def get_data_name(self, idx):
-        return os.path.basename(self.data_list[idx % len(self.data_list)]).split(".")[0]
+        return os.path.basename(self.data_list[idx % len(self.data_list)])
 
     def prepare_train_data(self, idx):
         # load data
@@ -97,9 +136,7 @@ class DefaultDataset(Dataset):
         # load data
         data_dict = self.get_data(idx)
         data_dict = self.transform(data_dict)
-        result_dict = dict(
-            segment=data_dict.pop("segment"), name=self.get_data_name(idx)
-        )
+        result_dict = dict(segment=data_dict.pop("segment"), name=data_dict.pop("name"))
         if "origin_segment" in data_dict:
             assert "inverse" in data_dict
             result_dict["origin_segment"] = data_dict.pop("origin_segment")

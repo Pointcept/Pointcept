@@ -130,6 +130,7 @@ class SemSegTester(TesterBase):
         if (
             self.cfg.data.test.type == "ScanNetDataset"
             or self.cfg.data.test.type == "ScanNet200Dataset"
+            or self.cfg.data.test.type == "ScanNetPPDataset"
         ) and comm.is_main_process():
             make_dirs(os.path.join(save_path, "submit"))
         elif (
@@ -171,6 +172,8 @@ class SemSegTester(TesterBase):
                     )
                 )
                 pred = np.load(pred_save_path)
+                if "origin_segment" in data_dict.keys():
+                    segment = data_dict["origin_segment"]
             else:
                 pred = torch.zeros((segment.size, self.cfg.data.num_classes)).cuda()
                 for i in range(len(fragment_list)):
@@ -202,12 +205,66 @@ class SemSegTester(TesterBase):
                             batch_num=len(fragment_list),
                         )
                     )
-                pred = pred.max(1)[1].data.cpu().numpy()
+                if self.cfg.data.test.type == "ScanNetPPDataset":
+                    pred = pred.topk(3, dim=1)[1].data.cpu().numpy()
+                else:
+                    pred = pred.max(1)[1].data.cpu().numpy()
+                if "origin_segment" in data_dict.keys():
+                    assert "inverse" in data_dict.keys()
+                    pred = pred[data_dict["inverse"]]
+                    segment = data_dict["origin_segment"]
                 np.save(pred_save_path, pred)
-            if "origin_segment" in data_dict.keys():
-                assert "inverse" in data_dict.keys()
-                pred = pred[data_dict["inverse"]]
-                segment = data_dict["origin_segment"]
+            if (
+                self.cfg.data.test.type == "ScanNetDataset"
+                or self.cfg.data.test.type == "ScanNet200Dataset"
+            ):
+                np.savetxt(
+                    os.path.join(save_path, "submit", "{}.txt".format(data_name)),
+                    self.test_loader.dataset.class2id[pred].reshape([-1, 1]),
+                    fmt="%d",
+                )
+            elif self.cfg.data.test.type == "ScanNetPPDataset":
+                np.savetxt(
+                    os.path.join(save_path, "submit", "{}.txt".format(data_name)),
+                    pred.astype(np.int32),
+                    delimiter=",",
+                    fmt="%d",
+                )
+                pred = pred[:, 0]  # for mIoU, TODO: support top3 mIoU
+            elif self.cfg.data.test.type == "SemanticKITTIDataset":
+                # 00_000000 -> 00, 000000
+                sequence_name, frame_name = data_name.split("_")
+                os.makedirs(
+                    os.path.join(
+                        save_path, "submit", "sequences", sequence_name, "predictions"
+                    ),
+                    exist_ok=True,
+                )
+                pred = pred.astype(np.uint32)
+                pred = np.vectorize(
+                    self.test_loader.dataset.learning_map_inv.__getitem__
+                )(pred).astype(np.uint32)
+                pred.tofile(
+                    os.path.join(
+                        save_path,
+                        "submit",
+                        "sequences",
+                        sequence_name,
+                        "predictions",
+                        f"{frame_name}.label",
+                    )
+                )
+            elif self.cfg.data.test.type == "NuScenesDataset":
+                np.array(pred + 1).astype(np.uint8).tofile(
+                    os.path.join(
+                        save_path,
+                        "submit",
+                        "lidarseg",
+                        "test",
+                        "{}_lidarseg.bin".format(data_name),
+                    )
+                )
+
             intersection, union, target = intersection_and_union(
                 pred, segment, self.cfg.data.num_classes, self.cfg.data.ignore_index
             )
@@ -243,48 +300,6 @@ class SemSegTester(TesterBase):
                     m_iou=m_iou,
                 )
             )
-            if (
-                self.cfg.data.test.type == "ScanNetDataset"
-                or self.cfg.data.test.type == "ScanNet200Dataset"
-            ):
-                np.savetxt(
-                    os.path.join(save_path, "submit", "{}.txt".format(data_name)),
-                    self.test_loader.dataset.class2id[pred].reshape([-1, 1]),
-                    fmt="%d",
-                )
-            elif self.cfg.data.test.type == "SemanticKITTIDataset":
-                # 00_000000 -> 00, 000000
-                sequence_name, frame_name = data_name.split("_")
-                os.makedirs(
-                    os.path.join(
-                        save_path, "submit", "sequences", sequence_name, "predictions"
-                    ),
-                    exist_ok=True,
-                )
-                pred = pred.astype(np.uint32)
-                pred = np.vectorize(
-                    self.test_loader.dataset.learning_map_inv.__getitem__
-                )(pred).astype(np.uint32)
-                pred.tofile(
-                    os.path.join(
-                        save_path,
-                        "submit",
-                        "sequences",
-                        sequence_name,
-                        "predictions",
-                        f"{frame_name}.label",
-                    )
-                )
-            elif self.cfg.data.test.type == "NuScenesDataset":
-                np.array(pred + 1).astype(np.uint8).tofile(
-                    os.path.join(
-                        save_path,
-                        "submit",
-                        "lidarseg",
-                        "test",
-                        "{}_lidarseg.bin".format(data_name),
-                    )
-                )
 
         logger.info("Syncing ...")
         comm.synchronize()
@@ -411,6 +426,123 @@ class ClsTester(TesterBase):
     @staticmethod
     def collate_fn(batch):
         return collate_fn(batch)
+
+
+@TESTERS.register_module()
+class ClsVotingTester(TesterBase):
+    def __init__(
+        self,
+        num_repeat=100,
+        metric="allAcc",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.num_repeat = num_repeat
+        self.metric = metric
+        self.best_idx = 0
+        self.best_record = None
+        self.best_metric = 0
+
+    def test(self):
+        for i in range(self.num_repeat):
+            logger = get_root_logger()
+            logger.info(f">>>>>>>>>>>>>>>> Start Evaluation {i + 1} >>>>>>>>>>>>>>>>")
+            record = self.test_once()
+            if comm.is_main_process():
+                if record[self.metric] > self.best_metric:
+                    self.best_record = record
+                    self.best_idx = i
+                    self.best_metric = record[self.metric]
+                info = f"Current best record is Evaluation {i + 1}: "
+                for m in self.best_record.keys():
+                    info += f"{m}: {self.best_record[m]:.4f} "
+                logger.info(info)
+
+    def test_once(self):
+        logger = get_root_logger()
+        batch_time = AverageMeter()
+        intersection_meter = AverageMeter()
+        target_meter = AverageMeter()
+        record = {}
+        self.model.eval()
+
+        for idx, data_dict in enumerate(self.test_loader):
+            end = time.time()
+            data_dict = data_dict[0]  # current assume batch size is 1
+            voting_list = data_dict.pop("voting_list")
+            category = data_dict.pop("category")
+            data_name = data_dict.pop("name")
+            # pred = torch.zeros([1, self.cfg.data.num_classes]).cuda()
+            # for i in range(len(voting_list)):
+            #     input_dict = voting_list[i]
+            #     for key in input_dict.keys():
+            #         if isinstance(input_dict[key], torch.Tensor):
+            #             input_dict[key] = input_dict[key].cuda(non_blocking=True)
+            #     with torch.no_grad():
+            #         pred += F.softmax(self.model(input_dict)["cls_logits"], -1)
+            input_dict = collate_fn(voting_list)
+            for key in input_dict.keys():
+                if isinstance(input_dict[key], torch.Tensor):
+                    input_dict[key] = input_dict[key].cuda(non_blocking=True)
+            with torch.no_grad():
+                pred = F.softmax(self.model(input_dict)["cls_logits"], -1).sum(
+                    0, keepdim=True
+                )
+            pred = pred.max(1)[1].cpu().numpy()
+            intersection, union, target = intersection_and_union(
+                pred, category, self.cfg.data.num_classes, self.cfg.data.ignore_index
+            )
+            intersection_meter.update(intersection)
+            target_meter.update(target)
+            record[data_name] = dict(intersection=intersection, target=target)
+            acc = sum(intersection) / (sum(target) + 1e-10)
+            m_acc = np.mean(intersection_meter.sum / (target_meter.sum + 1e-10))
+            batch_time.update(time.time() - end)
+            logger.info(
+                "Test: {} [{}/{}] "
+                "Batch {batch_time.val:.3f} ({batch_time.avg:.3f}) "
+                "Accuracy {acc:.4f} ({m_acc:.4f}) ".format(
+                    data_name,
+                    idx + 1,
+                    len(self.test_loader),
+                    batch_time=batch_time,
+                    acc=acc,
+                    m_acc=m_acc,
+                )
+            )
+
+        logger.info("Syncing ...")
+        comm.synchronize()
+        record_sync = comm.gather(record, dst=0)
+
+        if comm.is_main_process():
+            record = {}
+            for _ in range(len(record_sync)):
+                r = record_sync.pop()
+                record.update(r)
+                del r
+            intersection = np.sum(
+                [meters["intersection"] for _, meters in record.items()], axis=0
+            )
+            target = np.sum([meters["target"] for _, meters in record.items()], axis=0)
+            accuracy_class = intersection / (target + 1e-10)
+            mAcc = np.mean(accuracy_class)
+            allAcc = sum(intersection) / (sum(target) + 1e-10)
+
+            logger.info("Val result: mAcc/allAcc {:.4f}/{:.4f}".format(mAcc, allAcc))
+            for i in range(self.cfg.data.num_classes):
+                logger.info(
+                    "Class_{idx} - {name} Result: iou/accuracy {accuracy:.4f}".format(
+                        idx=i,
+                        name=self.cfg.data.names[i],
+                        accuracy=accuracy_class[i],
+                    )
+                )
+            return dict(mAcc=mAcc, allAcc=allAcc)
+
+    @staticmethod
+    def collate_fn(batch):
+        return batch
 
 
 @TESTERS.register_module()

@@ -13,12 +13,10 @@ from PIL import Image
 import cv2
 import zipfile
 import numpy as np
-import torch
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 
-from pointcept.datasets.transform import GridSample
 
 VALID_CLASS_IDS_25 = (
     1,
@@ -183,8 +181,6 @@ def parse_scene(
         split = "test"
 
     print(f"Processing: {scene} in {split}")
-    scene_output_path = os.path.join(output_root, split, os.path.basename(scene))
-    os.makedirs(scene_output_path, exist_ok=True)
     rooms = reader.listdir(os.path.join("Structured3D", scene, "2D_rendering"))
     for room in rooms:
         room_path = os.path.join("Structured3D", scene, "2D_rendering", room)
@@ -327,19 +323,26 @@ def parse_scene(
                 segment25[mask] = idx
 
             data_dict = dict(
-                coord=coord.astype("float32"),
-                color=color.astype("uint8"),
-                normal=normal.astype("float32"),
-                semantic_gt=segment25.astype("int16"),
+                coord=coord.astype(np.float32),
+                color=color.astype(np.uint8),
+                normal=normal.astype(np.float32),
+                segment=segment25.astype(np.int16),
             )
             # Grid sampling data
             if grid_size is not None:
-                sampler = GridSample(
-                    grid_size=grid_size,
-                    keys=("coord", "color", "normal", "semantic_gt"),
-                )
-                data_dict = sampler(data_dict)
-            torch.save(data_dict, os.path.join(scene_output_path, f"room_{room}.pth"))
+                grid_coord = np.floor(coord / grid_size).astype(int)
+                _, idx = np.unique(grid_coord, axis=0, return_index=True)
+                coord = coord[idx]
+                for key in data_dict.keys():
+                    data_dict[key] = data_dict[key][idx]
+
+            # Save data
+            save_path = os.path.join(
+                output_root, split, os.path.basename(scene), f"room_{room}"
+            )
+            os.makedirs(save_path, exist_ok=True)
+            for key in data_dict.keys():
+                np.save(os.path.join(save_path, f"{key}.npy"), data_dict[key])
 
             if vis:
                 from pointcept.utils.visualization import save_point_cloud

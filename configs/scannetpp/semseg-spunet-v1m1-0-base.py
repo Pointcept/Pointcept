@@ -1,7 +1,11 @@
-_base_ = ["../_base_/default_runtime.py"]
+_base_ = [
+    "../_base_/default_runtime.py",
+    "../_base_/dataset/scannetpp.py",
+]
 
 # misc custom setting
 batch_size = 12  # bs: total bs in all gpus
+num_worker = 24
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -12,7 +16,7 @@ model = dict(
     backbone=dict(
         type="SpUNet-v1m1",
         in_channels=6,
-        num_classes=20,
+        num_classes=100,
         channels=(32, 64, 128, 256, 256, 128, 96, 96),
         layers=(2, 3, 4, 6, 2, 2, 2, 2),
     ),
@@ -33,37 +37,15 @@ scheduler = dict(
 )
 
 # dataset settings
-dataset_type = "ScanNetDataset"
-data_root = "data/scannet"
+dataset_type = "ScanNetPPDataset"
+data_root = "data/scannetpp"
 
 data = dict(
-    num_classes=20,
+    num_classes=100,
     ignore_index=-1,
-    names=[
-        "wall",
-        "floor",
-        "cabinet",
-        "bed",
-        "chair",
-        "sofa",
-        "table",
-        "door",
-        "window",
-        "bookshelf",
-        "picture",
-        "counter",
-        "desk",
-        "curtain",
-        "refridgerator",
-        "shower curtain",
-        "toilet",
-        "sink",
-        "bathtub",
-        "otherfurniture",
-    ],
     train=dict(
         type=dataset_type,
-        split="train",
+        split="train_grid1mm_chunk6x6_stride3x3",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
@@ -91,10 +73,10 @@ data = dict(
                 mode="train",
                 return_grid_coord=True,
             ),
-            dict(type="SphereCrop", point_max=100000, mode="random"),
+            dict(type="SphereCrop", point_max=204800, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
-            dict(type="ShufflePoint"),
+            # dict(type="ShufflePoint"),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
@@ -117,7 +99,6 @@ data = dict(
                 mode="train",
                 return_grid_coord=True,
             ),
-            # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
@@ -136,6 +117,15 @@ data = dict(
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(type="NormalizeColor"),
+            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
+            dict(
+                type="GridSample",
+                grid_size=0.01,
+                hash_type="fnv",
+                mode="train",
+                keys=("coord", "color", "normal", "segment"),
+                return_inverse=True,
+            ),
         ],
         test_mode=True,
         test_cfg=dict(
@@ -144,8 +134,8 @@ data = dict(
                 grid_size=0.02,
                 hash_type="fnv",
                 mode="test",
-                return_grid_coord=True,
                 keys=("coord", "color", "normal"),
+                return_grid_coord=True,
             ),
             crop=None,
             post_transform=[

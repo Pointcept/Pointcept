@@ -9,9 +9,7 @@ Please cite our work if the code is helpful to you.
 import os
 import argparse
 import glob
-import torch
 import numpy as np
-import multiprocessing as mp
 
 try:
     import open3d
@@ -54,8 +52,8 @@ def parse_room(
     ]
     class2label = {cls: i for i, cls in enumerate(classes)}
     source_dir = os.path.join(dataset_root, room)
-    save_path = os.path.join(output_root, room) + ".pth"
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    save_path = os.path.join(output_root, room)
+    os.makedirs(save_path, exist_ok=True)
     object_path_list = sorted(glob.glob(os.path.join(source_dir, "Annotations/*.txt")))
 
     room_coords = []
@@ -122,19 +120,24 @@ def parse_room(
     room_colors = np.ascontiguousarray(np.vstack(room_colors))
     room_semantic_gt = np.ascontiguousarray(np.vstack(room_semantic_gt))
     room_instance_gt = np.ascontiguousarray(np.vstack(room_instance_gt))
-    save_dict = dict(
-        coord=room_coords,
-        color=room_colors,
-        semantic_gt=room_semantic_gt,
-        instance_gt=room_instance_gt,
-    )
+    np.save(os.path.join(save_path, "coord.npy"), room_coords.astype(np.float32))
+    np.save(os.path.join(save_path, "color.npy"), room_colors.astype(np.uint8))
+    np.save(os.path.join(save_path, "segment.npy"), room_semantic_gt.astype(np.int16))
+    np.save(os.path.join(save_path, "instance.npy"), room_instance_gt.astype(np.int16))
+
     if parse_normal:
-        save_dict["normal"] = room_normals
-    torch.save(save_dict, save_path)
+        np.save(os.path.join(save_path, "normal.npy"), room_normals.astype(np.float32))
 
 
 def main_process():
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--splits",
+        required=True,
+        nargs="+",
+        choices=["Area_1", "Area_2", "Area_3", "Area_4", "Area_5", "Area_6"],
+        help="Splits need to process ([Area_1, Area_2, Area_3, Area_4, Area_5, Area_6]).",
+    )
     parser.add_argument(
         "--dataset_root", required=True, help="Path to Stanford3dDataset_v1.2 dataset"
     )
@@ -154,6 +157,9 @@ def main_process():
     parser.add_argument(
         "--parse_normal", action="store_true", help="Whether process normal"
     )
+    parser.add_argument(
+        "--num_workers", default=1, type=int, help="Num workers for preprocessing."
+    )
     args = parser.parse_args()
 
     if args.parse_normal:
@@ -164,37 +170,29 @@ def main_process():
 
     # Load room information
     print("Loading room information ...")
-    for i in range(1, 7):
+    for split in args.splits:
         area_info = np.loadtxt(
             os.path.join(
                 args.dataset_root,
-                "Area_{}".format(i),
-                "Area_{}_alignmentAngle.txt".format(i),
+                split,
+                f"{split}_alignmentAngle.txt",
             ),
             dtype=str,
         )
-        room_list += [
-            os.path.join("Area_{}".format(i), room_info[0]) for room_info in area_info
-        ]
+        room_list += [os.path.join(split, room_info[0]) for room_info in area_info]
         angle_list += [int(room_info[1]) for room_info in area_info]
 
     if args.parse_normal:
         # load raw mesh file to extract normal
         print("Loading raw mesh file ...")
-        for i in range(1, 7):
-            if i != 5:
-                mesh_dir = os.path.join(
-                    args.raw_root, "area_{}".format(i), "3d", "rgb.obj"
-                )
+        for split in args.splits:
+            if split != "Area_5":
+                mesh_dir = os.path.join(args.raw_root, split, "3d", "rgb.obj")
                 mesh = open3d.io.read_triangle_mesh(mesh_dir)
                 mesh.triangle_uvs.clear()
             else:
-                mesh_a_dir = os.path.join(
-                    args.raw_root, "area_{}a".format(i), "3d", "rgb.obj"
-                )
-                mesh_b_dir = os.path.join(
-                    args.raw_root, "area_{}b".format(i), "3d", "rgb.obj"
-                )
+                mesh_a_dir = os.path.join(args.raw_root, f"{split}a", "3d", "rgb.obj")
+                mesh_b_dir = os.path.join(args.raw_root, f"{split}b", "3d", "rgb.obj")
                 mesh_a = open3d.io.read_triangle_mesh(mesh_a_dir)
                 mesh_a.triangle_uvs.clear()
                 mesh_b = open3d.io.read_triangle_mesh(mesh_b_dir)
@@ -210,13 +208,14 @@ def main_process():
                     )
                 )
                 mesh = mesh_a + mesh_b
-            area_mesh_dict["Area_{}".format(i)] = mesh
-            print("Area_{} mesh is loaded".format(i))
+            area_mesh_dict[split] = mesh
+            print(f"{split} mesh is loaded")
 
     # Preprocess data.
     print("Processing scenes...")
-    # pool = ProcessPoolExecutor(max_workers=mp.cpu_count())
-    pool = ProcessPoolExecutor(max_workers=8)  # peak 110G memory when parsing normal.
+    pool = ProcessPoolExecutor(
+        max_workers=args.num_workers
+    )  # peak 110G memory when parsing normal.
     _ = list(
         pool.map(
             parse_room,

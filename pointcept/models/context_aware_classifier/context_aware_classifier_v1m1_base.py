@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pointcept.models.losses import build_criteria
+from pointcept.models.utils.structure import Point
 from pointcept.models.builder import MODELS, build_model
 
 
@@ -199,7 +200,11 @@ class CACSegmentor(nn.Module):
 
     def forward(self, data_dict):
         offset = data_dict["offset"]
-        feat = self.backbone(data_dict)
+        point = self.backbone(data_dict)
+        if isinstance(point, Point):
+            feat = point.feat
+        else:
+            feat = point
         seg_logits = self.seg_head(feat)
 
         if self.training:

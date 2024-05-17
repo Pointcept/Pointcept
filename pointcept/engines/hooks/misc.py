@@ -21,7 +21,6 @@ else:
 from pointcept.utils.timer import Timer
 from pointcept.utils.comm import is_main_process, synchronize, get_world_size
 from pointcept.utils.cache import shared_dict
-
 import pointcept.utils.comm as comm
 from pointcept.engines.test import TESTERS
 
@@ -287,17 +286,17 @@ class DataCacheOperator(HookBase):
 
     def get_data_list(self):
         if isinstance(self.split, str):
-            data_list = glob.glob(os.path.join(self.data_root, self.split, "*.pth"))
+            data_list = glob.glob(os.path.join(self.data_root, self.split))
         elif isinstance(self.split, Sequence):
             data_list = []
             for split in self.split:
-                data_list += glob.glob(os.path.join(self.data_root, split, "*.pth"))
+                data_list += glob.glob(os.path.join(self.data_root, split))
         else:
             raise NotImplementedError
         return data_list
 
     def get_cache_name(self, data_path):
-        data_name = data_path.replace(os.path.dirname(self.data_root), "").split(".")[0]
+        data_name = data_path.replace(os.path.dirname(self.data_root), "")
         return "pointcept" + data_name.replace(os.path.sep, "-")
 
     def before_train(self):
@@ -305,10 +304,11 @@ class DataCacheOperator(HookBase):
             f"=> Caching dataset: {self.data_root}, split: {self.split} ..."
         )
         if is_main_process():
-            for data_path in self.data_list:
-                cache_name = self.get_cache_name(data_path)
-                data = torch.load(data_path)
-                shared_dict(cache_name, data)
+            dataset = self.trainer.train_loader.dataset
+            for i in range(len(dataset)):
+                data_dict = dataset[i]
+                name = data_dict["name"]
+                shared_dict(f"Pointcept-{name}", data_dict)
         synchronize()
 
 

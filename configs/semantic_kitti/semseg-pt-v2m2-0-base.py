@@ -34,35 +34,16 @@ model = dict(
         enable_checkpoint=False,
         unpool_backend="map",  # map / interp
     ),
+    # fmt: off
     criteria=[
-        dict(
-            type="CrossEntropyLoss",
-            weight=[
-                3.1557,
-                8.7029,
-                7.8281,
-                6.1354,
-                6.3161,
-                7.9937,
-                8.9704,
-                10.1922,
-                1.6155,
-                4.2187,
-                1.9385,
-                5.5455,
-                2.0198,
-                2.6261,
-                1.3212,
-                5.1102,
-                2.5492,
-                5.8585,
-                7.3929,
-            ],
-            loss_weight=1.0,
-            ignore_index=-1,
-        ),
+        dict(type="CrossEntropyLoss",
+             weight=[3.1557, 8.7029, 7.8281, 6.1354, 6.3161, 7.9937, 8.9704, 10.1922, 1.6155, 4.2187,
+                     1.9385, 5.5455, 2.0198, 2.6261, 1.3212, 5.1102, 2.5492, 5.8585, 7.3929],
+             loss_weight=1.0,
+             ignore_index=-1),
         dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0, ignore_index=-1),
     ],
+    # fmt: on
 )
 
 # scheduler settings

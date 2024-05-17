@@ -5,6 +5,7 @@ from .utils import point_collate_fn, collate_fn
 # indoor scene
 from .s3dis import S3DISDataset
 from .scannet import ScanNetDataset, ScanNet200Dataset
+from .scannetpp import ScanNetPPDataset
 from .scannet_pair import ScanNetPairDataset
 from .arkitscenes import ArkitScenesDataset
 from .structure3d import Structured3DDataset
