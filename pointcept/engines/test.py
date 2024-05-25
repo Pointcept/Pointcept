@@ -240,11 +240,11 @@ class SemSegTester(TesterBase):
                     ),
                     exist_ok=True,
                 )
-                pred = pred.astype(np.uint32)
-                pred = np.vectorize(
+                submit = pred.astype(np.uint32)
+                submit = np.vectorize(
                     self.test_loader.dataset.learning_map_inv.__getitem__
-                )(pred).astype(np.uint32)
-                pred.tofile(
+                )(submit).astype(np.uint32)
+                submit.tofile(
                     os.path.join(
                         save_path,
                         "submit",

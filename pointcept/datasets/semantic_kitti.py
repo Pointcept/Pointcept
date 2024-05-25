@@ -61,7 +61,12 @@ class SemanticKITTIDataset(DefaultDataset):
                 ).astype(np.int32)
         else:
             segment = np.zeros(scan.shape[0]).astype(np.int32)
-        data_dict = dict(coord=coord, strength=strength, segment=segment)
+        data_dict = dict(
+            coord=coord,
+            strength=strength,
+            segment=segment,
+            name=self.get_data_name(idx),
+        )
         return data_dict
 
     def get_data_name(self, idx):
