@@ -229,6 +229,14 @@ class Trainer(TrainerBase):
     def build_train_loader(self):
         train_data = build_dataset(self.cfg.data.train)
 
+        train_subsampling_ratio = self.cfg.get("train_subsampling_ratio", -1.0)
+        if train_subsampling_ratio > 0.0:
+            data_len = len(train_data)
+            excluded_len = data_len - int(train_subsampling_ratio * data_len)
+            train_data, split_train_data = torch.utils.data.random_split(
+                train_data, (data_len - excluded_len, excluded_len)
+            )
+
         if comm.get_world_size() > 1:
             train_sampler = torch.utils.data.distributed.DistributedSampler(train_data)
         else:
@@ -263,6 +271,15 @@ class Trainer(TrainerBase):
         val_loader = None
         if self.cfg.evaluate:
             val_data = build_dataset(self.cfg.data.val)
+
+            eval_subsampling_ratio = self.cfg.get("eval_subsampling_ratio", -1.0)
+            if eval_subsampling_ratio > 0.0:
+                data_len = len(val_data)
+                excluded_len = data_len - int(eval_subsampling_ratio * data_len)
+                val_data, excluded_dataset = torch.utils.data.random_split(
+                    val_data, (data_len - excluded_len, excluded_len)
+                )
+
             if comm.get_world_size() > 1:
                 val_sampler = torch.utils.data.distributed.DistributedSampler(val_data)
             else:
