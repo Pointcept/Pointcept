@@ -148,6 +148,10 @@ pip install torch-geometric
 # refer https://github.com/traveller59/spconv
 pip install spconv-cu113
 
+# PPT (clip)
+pip install ftfy regex tqdm
+pip install git+https://github.com/openai/CLIP.git
+
 # PTv1 & PTv2 or precise eval
 cd libs/pointops
 # usual
