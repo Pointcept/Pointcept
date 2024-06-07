@@ -74,7 +74,12 @@ class NuScenesDataset(DefaultDataset):
             )
         else:
             segment = np.ones((points.shape[0],), dtype=np.int64) * self.ignore_index
-        data_dict = dict(coord=coord, strength=strength, segment=segment)
+        data_dict = dict(
+            coord=coord,
+            strength=strength,
+            segment=segment,
+            name=self.get_data_name(idx),
+        )
         return data_dict
 
     def get_data_name(self, idx):
