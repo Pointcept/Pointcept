@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Union
 from tensorboardX import SummaryWriter
 
-from pointcept.utils.logger import get_root_logger
 from pointcept.utils.config import Config
 
 
@@ -32,8 +31,6 @@ class ExperimentWriter(object):
             wandb_name (str, optional): wandb run name, if not set, inferred from save_path. Defaults to None.
             wandb_id (str, optional): Set this to continue logging to a run / overwrite a run. Defaults to None.
         """
-        self.logger = get_root_logger()
-
         assert (
             use_tensorboard or use_wandb
         ), "At least one of use_tensorboard or use_wandb must be True."
