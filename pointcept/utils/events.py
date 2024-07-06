@@ -27,7 +27,7 @@ __all__ = [
     "TensorboardXWriter",
     "CommonMetricPrinter",
     "EventStorage",
-    "ExceptionHandler"
+    "ExceptionWriter",
 ]
 
 _CURRENT_STORAGE_STACK = []
@@ -595,7 +595,8 @@ class HistoryBuffer:
         """
         return self._data
 
-class ExceptionHandler:
+
+class ExceptionWriter:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
