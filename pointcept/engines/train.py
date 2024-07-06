@@ -27,7 +27,7 @@ from pointcept.models import build_model
 from pointcept.utils.logger import get_root_logger
 from pointcept.utils.optimizer import build_optimizer
 from pointcept.utils.scheduler import build_scheduler
-from pointcept.utils.events import EventStorage
+from pointcept.utils.events import EventStorage, ExceptionWriter
 from pointcept.utils.registry import Registry
 
 
@@ -145,7 +145,7 @@ class Trainer(TrainerBase):
         self.register_hooks(self.cfg.hooks)
 
     def train(self):
-        with EventStorage() as self.storage:
+        with EventStorage() as self.storage, ExceptionWriter():
             # => before train
             self.before_train()
             self.logger.info(">>>>>>>>>>>>>>>> Start Training >>>>>>>>>>>>>>>>")
