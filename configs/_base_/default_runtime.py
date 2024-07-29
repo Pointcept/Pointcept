@@ -11,6 +11,7 @@ batch_size_val = None  # auto adapt to bs 1 for each gpu
 batch_size_test = None  # auto adapt to bs 1 for each gpu
 epoch = 100  # total epoch, data loop = epoch // eval_epoch
 eval_epoch = 100  # sche total eval & checkpoint epoch
+clip_grad = None  # disable with None, enable with a float
 
 sync_bn = False
 enable_amp = False

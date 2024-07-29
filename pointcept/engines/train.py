@@ -184,6 +184,11 @@ class Trainer(TrainerBase):
         self.optimizer.zero_grad()
         if self.cfg.enable_amp:
             self.scaler.scale(loss).backward()
+            self.scaler.unscale_(self.optimizer)
+            if self.cfg.clip_grad is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.model.parameters(), self.cfg.clip_grad
+                )
             self.scaler.step(self.optimizer)
 
             # When enable amp, optimizer.step call are skipped if the loss scaling factor is too large.
@@ -194,6 +199,10 @@ class Trainer(TrainerBase):
                 self.scheduler.step()
         else:
             loss.backward()
+            if self.cfg.clip_grad is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.model.parameters(), self.cfg.clip_grad
+                )
             self.optimizer.step()
             self.scheduler.step()
         if self.cfg.empty_cache:

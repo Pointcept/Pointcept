@@ -19,6 +19,7 @@ mix_prob = 0.8
 empty_cache = False
 enable_amp = True
 find_unused_parameters = True
+clip_grad = 3.0
 
 # trainer
 train = dict(
