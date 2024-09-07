@@ -1,6 +1,10 @@
 """
-Preprocessing Matterport3D
+Preprocessing Script for Matterport3D (Unzipping)
 adatpted from https://github.com/pengsongyou/openscene/blob/main/scripts/preprocess/preprocess_3d_matterport.py
+
+Author: Chongjie Ye (chongjieye@link.cuhk.edu.cn)
+Modified by: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
+Please cite our work if the code is helpful to you.
 """
 
 import os
@@ -89,25 +93,24 @@ MATTERPORT_ALLOWED_NYU_CLASSES = [
 def handle_process(mesh_path, output_path, mapping, train_scenes, val_scenes):
     # Get the scene id and region name from the mesh path
     scene_id = Path(mesh_path).parent.parent.name
-    region_name = Path(mesh_path).stem
+    region_id = Path(mesh_path).stem.removeprefix("region")
+    data_name = f"{scene_id}_{int(region_id):02d}"
 
+    output_path = Path(output_path)
     # Check which split the scene belongs to (train, val, or test)
     if scene_id in train_scenes:
-        output_folder = os.path.join(output_path, "train", scene_id)
-        output_file = os.path.join(output_path, "train", scene_id, f"{region_name}.pth")
-        split_name = "train"
+        output_folder = output_path / "train" / data_name
+        split = "train"
     elif scene_id in val_scenes:
-        output_folder = os.path.join(output_path, "val", scene_id)
-        output_file = os.path.join(output_path, "val", scene_id, f"{region_name}.pth")
-        split_name = "val"
+        output_folder = output_path / "val" / data_name
+        split = "val"
     else:
-        output_folder = os.path.join(output_path, "test", scene_id)
-        output_file = os.path.join(output_path, "test", scene_id, f"{region_name}.pth")
-        split_name = "test"
+        output_folder = output_path / "test" / data_name
+        split = "test"
 
     # Create the output directory if it doesn't exist
     os.makedirs(output_folder, exist_ok=True)
-    print(f"Processing: {scene_id} in {split_name}")
+    print(f"Processing: {data_name} in {split}")
 
     # Load the vertex data
     with open(mesh_path, "rb") as f:
@@ -120,14 +123,6 @@ def handle_process(mesh_path, output_path, mapping, train_scenes, val_scenes):
         [vertex_data["red"], vertex_data["green"], vertex_data["blue"]]
     ).T
     normals = np.vstack([vertex_data["nx"], vertex_data["ny"], vertex_data["nz"]]).T
-
-    # Prepare the data to be saved
-    save_dict = dict(
-        coord=coords.astype("float32"),
-        color=colors.astype("uint8"),
-        normal=normals.astype("float32"),
-        scene_id=scene_id + "_" + region_name,
-    )
 
     # Load the face data
     face_data = plydata["face"].data
@@ -160,10 +155,17 @@ def handle_process(mesh_path, output_path, mapping, train_scenes, val_scenes):
     vertex_labels -= 1
 
     # Add the vertex labels to the data to be saved
-    save_dict["semantic_gt21"] = vertex_labels.astype("int16")
+    # Prepare the data to be saved
+    data_dict = dict(
+        coord=coords.astype("float32"),
+        color=colors.astype("uint8"),
+        normal=normals.astype("float32"),
+        segment=vertex_labels.astype("int16"),
+    )
 
     # Save processed data
-    torch.save(save_dict, output_file)
+    for key in data_dict.keys():
+        np.save(output_folder / f"{key}.npy", data_dict[key])
 
 
 if __name__ == "__main__":
@@ -178,11 +180,18 @@ if __name__ == "__main__":
         required=True,
         help="Output path where train/val folders will be located",
     )
+    parser.add_argument(
+        "--num_workers",
+        default=mp.cpu_count(),
+        type=int,
+        help="Num workers for preprocessing.",
+    )
     opt = parser.parse_args()
+    meta_root = Path(os.path.dirname(__file__)) / "meta_data"
 
     # Load label map
     category_mapping = pd.read_csv(
-        "pointcept/datasets/preprocessing/matterport3d/meta_data/category_mapping.tsv",
+        meta_root / "category_mapping.tsv",
         sep="\t",
         header=0,
     )
@@ -191,17 +200,11 @@ if __name__ == "__main__":
     )
 
     # Load train/val splits
-    with open(
-        "pointcept/datasets/preprocessing/matterport3d/meta_data/train.txt"
-    ) as train_file:
+    with open(meta_root / "scenes_train.txt") as train_file:
         train_scenes = train_file.read().splitlines()
-    with open(
-        "pointcept/datasets/preprocessing/matterport3d/meta_data/val.txt"
-    ) as val_file:
+    with open(meta_root / "scenes_val.txt") as val_file:
         val_scenes = val_file.read().splitlines()
-    with open(
-        "pointcept/datasets/preprocessing/matterport3d/meta_data/test.txt"
-    ) as test_file:
+    with open(meta_root / "scenes_test.txt") as test_file:
         test_scenes = test_file.read().splitlines()
 
     # Create output directories
@@ -214,11 +217,16 @@ if __name__ == "__main__":
     os.makedirs(test_output_dir, exist_ok=True)
 
     # Load scene paths
-    scene_paths = sorted(glob.glob(opt.dataset_root + "/*/region_segmentations/*.ply"))
+    scene_paths = sorted(
+        glob.glob(
+            os.path.join(
+                opt.dataset_root, "v1", "scans", "*", "region_segmentations", "*.ply"
+            )
+        )
+    )
 
     # Preprocess data.
-    pool = ProcessPoolExecutor(max_workers=mp.cpu_count())
-    # pool = ProcessPoolExecutor(max_workers=1)
+    pool = ProcessPoolExecutor(max_workers=opt.num_workers)
     print("Processing scenes...")
     _ = list(
         pool.map(

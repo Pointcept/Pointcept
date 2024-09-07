@@ -19,6 +19,7 @@ import pandas as pd
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
+from pathlib import Path
 
 # Load external constants
 from meta_data.scannet200_constants import VALID_CLASS_IDS_200, VALID_CLASS_IDS_20
@@ -210,22 +211,19 @@ if __name__ == "__main__":
         help="Num workers for preprocessing.",
     )
     config = parser.parse_args()
+    meta_root = Path(os.path.dirname(__file__)) / "meta_data"
 
     # Load label map
     labels_pd = pd.read_csv(
-        "pointcept/datasets/preprocessing/scannet/meta_data/scannetv2-labels.combined.tsv",
+        meta_root / "scannetv2-labels.combined.tsv",
         sep="\t",
         header=0,
     )
 
     # Load train/val splits
-    with open(
-        "pointcept/datasets/preprocessing/scannet/meta_data/scannetv2_train.txt"
-    ) as train_file:
+    with open(meta_root / "scannetv2_train.txt") as train_file:
         train_scenes = train_file.read().splitlines()
-    with open(
-        "pointcept/datasets/preprocessing/scannet/meta_data/scannetv2_val.txt"
-    ) as val_file:
+    with open(meta_root / "scannetv2_val.txt") as val_file:
         val_scenes = val_file.read().splitlines()
 
     # Create output directories

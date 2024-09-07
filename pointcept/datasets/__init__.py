@@ -9,7 +9,6 @@ from .scannetpp import ScanNetPPDataset
 from .scannet_pair import ScanNetPairDataset
 from .arkitscenes import ArkitScenesDataset
 from .structure3d import Structured3DDataset
-from .matterport3d import Matterport3DDataset
 
 # outdoor scene
 from .semantic_kitti import SemanticKITTIDataset
