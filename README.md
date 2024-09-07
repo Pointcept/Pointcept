@@ -175,57 +175,57 @@ The preprocessing supports semantic and instance segmentation for both `ScanNet2
 - Download the [ScanNet](http://www.scan-net.org/) v2 dataset.
 - Run preprocessing code for raw ScanNet as follows:
 
-```bash
-# RAW_SCANNET_DIR: the directory of downloaded ScanNet v2 raw dataset.
-# PROCESSED_SCANNET_DIR: the directory of the processed ScanNet dataset (output dir).
-python pointcept/datasets/preprocessing/scannet/preprocess_scannet.py --dataset_root ${RAW_SCANNET_DIR} --output_root ${PROCESSED_SCANNET_DIR}
-```
+  ```bash
+  # RAW_SCANNET_DIR: the directory of downloaded ScanNet v2 raw dataset.
+  # PROCESSED_SCANNET_DIR: the directory of the processed ScanNet dataset (output dir).
+  python pointcept/datasets/preprocessing/scannet/preprocess_scannet.py --dataset_root ${RAW_SCANNET_DIR} --output_root ${PROCESSED_SCANNET_DIR}
+  ```
 - (Optional) Download ScanNet Data Efficient files:
-```bash
-# download-scannet.py is the official download script
-# or follow instructions here: https://kaldir.vc.in.tum.de/scannet_benchmark/data_efficient/documentation#download
-python download-scannet.py --data_efficient -o ${RAW_SCANNET_DIR}
-# unzip downloads
-cd ${RAW_SCANNET_DIR}/tasks
-unzip limited-annotation-points.zip
-unzip limited-reconstruction-scenes.zip
-# copy files to processed dataset folder
-mkdir ${PROCESSED_SCANNET_DIR}/tasks
-cp -r ${RAW_SCANNET_DIR}/tasks/points ${PROCESSED_SCANNET_DIR}/tasks
-cp -r ${RAW_SCANNET_DIR}/tasks/scenes ${PROCESSED_SCANNET_DIR}/tasks
-```
+  ```bash
+  # download-scannet.py is the official download script
+  # or follow instructions here: https://kaldir.vc.in.tum.de/scannet_benchmark/data_efficient/documentation#download
+  python download-scannet.py --data_efficient -o ${RAW_SCANNET_DIR}
+  # unzip downloads
+  cd ${RAW_SCANNET_DIR}/tasks
+  unzip limited-annotation-points.zip
+  unzip limited-reconstruction-scenes.zip
+  # copy files to processed dataset folder
+  mkdir ${PROCESSED_SCANNET_DIR}/tasks
+  cp -r ${RAW_SCANNET_DIR}/tasks/points ${PROCESSED_SCANNET_DIR}/tasks
+  cp -r ${RAW_SCANNET_DIR}/tasks/scenes ${PROCESSED_SCANNET_DIR}/tasks
+  ```
 - (Alternative) Our preprocess data can be directly downloaded [[here](https://huggingface.co/datasets/Pointcept/scannet-compressed)], please agree the official license before download it.
 
 - Link processed dataset to codebase:
-```bash
-# PROCESSED_SCANNET_DIR: the directory of the processed ScanNet dataset.
-mkdir data
-ln -s ${PROCESSED_SCANNET_DIR} ${CODEBASE_DIR}/data/scannet
-```
+  ```bash
+  # PROCESSED_SCANNET_DIR: the directory of the processed ScanNet dataset.
+  mkdir data
+  ln -s ${PROCESSED_SCANNET_DIR} ${CODEBASE_DIR}/data/scannet
+  ```
 
 ### ScanNet++
 - Download the [ScanNet++](https://kaldir.vc.in.tum.de/scannetpp/) dataset.
 - Run preprocessing code for raw ScanNet++ as follows:
-```bash
-# RAW_SCANNETPP_DIR: the directory of downloaded ScanNet++ raw dataset.
-# PROCESSED_SCANNETPP_DIR: the directory of the processed ScanNet++ dataset (output dir).
-# NUM_WORKERS: the number of workers for parallel preprocessing.
-python pointcept/datasets/preprocessing/scannetpp/preprocess_scannetpp.py --dataset_root ${RAW_SCANNETPP_DIR} --output_root ${PROCESSED_SCANNETPP_DIR} --num_workers ${NUM_WORKERS}
-```
+  ```bash
+  # RAW_SCANNETPP_DIR: the directory of downloaded ScanNet++ raw dataset.
+  # PROCESSED_SCANNETPP_DIR: the directory of the processed ScanNet++ dataset (output dir).
+  # NUM_WORKERS: the number of workers for parallel preprocessing.
+  python pointcept/datasets/preprocessing/scannetpp/preprocess_scannetpp.py --dataset_root ${RAW_SCANNETPP_DIR} --output_root ${PROCESSED_SCANNETPP_DIR} --num_workers ${NUM_WORKERS}
+  ```
 - Sampling and chunking large point cloud data in train/val split as follows (only used for training):
-```bash
-# PROCESSED_SCANNETPP_DIR: the directory of the processed ScanNet++ dataset (output dir).
-# NUM_WORKERS: the number of workers for parallel preprocessing.
-python pointcept/datasets/preprocessing/sampling_chunking_data.py --dataset_root ${PROCESSED_SCANNETPP_DIR} --grid_size 0.01 --chunk_range 6 6 --chunk_stride 3 3 --split train --num_workers ${NUM_WORKERS}
-python pointcept/datasets/preprocessing/sampling_chunking_data.py --dataset_root ${PROCESSED_SCANNETPP_DIR} --grid_size 0.01 --chunk_range 6 6 --chunk_stride 3 3 --split val --num_workers ${NUM_WORKERS}
-```
+  ```bash
+  # PROCESSED_SCANNETPP_DIR: the directory of the processed ScanNet++ dataset (output dir).
+  # NUM_WORKERS: the number of workers for parallel preprocessing.
+  python pointcept/datasets/preprocessing/sampling_chunking_data.py --dataset_root ${PROCESSED_SCANNETPP_DIR} --grid_size 0.01 --chunk_range 6 6 --chunk_stride 3 3 --split train --num_workers ${NUM_WORKERS}
+  python pointcept/datasets/preprocessing/sampling_chunking_data.py --dataset_root ${PROCESSED_SCANNETPP_DIR} --grid_size 0.01 --chunk_range 6 6 --chunk_stride 3 3 --split val --num_workers ${NUM_WORKERS}
+  ```
 - (Alternative) Our preprocess data can be directly downloaded [[here](https://huggingface.co/datasets/Pointcept/scannetpp-compressed)], please agree the official license before download it.
 - Link processed dataset to codebase:
-```bash
-# PROCESSED_SCANNETPP_DIR: the directory of the processed ScanNet dataset.
-mkdir data
-ln -s ${PROCESSED_SCANNETPP_DIR} ${CODEBASE_DIR}/data/scannetpp
-```
+  ```bash
+  # PROCESSED_SCANNETPP_DIR: the directory of the processed ScanNet dataset.
+  mkdir data
+  ln -s ${PROCESSED_SCANNETPP_DIR} ${CODEBASE_DIR}/data/scannetpp
+  ```
 
 ### S3DIS
 
@@ -234,41 +234,41 @@ ln -s ${PROCESSED_SCANNETPP_DIR} ${CODEBASE_DIR}/data/scannetpp
 - (Optional) Download Full 2D-3D S3DIS dataset (no XYZ) from [here](https://github.com/alexsax/2D-3D-Semantics) for parsing normal.
 - Run preprocessing code for S3DIS as follows:
 
-```bash
-# S3DIS_DIR: the directory of downloaded Stanford3dDataset_v1.2 dataset.
-# RAW_S3DIS_DIR: the directory of Stanford2d3dDataset_noXYZ dataset. (optional, for parsing normal)
-# PROCESSED_S3DIS_DIR: the directory of processed S3DIS dataset (output dir).
-
-# S3DIS without aligned angle
-python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR}
-# S3DIS with aligned angle
-python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --align_angle
-# S3DIS with normal vector (recommended, normal is helpful)
-python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --raw_root ${RAW_S3DIS_DIR} --parse_normal
-python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --raw_root ${RAW_S3DIS_DIR} --align_angle --parse_normal
-```
+  ```bash
+  # S3DIS_DIR: the directory of downloaded Stanford3dDataset_v1.2 dataset.
+  # RAW_S3DIS_DIR: the directory of Stanford2d3dDataset_noXYZ dataset. (optional, for parsing normal)
+  # PROCESSED_S3DIS_DIR: the directory of processed S3DIS dataset (output dir).
+  
+  # S3DIS without aligned angle
+  python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR}
+  # S3DIS with aligned angle
+  python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --align_angle
+  # S3DIS with normal vector (recommended, normal is helpful)
+  python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --raw_root ${RAW_S3DIS_DIR} --parse_normal
+  python pointcept/datasets/preprocessing/s3dis/preprocess_s3dis.py --dataset_root ${S3DIS_DIR} --output_root ${PROCESSED_S3DIS_DIR} --raw_root ${RAW_S3DIS_DIR} --align_angle --parse_normal
+  ```
 
 - (Alternative) Our preprocess data can also be downloaded [[here](https://huggingface.co/datasets/Pointcept/s3dis-compressed
 )] (with normal vector and aligned angle), please agree with the official license before downloading it.
 
 - Link processed dataset to codebase.
-```bash
-# PROCESSED_S3DIS_DIR: the directory of processed S3DIS dataset.
-mkdir data
-ln -s ${PROCESSED_S3DIS_DIR} ${CODEBASE_DIR}/data/s3dis
-```
+  ```bash
+  # PROCESSED_S3DIS_DIR: the directory of processed S3DIS dataset.
+  mkdir data
+  ln -s ${PROCESSED_S3DIS_DIR} ${CODEBASE_DIR}/data/s3dis
+  ```
 ### Structured3D
 
 - Download Structured3D panorama related and perspective (full) related zip files by filling this [Google form](https://docs.google.com/forms/d/e/1FAIpQLSc0qtvh4vHSoZaW6UvlXYy79MbcGdZfICjh4_t4bYofQIVIdw/viewform?pli=1) (no need to unzip them).
 - Organize all downloaded zip file in one folder (`${STRUCT3D_DIR}`).
 - Run preprocessing code for Structured3D as follows:
-```bash
-# STRUCT3D_DIR: the directory of downloaded Structured3D dataset.
-# PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
-# NUM_WORKERS: Number for workers for preprocessing, default same as cpu count (might OOM).
-export PYTHONPATH=./
-python pointcept/datasets/preprocessing/structured3d/preprocess_structured3d.py --dataset_root ${STRUCT3D_DIR} --output_root ${PROCESSED_STRUCT3D_DIR} --num_workers ${NUM_WORKERS} --grid_size 0.01 --fuse_prsp --fuse_pano
-```
+  ```bash
+  # STRUCT3D_DIR: the directory of downloaded Structured3D dataset.
+  # PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
+  # NUM_WORKERS: Number for workers for preprocessing, default same as cpu count (might OOM).
+  export PYTHONPATH=./
+  python pointcept/datasets/preprocessing/structured3d/preprocess_structured3d.py --dataset_root ${STRUCT3D_DIR} --output_root ${PROCESSED_STRUCT3D_DIR} --num_workers ${NUM_WORKERS} --grid_size 0.01 --fuse_prsp --fuse_pano
+  ```
 Following the instruction of [Swin3D](https://arxiv.org/abs/2304.06906), we keep 25 categories with frequencies of more than 0.001, out of the original 40 categories.
 
 [//]: # (- &#40;Alternative&#41; Our preprocess data can also be downloaded [[here]&#40;&#41;], please agree the official license before download it.)
@@ -277,37 +277,37 @@ Following the instruction of [Swin3D](https://arxiv.org/abs/2304.06906), we keep
 )] (with perspective views and panorama view, 471.7G after unzipping), please agree the official license before download it.
 
 - Link processed dataset to codebase.
-```bash
-# PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
-mkdir data
-ln -s ${PROCESSED_STRUCT3D_DIR} ${CODEBASE_DIR}/data/structured3d
-```
+  ```bash
+  # PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
+  mkdir data
+  ln -s ${PROCESSED_STRUCT3D_DIR} ${CODEBASE_DIR}/data/structured3d
+  ```
 ### Matterport3D
 - Follow [this page](https://niessner.github.io/Matterport/#download) to request access to the dataset.
 - Download the "region_segmentation" type, which represents the division of a scene into individual rooms.
-    ```bash
-    # download-mp.py is the official download script
-    # MATTERPORT3D_DIR: the directory of downloaded Matterport3D dataset.
-    python download-mp.py -o {MATTERPORT3D_DIR} --type region_segmentations
-    ```
+  ```bash
+  # download-mp.py is the official download script
+  # MATTERPORT3D_DIR: the directory of downloaded Matterport3D dataset.
+  python download-mp.py -o {MATTERPORT3D_DIR} --type region_segmentations
+  ```
 - Unzip the region_segmentations data
-    ```bash
-    # MATTERPORT3D_DIR: the directory of downloaded Matterport3D dataset.
-    python pointcept/datasets/preprocessing/matterport3d/unzip_matterport3d_region_segmentation.py --dataset_root {MATTERPORT3D_DIR}
-    ```
+  ```bash
+  # MATTERPORT3D_DIR: the directory of downloaded Matterport3D dataset.
+  python pointcept/datasets/preprocessing/matterport3d/unzip_matterport3d_region_segmentation.py --dataset_root {MATTERPORT3D_DIR}
+  ```
 - Run preprocessing code for Matterport3D as follows:
-    ```bash
-    # MATTERPORT3D_DIR: the directory of downloaded Matterport3D dataset.
-    # PROCESSED_MATTERPORT3D_DIR: the directory of processed Matterport3D dataset (output dir).
-    # NUM_WORKERS: the number of workers for this preprocessing.
-    python pointcept/datasets/preprocessing/matterport3d/preprocess_matterport3d_mesh.py --dataset_root ${MATTERPORT3D_DIR} --output_root ${PROCESSED_MATTERPORT3D_DIR} --num_workers ${NUM_WORKERS}
-    ```
+  ```bash
+  # MATTERPORT3D_DIR: the directory of downloaded Matterport3D dataset.
+  # PROCESSED_MATTERPORT3D_DIR: the directory of processed Matterport3D dataset (output dir).
+  # NUM_WORKERS: the number of workers for this preprocessing.
+  python pointcept/datasets/preprocessing/matterport3d/preprocess_matterport3d_mesh.py --dataset_root ${MATTERPORT3D_DIR} --output_root ${PROCESSED_MATTERPORT3D_DIR} --num_workers ${NUM_WORKERS}
+  ```
 - Link processed dataset to codebase.
-```bash
-# PROCESSED_MATTERPORT3D_DIR: the directory of processed Matterport3D dataset (output dir).
-mkdir data
-ln -s ${PROCESSED_MATTERPORT3D_DIR} ${CODEBASE_DIR}/data/matterport3d
-```
+  ```bash
+  # PROCESSED_MATTERPORT3D_DIR: the directory of processed Matterport3D dataset (output dir).
+  mkdir data
+  ln -s ${PROCESSED_MATTERPORT3D_DIR} ${CODEBASE_DIR}/data/matterport3d
+  ```
 
 Following the instruction of [OpenRooms](https://github.com/ViLab-UCSD/OpenRooms), we remapped Matterport3D's categories to ScanNet 20 semantic categories with the addition of a ceiling category.
 * (Alternative) Our preprocess data can also be downloaded [here](https://huggingface.co/datasets/Pointcept/matterport3d-compressed), please agree the official license before download it.
@@ -315,104 +315,104 @@ Following the instruction of [OpenRooms](https://github.com/ViLab-UCSD/OpenRooms
 ### SemanticKITTI
 - Download [SemanticKITTI](http://www.semantic-kitti.org/dataset.html#download) dataset.
 - Link dataset to codebase.
-```bash
-# SEMANTIC_KITTI_DIR: the directory of SemanticKITTI dataset.
-# |- SEMANTIC_KITTI_DIR
-#   |- dataset
-#     |- sequences
-#       |- 00
-#       |- 01
-#       |- ...
-
-mkdir -p data
-ln -s ${SEMANTIC_KITTI_DIR} ${CODEBASE_DIR}/data/semantic_kitti
-```
+  ```bash
+  # SEMANTIC_KITTI_DIR: the directory of SemanticKITTI dataset.
+  # |- SEMANTIC_KITTI_DIR
+  #   |- dataset
+  #     |- sequences
+  #       |- 00
+  #       |- 01
+  #       |- ...
+  
+  mkdir -p data
+  ln -s ${SEMANTIC_KITTI_DIR} ${CODEBASE_DIR}/data/semantic_kitti
+  ```
 
 ### nuScenes
 - Download the official [NuScene](https://www.nuscenes.org/nuscenes#download) dataset (with Lidar Segmentation) and organize the downloaded files as follows:
-```bash
-NUSCENES_DIR
-│── samples
-│── sweeps
-│── lidarseg
-...
-│── v1.0-trainval 
-│── v1.0-test
-```
+  ```bash
+  NUSCENES_DIR
+  │── samples
+  │── sweeps
+  │── lidarseg
+  ...
+  │── v1.0-trainval 
+  │── v1.0-test
+  ```
 - Run information preprocessing code (modified from OpenPCDet) for nuScenes as follows:
-```bash
-# NUSCENES_DIR: the directory of downloaded nuScenes dataset.
-# PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
-# MAX_SWEEPS: Max number of sweeps. Default: 10.
-pip install nuscenes-devkit pyquaternion
-python pointcept/datasets/preprocessing/nuscenes/preprocess_nuscenes_info.py --dataset_root ${NUSCENES_DIR} --output_root ${PROCESSED_NUSCENES_DIR} --max_sweeps ${MAX_SWEEPS} --with_camera
-```
+  ```bash
+  # NUSCENES_DIR: the directory of downloaded nuScenes dataset.
+  # PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
+  # MAX_SWEEPS: Max number of sweeps. Default: 10.
+  pip install nuscenes-devkit pyquaternion
+  python pointcept/datasets/preprocessing/nuscenes/preprocess_nuscenes_info.py --dataset_root ${NUSCENES_DIR} --output_root ${PROCESSED_NUSCENES_DIR} --max_sweeps ${MAX_SWEEPS} --with_camera
+  ```
 - (Alternative) Our preprocess nuScenes information data can also be downloaded [[here](
 https://huggingface.co/datasets/Pointcept/nuscenes-compressed)] (only processed information, still need to download raw dataset and link to the folder), please agree the official license before download it.
 
 - Link raw dataset to processed NuScene dataset folder:
-```bash
-# NUSCENES_DIR: the directory of downloaded nuScenes dataset.
-# PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
-ln -s ${NUSCENES_DIR} {PROCESSED_NUSCENES_DIR}/raw
-```
-then the processed nuscenes folder is organized as follows:
-```bash
-nuscene
-|── raw
-    │── samples
-    │── sweeps
-    │── lidarseg
-    ...
-    │── v1.0-trainval
-    │── v1.0-test
-|── info
-```
+  ```bash
+  # NUSCENES_DIR: the directory of downloaded nuScenes dataset.
+  # PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
+  ln -s ${NUSCENES_DIR} {PROCESSED_NUSCENES_DIR}/raw
+  ```
+  then the processed nuscenes folder is organized as follows:
+  ```bash
+  nuscene
+  |── raw
+      │── samples
+      │── sweeps
+      │── lidarseg
+      ...
+      │── v1.0-trainval
+      │── v1.0-test
+  |── info
+  ```
 
 - Link processed dataset to codebase.
-```bash
-# PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
-mkdir data
-ln -s ${PROCESSED_NUSCENES_DIR} ${CODEBASE_DIR}/data/nuscenes
-```
+  ```bash
+  # PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
+  mkdir data
+  ln -s ${PROCESSED_NUSCENES_DIR} ${CODEBASE_DIR}/data/nuscenes
+  ```
 
 ### Waymo
 - Download the official [Waymo](https://waymo.com/open/download/) dataset (v1.4.3) and organize the downloaded files as follows:
-```bash
-WAYMO_RAW_DIR
-│── training
-│── validation
-│── testing
-```
+  ```bash
+  WAYMO_RAW_DIR
+  │── training
+  │── validation
+  │── testing
+  ```
 - Install the following dependence:
-```bash
-# If shows "No matching distribution found", download whl directly from Pypi and install the package.
-conda create -n waymo python=3.10 -y
-conda activate waymo
-pip install waymo-open-dataset-tf-2-12-0
-```
+  ```bash
+  # If shows "No matching distribution found", download whl directly from Pypi and install the package.
+  conda create -n waymo python=3.10 -y
+  conda activate waymo
+  pip install waymo-open-dataset-tf-2-12-0
+  ```
 - Run the preprocessing code as follows:
-```bash
-# WAYMO_DIR: the directory of the downloaded Waymo dataset.
-# PROCESSED_WAYMO_DIR: the directory of the processed Waymo dataset (output dir).
-# NUM_WORKERS: num workers for preprocessing
-python pointcept/datasets/preprocessing/waymo/preprocess_waymo.py --dataset_root ${WAYMO_DIR} --output_root ${PROCESSED_WAYMO_DIR} --splits training validation --num_workers ${NUM_WORKERS}
-```
+  ```bash
+  # WAYMO_DIR: the directory of the downloaded Waymo dataset.
+  # PROCESSED_WAYMO_DIR: the directory of the processed Waymo dataset (output dir).
+  # NUM_WORKERS: num workers for preprocessing
+  python pointcept/datasets/preprocessing/waymo/preprocess_waymo.py --dataset_root ${WAYMO_DIR} --output_root ${PROCESSED_WAYMO_DIR} --splits training validation --num_workers ${NUM_WORKERS}
+  ```
 
 - Link processed dataset to the codebase.
-```bash
-# PROCESSED_WAYMO_DIR: the directory of the processed Waymo dataset (output dir).
-mkdir data
-ln -s ${PROCESSED_WAYMO_DIR} ${CODEBASE_DIR}/data/waymo
-```
+  ```bash
+  # PROCESSED_WAYMO_DIR: the directory of the processed Waymo dataset (output dir).
+  mkdir data
+  ln -s ${PROCESSED_WAYMO_DIR} ${CODEBASE_DIR}/data/waymo
+  ```
 
 ### ModelNet
 - Download [modelnet40_normal_resampled.zip](https://shapenet.cs.stanford.edu/media/modelnet40_normal_resampled.zip) and unzip
 - Link dataset to the codebase.
-```bash
-mkdir -p data
-ln -s ${MODELNET_DIR} ${CODEBASE_DIR}/data/modelnet40_normal_resampled
-```
+  ```bash
+  mkdir -p data
+  ln -s ${MODELNET_DIR} ${CODEBASE_DIR}/data/modelnet40_normal_resampled
+  ```
 
 ## Quick Start
 
