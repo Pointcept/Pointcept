@@ -84,6 +84,7 @@ Datasets:
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
 [ScanNet++](https://kaldir.vc.in.tum.de/scannetpp/) ([here](#scannet)),
 [S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1) ([here](#s3dis)),
+[Matterport3D](https://niessner.github.io/Matterport/) ([here](#matterport3d)),
 [ArkitScene](https://github.com/apple/ARKitScenes),
 [Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)),
 [SemanticKITTI](http://www.semantic-kitti.org/) ([here](#semantickitti)),
@@ -281,6 +282,35 @@ Following the instruction of [Swin3D](https://arxiv.org/abs/2304.06906), we keep
 mkdir data
 ln -s ${PROCESSED_STRUCT3D_DIR} ${CODEBASE_DIR}/data/structured3d
 ```
+### Matterport3D
+- Follow [this page](https://niessner.github.io/Matterport/#download) to request access to the dataset.
+- Download the "region_segmentation" type, which represents the division of a scene into individual rooms.
+    ```bash
+    # download-mp.py is the official download script
+    # MATTERPORT3D_DIR: the directory of downloaded Matterport3D dataset.
+    python download-mp.py -o {MATTERPORT3D_DIR} --type region_segmentations
+    ```
+- Unzip the region_segmentations data
+    ```bash
+    # MATTERPORT3D_DIR: the directory of downloaded Matterport3D dataset.
+    python pointcept/datasets/preprocessing/matterport3d/unzip_matterport3d_region_segmentation.py --dataset_root {MATTERPORT3D_DIR}
+    ```
+- Run preprocessing code for Matterport3D as follows:
+    ```bash
+    # MATTERPORT3D_DIR: the directory of downloaded Matterport3D dataset.
+    # PROCESSED_MATTERPORT3D_DIR: the directory of processed Matterport3D dataset (output dir).
+    # NUM_WORKERS: the number of workers for this preprocessing.
+    python pointcept/datasets/preprocessing/matterport3d/preprocess_matterport3d_mesh.py --dataset_root ${MATTERPORT3D_DIR} --output_root ${PROCESSED_MATTERPORT3D_DIR} --num_workers ${NUM_WORKERS}
+    ```
+- Link processed dataset to codebase.
+```bash
+# PROCESSED_MATTERPORT3D_DIR: the directory of processed Matterport3D dataset (output dir).
+mkdir data
+ln -s ${PROCESSED_MATTERPORT3D_DIR} ${CODEBASE_DIR}/data/matterport3d
+```
+
+Following the instruction of [OpenRooms](https://github.com/ViLab-UCSD/OpenRooms), we remapped Matterport3D's categories to ScanNet 20 semantic categories with the addition of a ceiling category.
+* (Alternative) Our preprocess data can also be downloaded [here](https://huggingface.co/datasets/Pointcept/matterport3d-compressed), please agree the official license before download it.
 
 ### SemanticKITTI
 - Download [SemanticKITTI](http://www.semantic-kitti.org/dataset.html#download) dataset.
