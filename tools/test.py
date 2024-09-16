@@ -4,6 +4,9 @@ Main Testing Script
 Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
+import sys
+pointcept_path = "/home/fuxiaowen/DLproject/Pointcept-main/pointcept"
+sys.path.insert(0, pointcept_path)
 
 from pointcept.engines.defaults import (
     default_argument_parser,
