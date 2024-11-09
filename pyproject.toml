@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "Scannet++ Benchmark PointCept"
+version = "1.1"
+description = "Scannet++ Benchmark PointCept"
+authors = ["Streakfull"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+jupyter = "^1.0.0"
+K3D = "2.12.0"
+matplotlib = "^3.4.1"
+trimesh = "^3.9.14"
+torch = "2.2.0"
+pytorch-lightning = "^1.2.8"
+scikit-image = "^0.18.1"
+pyrender = "^0.1.43"
+moviepy = "^1.0.3"
+pillow = "9.2.0"
+tqdm = "^4.48.2"
+scipy = "^1.4.1"
+numpy = "^1.26.4"
+ipywidgets = "7.7.1"
+jupyterlab-widgets = "1.1"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

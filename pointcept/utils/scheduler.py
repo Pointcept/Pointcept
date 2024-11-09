@@ -24,7 +24,8 @@ class MultiStepLR(lr_scheduler.MultiStepLR):
     ):
         super().__init__(
             optimizer=optimizer,
-            milestones=[rate * total_steps for rate in milestones],
+            # milestones=[rate * total_steps for rate in milestones],
+            milestones=milestones,
             gamma=gamma,
             last_epoch=last_epoch,
             verbose=verbose,

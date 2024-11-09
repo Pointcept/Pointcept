@@ -46,7 +46,8 @@ class MultiDatasetDataloader:
         self.dataloaders = []
         for dataset_id, dataset in enumerate(self.datasets):
             if comm.get_world_size() > 1:
-                sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+                sampler = torch.utils.data.distributed.DistributedSampler(
+                    dataset)
             else:
                 sampler = None
 
@@ -72,7 +73,7 @@ class MultiDatasetDataloader:
                     collate_fn=partial(point_collate_fn, mix_prob=mix_prob),
                     pin_memory=True,
                     worker_init_fn=init_fn,
-                    drop_last=True,
+                    # drop_last=True,
                     persistent_workers=True,
                 )
             )

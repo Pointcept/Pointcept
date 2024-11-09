@@ -61,14 +61,16 @@ class ScanNetPPDataset(DefaultDataset):
 
         if not self.multilabel:
             if "segment" in data_dict.keys():
-                data_dict["segment"] = data_dict["segment"][:, 0].astype(np.int32)
+                data_dict["segment"] = data_dict["segment"][:,
+                                                            0].astype(np.int32)
             else:
                 data_dict["segment"] = (
                     np.ones(data_dict["coord"].shape[0], dtype=np.int32) * -1
                 )
 
             if "instance" in data_dict.keys():
-                data_dict["instance"] = data_dict["instance"][:, 0].astype(np.int32)
+                data_dict["instance"] = data_dict["instance"][:,
+                                                              0].astype(np.int32)
             else:
                 data_dict["instance"] = (
                     np.ones(data_dict["coord"].shape[0], dtype=np.int32) * -1
@@ -76,3 +78,6 @@ class ScanNetPPDataset(DefaultDataset):
         else:
             raise NotImplementedError
         return data_dict
+
+    # def __len__(self):
+    #     return 1

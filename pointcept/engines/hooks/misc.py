@@ -38,7 +38,8 @@ class IterationTimer(HookBase):
 
     def before_train(self):
         self._start_time = time.perf_counter()
-        self._remain_iter = self.trainer.max_epoch * len(self.trainer.train_loader)
+        self._remain_iter = self.trainer.max_epoch * \
+            len(self.trainer.train_loader)
 
     def before_epoch(self):
         self._iter_timer.reset()
@@ -52,19 +53,25 @@ class IterationTimer(HookBase):
         self._iter_timer.reset()
         self.trainer.storage.put_scalar("batch_time", batch_time)
         self._remain_iter -= 1
-        remain_time = self._remain_iter * self.trainer.storage.history("batch_time").avg
+        remain_time = self._remain_iter * \
+            self.trainer.storage.history("batch_time").avg
         t_m, t_s = divmod(remain_time, 60)
         t_h, t_m = divmod(t_m, 60)
-        remain_time = "{:02d}:{:02d}:{:02d}".format(int(t_h), int(t_m), int(t_s))
+        remain_time = "{:02d}:{:02d}:{:02d}".format(
+            int(t_h), int(t_m), int(t_s))
         if "iter_info" in self.trainer.comm_info.keys():
             info = (
                 "Data {data_time_val:.3f} ({data_time_avg:.3f}) "
                 "Batch {batch_time_val:.3f} ({batch_time_avg:.3f}) "
                 "Remain {remain_time} ".format(
-                    data_time_val=self.trainer.storage.history("data_time").val,
-                    data_time_avg=self.trainer.storage.history("data_time").avg,
-                    batch_time_val=self.trainer.storage.history("batch_time").val,
-                    batch_time_avg=self.trainer.storage.history("batch_time").avg,
+                    data_time_val=self.trainer.storage.history(
+                        "data_time").val,
+                    data_time_avg=self.trainer.storage.history(
+                        "data_time").avg,
+                    batch_time_val=self.trainer.storage.history(
+                        "batch_time").val,
+                    batch_time_avg=self.trainer.storage.history(
+                        "batch_time").avg,
                     remain_time=remain_time,
                 )
             )
@@ -82,7 +89,8 @@ class InformationWriter(HookBase):
 
     def before_train(self):
         self.trainer.comm_info["iter_info"] = ""
-        self.curr_iter = self.trainer.start_epoch * len(self.trainer.train_loader)
+        self.curr_iter = self.trainer.start_epoch * \
+            len(self.trainer.train_loader)
 
     def before_step(self):
         self.curr_iter += 1
@@ -107,12 +115,14 @@ class InformationWriter(HookBase):
             model_output_dict = self.trainer.comm_info["model_output_dict"]
             self.model_output_keys = model_output_dict.keys()
             for key in self.model_output_keys:
-                self.trainer.storage.put_scalar(key, model_output_dict[key].item())
+                self.trainer.storage.put_scalar(
+                    key, model_output_dict[key].item())
 
         for key in self.model_output_keys:
             self.trainer.comm_info["iter_info"] += "{key}: {value:.4f} ".format(
                 key=key, value=self.trainer.storage.history(key).val
             )
+
         lr = self.trainer.optimizer.state_dict()["param_groups"][0]["lr"]
         self.trainer.comm_info["iter_info"] += "Lr: {lr:.5f}".format(lr=lr)
         self.trainer.logger.info(self.trainer.comm_info["iter_info"])
@@ -190,7 +200,8 @@ class CheckpointSaver(HookBase):
             if is_best:
                 shutil.copyfile(
                     filename,
-                    os.path.join(self.trainer.cfg.save_path, "model", "model_best.pth"),
+                    os.path.join(self.trainer.cfg.save_path,
+                                 "model", "model_best.pth"),
                 )
             if self.save_freq and (self.trainer.epoch + 1) % self.save_freq == 0:
                 shutil.copyfile(
@@ -213,7 +224,8 @@ class CheckpointLoader(HookBase):
     def before_train(self):
         self.trainer.logger.info("=> Loading checkpoint & weight ...")
         if self.trainer.cfg.weight and os.path.isfile(self.trainer.cfg.weight):
-            self.trainer.logger.info(f"Loading weight at: {self.trainer.cfg.weight}")
+            self.trainer.logger.info(
+                f"Loading weight at: {self.trainer.cfg.weight}")
             checkpoint = torch.load(
                 self.trainer.cfg.weight,
                 map_location=lambda storage, loc: storage.cuda(),
@@ -247,7 +259,8 @@ class CheckpointLoader(HookBase):
                 if self.trainer.cfg.enable_amp:
                     self.trainer.scaler.load_state_dict(checkpoint["scaler"])
         else:
-            self.trainer.logger.info(f"No weight found at: {self.trainer.cfg.weight}")
+            self.trainer.logger.info(
+                f"No weight found at: {self.trainer.cfg.weight}")
 
 
 @HOOKS.register_module()
@@ -429,7 +442,8 @@ class RuntimeProfilerV2(HookBase):
                 active=self.active,
                 repeat=self.repeat,
             ),
-            on_trace_ready=tensorboard_trace_handler(self.trainer.cfg.save_path),
+            on_trace_ready=tensorboard_trace_handler(
+                self.trainer.cfg.save_path),
             record_shapes=True,
             profile_memory=True,
             with_stack=True,

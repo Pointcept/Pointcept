@@ -3,7 +3,9 @@ import torch_scatter
 
 from pointcept.models.losses import build_criteria
 from pointcept.models.utils.structure import Point
+import torch
 from .builder import MODELS, build_model
+import copy
 
 
 @MODELS.register_module()

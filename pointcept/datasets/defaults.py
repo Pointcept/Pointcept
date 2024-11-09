@@ -58,10 +58,12 @@ class DefaultDataset(Dataset):
         if test_mode:
             self.test_voxelize = TRANSFORMS.build(self.test_cfg.voxelize)
             self.test_crop = (
-                TRANSFORMS.build(self.test_cfg.crop) if self.test_cfg.crop else None
+                TRANSFORMS.build(
+                    self.test_cfg.crop) if self.test_cfg.crop else None
             )
             self.post_transform = Compose(self.test_cfg.post_transform)
-            self.aug_transform = [Compose(aug) for aug in self.test_cfg.aug_transform]
+            self.aug_transform = [Compose(aug)
+                                  for aug in self.test_cfg.aug_transform]
 
         self.data_list = self.get_data_list()
         logger = get_root_logger()
@@ -73,7 +75,8 @@ class DefaultDataset(Dataset):
 
     def get_data_list(self):
         if isinstance(self.split, str):
-            data_list = glob.glob(os.path.join(self.data_root, self.split, "*"))
+            data_list = glob.glob(os.path.join(
+                self.data_root, self.split, "*"))
         elif isinstance(self.split, Sequence):
             data_list = []
             for split in self.split:
@@ -109,14 +112,16 @@ class DefaultDataset(Dataset):
             data_dict["normal"] = data_dict["normal"].astype(np.float32)
 
         if "segment" in data_dict.keys():
-            data_dict["segment"] = data_dict["segment"].reshape([-1]).astype(np.int32)
+            data_dict["segment"] = data_dict["segment"].reshape(
+                [-1]).astype(np.int32)
         else:
             data_dict["segment"] = (
                 np.ones(data_dict["coord"].shape[0], dtype=np.int32) * -1
             )
 
         if "instance" in data_dict.keys():
-            data_dict["instance"] = data_dict["instance"].reshape([-1]).astype(np.int32)
+            data_dict["instance"] = data_dict["instance"].reshape(
+                [-1]).astype(np.int32)
         else:
             data_dict["instance"] = (
                 np.ones(data_dict["coord"].shape[0], dtype=np.int32) * -1
@@ -136,7 +141,8 @@ class DefaultDataset(Dataset):
         # load data
         data_dict = self.get_data(idx)
         data_dict = self.transform(data_dict)
-        result_dict = dict(segment=data_dict.pop("segment"), name=data_dict.pop("name"))
+        result_dict = dict(segment=data_dict.pop(
+            "segment"), name=data_dict.pop("name"))
         if "origin_segment" in data_dict:
             assert "inverse" in data_dict
             result_dict["origin_segment"] = data_dict.pop("origin_segment")
@@ -194,7 +200,8 @@ class ConcatDataset(Dataset):
         for i in range(len(self.datasets)):
             data_list.extend(
                 zip(
-                    np.ones(len(self.datasets[i])) * i, np.arange(len(self.datasets[i]))
+                    np.ones(len(self.datasets[i])) *
+                    i, np.arange(len(self.datasets[i]))
                 )
             )
         return data_list

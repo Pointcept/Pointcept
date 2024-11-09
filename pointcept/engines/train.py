@@ -148,7 +148,8 @@ class Trainer(TrainerBase):
         with EventStorage() as self.storage, ExceptionWriter():
             # => before train
             self.before_train()
-            self.logger.info(">>>>>>>>>>>>>>>> Start Training >>>>>>>>>>>>>>>>")
+            self.logger.info(
+                ">>>>>>>>>>>>>>>> Start Training >>>>>>>>>>>>>>>>")
             for self.epoch in range(self.start_epoch, self.max_epoch):
                 # => before epoch
                 # TODO: optimize to iteration based
@@ -157,6 +158,7 @@ class Trainer(TrainerBase):
                 self.model.train()
                 self.data_iterator = enumerate(self.train_loader)
                 self.before_epoch()
+                # self.after_epoch()
                 # => run_epoch
                 for (
                     self.comm_info["iter"],
@@ -169,6 +171,7 @@ class Trainer(TrainerBase):
                     # => after_step
                     self.after_step()
                 # => after epoch
+
                 self.after_epoch()
             # => after train
             self.after_train()
@@ -179,8 +182,14 @@ class Trainer(TrainerBase):
             if isinstance(input_dict[key], torch.Tensor):
                 input_dict[key] = input_dict[key].cuda(non_blocking=True)
         with torch.cuda.amp.autocast(enabled=self.cfg.enable_amp):
+            seg = input_dict["segment"]
+            unique = torch.unique(seg)
+            if (len(unique) == 1 and unique[0] == -1):
+                print("Step Skipped")
+                return
             output_dict = self.model(input_dict)
             loss = output_dict["loss"]
+
         self.optimizer.zero_grad()
         if self.cfg.enable_amp:
             self.scaler.scale(loss).backward()
@@ -195,6 +204,7 @@ class Trainer(TrainerBase):
             # Fix torch warning scheduler step before optimizer step.
             scaler = self.scaler.get_scale()
             self.scaler.update()
+            # self.scheduler.step()
             if scaler <= self.scaler.get_scale():
                 self.scheduler.step()
         else:
@@ -220,7 +230,8 @@ class Trainer(TrainerBase):
         model = build_model(self.cfg.model)
         if self.cfg.sync_bn:
             model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
-        n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        n_parameters = sum(p.numel()
+                           for p in model.parameters() if p.requires_grad)
         # logger.info(f"Model: \n{self.model}")
         self.logger.info(f"Num params: {n_parameters}")
         model = create_ddp_model(
@@ -231,15 +242,18 @@ class Trainer(TrainerBase):
         return model
 
     def build_writer(self):
-        writer = SummaryWriter(self.cfg.save_path) if comm.is_main_process() else None
-        self.logger.info(f"Tensorboard writer logging dir: {self.cfg.save_path}")
+        writer = SummaryWriter(
+            self.cfg.save_path) if comm.is_main_process() else None
+        self.logger.info(
+            f"Tensorboard writer logging dir: {self.cfg.save_path}")
         return writer
 
     def build_train_loader(self):
         train_data = build_dataset(self.cfg.data.train)
 
         if comm.get_world_size() > 1:
-            train_sampler = torch.utils.data.distributed.DistributedSampler(train_data)
+            train_sampler = torch.utils.data.distributed.DistributedSampler(
+                train_data)
         else:
             train_sampler = None
 
@@ -258,14 +272,17 @@ class Trainer(TrainerBase):
             train_data,
             batch_size=self.cfg.batch_size_per_gpu,
             shuffle=(train_sampler is None),
+            # shuffle=False,
             num_workers=self.cfg.num_worker_per_gpu,
             sampler=train_sampler,
             collate_fn=partial(point_collate_fn, mix_prob=self.cfg.mix_prob),
             pin_memory=True,
             worker_init_fn=init_fn,
-            drop_last=True,
+            # drop_last=len(train_data) > self.cfg.batch_size_val_per_gpu,
+            drop_last=False,
             persistent_workers=True,
         )
+
         return train_loader
 
     def build_val_loader(self):
@@ -273,7 +290,8 @@ class Trainer(TrainerBase):
         if self.cfg.evaluate:
             val_data = build_dataset(self.cfg.data.val)
             if comm.get_world_size() > 1:
-                val_sampler = torch.utils.data.distributed.DistributedSampler(val_data)
+                val_sampler = torch.utils.data.distributed.DistributedSampler(
+                    val_data)
             else:
                 val_sampler = None
             val_loader = torch.utils.data.DataLoader(
@@ -293,7 +311,9 @@ class Trainer(TrainerBase):
     def build_scheduler(self):
         assert hasattr(self, "optimizer")
         assert hasattr(self, "train_loader")
-        self.cfg.scheduler.total_steps = len(self.train_loader) * self.cfg.eval_epoch
+        self.cfg.scheduler.total_steps = len(
+            self.train_loader) * self.cfg.eval_epoch
+
         return build_scheduler(self.cfg.scheduler, self.optimizer)
 
     def build_scaler(self):

@@ -112,7 +112,8 @@ def default_config_parser(file_path, options):
         cfg = Config.fromfile(file_path)
     else:
         sep = file_path.find("-")
-        cfg = Config.fromfile(os.path.join(file_path[:sep], file_path[sep + 1 :]))
+        cfg = Config.fromfile(os.path.join(
+            file_path[:sep], file_path[sep + 1:]))
 
     if options is not None:
         cfg.merge_from_dict(options)
@@ -144,6 +145,7 @@ def default_setup(cfg):
         cfg.batch_size_test // world_size if cfg.batch_size_test is not None else 1
     )
     # update data loop
+
     assert cfg.epoch % cfg.eval_epoch == 0
     # settle random seed
     rank = comm.get_rank()
