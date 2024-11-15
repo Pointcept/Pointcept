@@ -122,7 +122,7 @@ class SemSegEvaluator(HookBase):
 
     def eval(self):
         self.trainer.logger.info(
-            ">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
+            ">>>>>>>>>>>>>>>> Start Evaluation Val >>>>>>>>>>>>>>>>")
         self.trainer.model.eval()
         for i, input_dict in enumerate(self.trainer.val_loader):
             for key in input_dict.keys():
@@ -226,6 +226,123 @@ class SemSegEvaluator(HookBase):
         self.trainer.logger.info(
             "Best {}: {:.4f}".format("mIoU", self.trainer.best_metric_value)
         )
+
+
+@ HOOKS.register_module()
+class SemSegEvaluatorTrain(HookBase):
+    def after_epoch(self):
+        if self.trainer.cfg.evaluate:
+            self.eval()
+
+    def eval(self):
+        self.trainer.logger.info(
+            ">>>>>>>>>>>>>>>> Start Evaluation Train >>>>>>>>>>>>>>>>")
+        self.trainer.model.eval()
+        for i, input_dict in enumerate(self.trainer.train_loader):
+            for key in input_dict.keys():
+                if isinstance(input_dict[key], torch.Tensor):
+                    input_dict[key] = input_dict[key].cuda(non_blocking=True)
+            with torch.no_grad():
+                output_dict = self.trainer.model(input_dict)
+            output = output_dict["seg_logits"]
+            loss = output_dict["loss"]
+            pred = output.max(1)[1]
+            segment = input_dict["segment"]
+            if "origin_coord" in input_dict.keys():
+                idx, _ = pointops.knn_query(
+                    1,
+                    input_dict["coord"].float(),
+                    input_dict["offset"].int(),
+                    input_dict["origin_coord"].float(),
+                    input_dict["origin_offset"].int(),
+                )
+                pred = pred[idx.flatten().long()]
+                segment = input_dict["origin_segment"]
+            intersection, union, target = intersection_and_union_gpu(
+                pred,
+                segment,
+                self.trainer.cfg.data.num_classes,
+                self.trainer.cfg.data.ignore_index,
+            )
+            if comm.get_world_size() > 1:
+                dist.all_reduce(intersection), dist.all_reduce(union), dist.all_reduce(
+                    target
+                )
+            intersection, union, target = (
+                intersection.cpu().numpy(),
+                union.cpu().numpy(),
+                target.cpu().numpy(),
+            )
+            # Here there is no need to sync since sync happened in dist.all_reduce
+            self.trainer.storage.put_scalar(
+                "traine_intersection", intersection)
+            self.trainer.storage.put_scalar("traine_union", union)
+            self.trainer.storage.put_scalar("traine_target", target)
+            self.trainer.storage.put_scalar(
+                "traine_loss", loss.item() if loss is not None else 0)
+            info = "Test Traine: [{iter}/{max_iter}] ".format(
+                iter=i + 1, max_iter=len(self.trainer.val_loader)
+            )
+            if "origin_coord" in input_dict.keys():
+                info = "Interp. " + info
+            if (loss is not None):
+                self.trainer.logger.info(
+                    info
+                    + "Traine Loss {loss:.4f} ".format(
+                        iter=i + 1, max_iter=len(self.trainer.val_loader), loss=loss.item()
+                    )
+                )
+        loss_avg = self.trainer.storage.history("traine_loss").avg
+        intersection = self.trainer.storage.history(
+            "traine_intersection").total
+        union = self.trainer.storage.history("traine_union").total
+        target = self.trainer.storage.history("traine_target").total
+        iou_class = intersection / (union + 1e-10)
+        acc_class = intersection / (target + 1e-10)
+        m_iou = np.mean(iou_class)
+        m_acc = np.mean(acc_class)
+        all_acc = sum(intersection) / (sum(target) + 1e-10)
+        self.trainer.logger.info(
+            "Traine result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}.".format(
+                m_iou, m_acc, all_acc
+            )
+        )
+        current_epoch = self.trainer.epoch + 1
+        for i in range(self.trainer.cfg.data.num_classes):
+            name = self.trainer.cfg.data.names[i]
+            self.trainer.writer.add_scalar(
+                f"train/cls_{i}-{name} Iou",  iou_class[i], current_epoch)
+            wandb.log(
+                {f"train_cls/{i}-{name} IoU":  iou_class[i]}, step=current_epoch)
+            self.trainer.logger.info(
+                "Train Class_{idx}-{name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}".format(
+                    idx=i,
+                    name=self.trainer.cfg.data.names[i],
+                    iou=iou_class[i],
+                    accuracy=acc_class[i],
+                )
+            )
+
+        if self.trainer.writer is not None:
+           # self.trainer.writer.add_scalar("val/loss", loss_avg, current_epoch)
+            self.trainer.writer.add_scalar("train/mIoU", m_iou, current_epoch)
+            self.trainer.writer.add_scalar("train/mAcc", m_acc, current_epoch)
+            self.trainer.writer.add_scalar(
+                "train/allAcc", all_acc, current_epoch)
+            wandb.log(
+                {"train/mIoU": m_iou, "train/mAcc": m_acc}, step=current_epoch)
+        self.trainer.logger.info(
+            "<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
+        # save for saver
+       # self.trainer.comm_info["current_metric_value"] = m_iou
+        # save for saver
+       # self.trainer.comm_info["current_metric_name"] = "mIoU"
+
+    def after_train(self):
+        print("Train Evaluation Done")
+        # self.trainer.logger.info(
+        #     "Best {}: {:.4f}".format("mIoU", self.trainer.best_metric_value)
+        # )
 
 
 @HOOKS.register_module()
