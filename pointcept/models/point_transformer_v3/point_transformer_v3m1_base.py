@@ -16,10 +16,12 @@ from timm.models.layers import DropPath
 try:
 
     import flash_attn
+    print("flash attn found")
 
 
 except ImportError:
     flash_attn = None
+
 
 from pointcept.models.point_prompt_training import PDNorm
 from pointcept.models.builder import MODELS
@@ -88,6 +90,7 @@ class SerializedAttention(PointModule):
             assert (
                 upcast_softmax is False
             ), "Set upcast_softmax to False when enable Flash Attention"
+
             assert flash_attn is not None, "Make sure flash_attn is installed."
             self.patch_size = patch_size
             self.attn_drop = attn_drop
