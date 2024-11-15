@@ -4,13 +4,13 @@ _base_ = [
 ]
 
 # misc custom setting
-batch_size = 5  # bs: total bs in all gpus
+batch_size = 4  # bs: total bs in all gpus
 num_worker = 16
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
-wandb_project_name = "debug-1"
-wandb_tags = ["test-tag"]
+wandb_project_name = "ptV3"
+wandb_tags = ["Full Train"]
 
 # model settings
 model = dict(

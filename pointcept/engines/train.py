@@ -29,6 +29,7 @@ from pointcept.utils.optimizer import build_optimizer
 from pointcept.utils.scheduler import build_scheduler
 from pointcept.utils.events import EventStorage, ExceptionWriter
 from pointcept.utils.registry import Registry
+import wandb
 
 
 TRAINERS = Registry("trainers")
@@ -69,6 +70,7 @@ class TrainerBase:
                     self.comm_info["iter"],
                     self.comm_info["input_dict"],
                 ) in self.data_iterator:
+
                     # => before_step
                     self.before_step()
                     # => run_step
@@ -143,6 +145,16 @@ class Trainer(TrainerBase):
         self.scaler = self.build_scaler()
         self.logger.info("=> Building hooks ...")
         self.register_hooks(self.cfg.hooks)
+        wandb_project_name = cfg["wandb_project_name"]
+        wandb_tags = cfg["wandb_tags"]
+        wandb.init(
+            project=wandb_project_name,
+            tags=wandb_tags,
+            config=cfg
+        )
+        wandb.log({"TEST/OK?": 500}, step=0)
+        # wandb.define_metric("custom_step")
+        # wandb.define_metric("ok", step_metric="custom_step")
 
     def train(self):
         with EventStorage() as self.storage, ExceptionWriter():
@@ -217,7 +229,10 @@ class Trainer(TrainerBase):
             self.scheduler.step()
         if self.cfg.empty_cache:
             torch.cuda.empty_cache()
+
         self.comm_info["model_output_dict"] = output_dict
+        self.comm_info["model_input_dict"] = input_dict
+        # Add All Eval metrics here
 
     def after_epoch(self):
         for h in self.hooks:

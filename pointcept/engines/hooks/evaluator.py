@@ -237,66 +237,10 @@ class SemSegEvaluatorTrain(HookBase):
     def eval(self):
         self.trainer.logger.info(
             ">>>>>>>>>>>>>>>> Start Evaluation Train >>>>>>>>>>>>>>>>")
-        self.trainer.model.eval()
-        for i, input_dict in enumerate(self.trainer.train_loader):
-            for key in input_dict.keys():
-                if isinstance(input_dict[key], torch.Tensor):
-                    input_dict[key] = input_dict[key].cuda(non_blocking=True)
-            with torch.no_grad():
-                output_dict = self.trainer.model(input_dict)
-            output = output_dict["seg_logits"]
-            loss = output_dict["loss"]
-            pred = output.max(1)[1]
-            segment = input_dict["segment"]
-            if "origin_coord" in input_dict.keys():
-                idx, _ = pointops.knn_query(
-                    1,
-                    input_dict["coord"].float(),
-                    input_dict["offset"].int(),
-                    input_dict["origin_coord"].float(),
-                    input_dict["origin_offset"].int(),
-                )
-                pred = pred[idx.flatten().long()]
-                segment = input_dict["origin_segment"]
-            intersection, union, target = intersection_and_union_gpu(
-                pred,
-                segment,
-                self.trainer.cfg.data.num_classes,
-                self.trainer.cfg.data.ignore_index,
-            )
-            if comm.get_world_size() > 1:
-                dist.all_reduce(intersection), dist.all_reduce(union), dist.all_reduce(
-                    target
-                )
-            intersection, union, target = (
-                intersection.cpu().numpy(),
-                union.cpu().numpy(),
-                target.cpu().numpy(),
-            )
-            # Here there is no need to sync since sync happened in dist.all_reduce
-            self.trainer.storage.put_scalar(
-                "traine_intersection", intersection)
-            self.trainer.storage.put_scalar("traine_union", union)
-            self.trainer.storage.put_scalar("traine_target", target)
-            self.trainer.storage.put_scalar(
-                "traine_loss", loss.item() if loss is not None else 0)
-            info = "Test Traine: [{iter}/{max_iter}] ".format(
-                iter=i + 1, max_iter=len(self.trainer.val_loader)
-            )
-            if "origin_coord" in input_dict.keys():
-                info = "Interp. " + info
-            if (loss is not None):
-                self.trainer.logger.info(
-                    info
-                    + "Traine Loss {loss:.4f} ".format(
-                        iter=i + 1, max_iter=len(self.trainer.val_loader), loss=loss.item()
-                    )
-                )
-        loss_avg = self.trainer.storage.history("traine_loss").avg
         intersection = self.trainer.storage.history(
-            "traine_intersection").total
-        union = self.trainer.storage.history("traine_union").total
-        target = self.trainer.storage.history("traine_target").total
+            "train_intersection").total
+        union = self.trainer.storage.history("train_union").total
+        target = self.trainer.storage.history("train_target").total
         iou_class = intersection / (union + 1e-10)
         acc_class = intersection / (target + 1e-10)
         m_iou = np.mean(iou_class)
