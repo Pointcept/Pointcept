@@ -36,3 +36,4 @@ v2logs
 external/
 raw_dataset_v2_alpha_backup/
 visuals/
+wandb

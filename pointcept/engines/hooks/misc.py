@@ -23,6 +23,7 @@ from pointcept.utils.comm import is_main_process, synchronize, get_world_size
 from pointcept.utils.cache import shared_dict
 import pointcept.utils.comm as comm
 from pointcept.engines.test import TESTERS
+import wandb
 
 from .default import HookBase
 from .builder import HOOKS
@@ -135,6 +136,8 @@ class InformationWriter(HookBase):
                     self.trainer.storage.history(key).val,
                     self.curr_iter,
                 )
+                # wandb.log(
+                #     {"batch/train_batch": self.trainer.storage.history(key).val}, step=self.curr_iter)
 
     def after_epoch(self):
         epoch_info = "Train result: "
@@ -150,6 +153,8 @@ class InformationWriter(HookBase):
                     self.trainer.storage.history(key).avg,
                     self.trainer.epoch + 1,
                 )
+                wandb.log(
+                    {f"train/{key}": self.trainer.storage.history(key).val},  self.trainer.epoch + 1)
 
 
 @HOOKS.register_module()

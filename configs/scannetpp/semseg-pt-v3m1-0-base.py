@@ -4,11 +4,13 @@ _base_ = [
 ]
 
 # misc custom setting
-batch_size = 1  # bs: total bs in all gpus
-num_worker = 12
+batch_size = 5  # bs: total bs in all gpus
+num_worker = 16
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
+wandb_project_name = "debug-1"
+wandb_tags = ["test-tag"]
 
 # model settings
 model = dict(
@@ -77,7 +79,7 @@ param_dicts = [dict(keyword="block", lr=0.0006)]
 # dataset settings
 dataset_type = "ScanNetPPDataset"
 # data_root = "data/scannetpp"
-data_root = "./raw_dataset/scannetpp_v2"
+data_root = "./raw_dataset"
 
 data = dict(
     num_classes=100,

@@ -12,6 +12,7 @@ from pointcept.engines.defaults import (
 )
 from pointcept.engines.train import TRAINERS
 from pointcept.engines.launch import launch
+import wandb
 
 
 def main_worker(cfg):
@@ -23,6 +24,14 @@ def main_worker(cfg):
 def main():
     args = default_argument_parser().parse_args()
     cfg = default_config_parser(args.config_file, args.options)
+    wandb_project_name = cfg["wandb_project_name"]
+    wandb_tags = cfg["wandb_tags"]
+
+    wandb.init(
+        project=wandb_project_name,
+        tags=wandb_tags,
+        config=cfg
+    )
 
     launch(
         main_worker,

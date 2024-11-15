@@ -158,7 +158,8 @@ class Config:
                         new_v = new_v[new_k]
                     cfg[k] = new_v
                 elif isinstance(v, (list, tuple, dict)):
-                    cfg[k] = Config._substitute_base_vars(v, base_var_dict, base_cfg)
+                    cfg[k] = Config._substitute_base_vars(
+                        v, base_var_dict, base_cfg)
         elif isinstance(cfg, tuple):
             cfg = tuple(
                 Config._substitute_base_vars(c, base_var_dict, base_cfg) for c in cfg
@@ -192,7 +193,8 @@ class Config:
             temp_config_name = osp.basename(temp_config_file.name)
             # Substitute predefined variables
             if use_predefined_variables:
-                Config._substitute_predefined_vars(filename, temp_config_file.name)
+                Config._substitute_predefined_vars(
+                    filename, temp_config_file.name)
             else:
                 shutil.copyfile(filename, temp_config_file.name)
             # Substitute base variables from placeholders to strings
@@ -242,7 +244,8 @@ class Config:
             cfg_dir = osp.dirname(filename)
             base_filename = cfg_dict.pop(BASE_KEY)
             base_filename = (
-                base_filename if isinstance(base_filename, list) else [base_filename]
+                base_filename if isinstance(base_filename, list) else [
+                    base_filename]
             )
 
             cfg_dict_list = list()
@@ -332,7 +335,8 @@ class Config:
 
     @staticmethod
     def fromfile(filename, use_predefined_variables=True, import_custom_modules=True):
-        cfg_dict, cfg_text = Config._file2dict(filename, use_predefined_variables)
+        cfg_dict, cfg_text = Config._file2dict(
+            filename, use_predefined_variables)
         if import_custom_modules and cfg_dict.get("custom_imports", None):
             import_modules_from_strings(**cfg_dict["custom_imports"])
         return Config(cfg_dict, cfg_text=cfg_text, filename=filename)
@@ -353,7 +357,8 @@ class Config:
             raise IOError("Only py/yml/yaml/json type are supported now!")
         if file_format != ".py" and "dict(" in cfg_str:
             # check if users specify a wrong suffix for python
-            warnings.warn('Please check "file_format", the file format may be .py')
+            warnings.warn(
+                'Please check "file_format", the file format may be .py')
         with tempfile.NamedTemporaryFile(
             "w", encoding="utf-8", suffix=file_format, delete=False
         ) as temp_file:
@@ -380,7 +385,8 @@ class Config:
         if cfg_dict is None:
             cfg_dict = dict()
         elif not isinstance(cfg_dict, dict):
-            raise TypeError("cfg_dict must be a dict, but " f"got {type(cfg_dict)}")
+            raise TypeError(
+                "cfg_dict must be a dict, but " f"got {type(cfg_dict)}")
         for key in cfg_dict:
             if key in RESERVED_KEYS:
                 raise KeyError(f"{key} is reserved for config file")
@@ -493,7 +499,7 @@ class Config:
             blank_line_before_nested_class_or_def=True,
             split_before_expression_after_opening_paren=True,
         )
-        text, _ = FormatCode(text, style_config=yapf_style, verify=True)
+        text, _ = FormatCode(text, style_config=yapf_style)
 
         return text
 
@@ -681,7 +687,7 @@ class DictAction(Action):
             comma_idx = find_next_comma(val)
             element = DictAction._parse_iterable(val[:comma_idx])
             values.append(element)
-            val = val[comma_idx + 1 :]
+            val = val[comma_idx + 1:]
         if is_tuple:
             values = tuple(values)
         return values
