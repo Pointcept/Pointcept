@@ -152,7 +152,7 @@ class Trainer(TrainerBase):
             tags=wandb_tags,
             config=cfg
         )
-        wandb.log({"TEST/OK?": 500}, step=0)
+        wandb.log({"Test/Log": 500}, step=0)
         # wandb.define_metric("custom_step")
         # wandb.define_metric("ok", step_metric="custom_step")
 

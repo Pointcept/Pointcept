@@ -64,6 +64,7 @@ class ScanNetPPDataset(DefaultDataset):
                 data_dict["segment"] = data_dict["segment"][:,
                                                             0].astype(np.int32)
             else:
+                # print(data_dict.keys(), data_dict["name"], "KEYS????")
                 data_dict["segment"] = (
                     np.ones(data_dict["coord"].shape[0], dtype=np.int32) * -1
                 )
@@ -79,6 +80,6 @@ class ScanNetPPDataset(DefaultDataset):
             raise NotImplementedError
         return data_dict
 
-    def __len__(self):
-        # return 1000
-        return 12
+    # def __len__(self):
+    #     return 1000
+    #     # return 12
