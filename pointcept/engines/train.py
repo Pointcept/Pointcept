@@ -147,12 +147,14 @@ class Trainer(TrainerBase):
         self.register_hooks(self.cfg.hooks)
         wandb_project_name = cfg["wandb_project_name"]
         wandb_tags = cfg["wandb_tags"]
-        wandb.init(
-            project=wandb_project_name,
-            tags=wandb_tags,
-            config=cfg
-        )
-        wandb.log({"Test/Log": 500}, step=0)
+        self.enable_wandb = cfg["enable_wandb"]
+        # import pdb
+        # pdb.set_trace()
+        if (self.enable_wandb):
+            wandb.init(project=wandb_project_name,
+                       tags=wandb_tags)
+            wandb.log({"Test/Log": 500}, step=0)
+
         # wandb.define_metric("custom_step")
         # wandb.define_metric("ok", step_metric="custom_step")
 

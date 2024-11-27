@@ -157,18 +157,19 @@ class InformationWriter(HookBase):
         self.trainer.comm_info["iter_info"] = ""  # reset iter info
         if self.trainer.writer is not None:
             self.trainer.writer.add_scalar("lr", lr, self.curr_iter)
-            wandb.log({"train/lr": lr}, step=self.trainer.epoch+1)
+            if (self.trainer.enable_wandb):
+                wandb.log({"train/lr": lr}, step=self.trainer.epoch+1)
             for key in self.model_output_keys:
                 self.trainer.writer.add_scalar(
                     "train_batch/" + key,
                     self.trainer.storage.history(key).val,
                     self.curr_iter,
                 )
-
-                wandb.log(
-                    {f"batch/{key}": self.trainer.storage.history(key).val}, step=self.trainer.epoch+1)
-                wandb.log({"TEST/OK?": random.random()},
-                          step=self.trainer.epoch+1)
+                if (self.trainer.enable_wandb):
+                    wandb.log(
+                        {f"batch/{key}": self.trainer.storage.history(key).val}, step=self.trainer.epoch+1)
+                    wandb.log({"TEST/OK?": random.random()},
+                              step=self.trainer.epoch+1)
 
     def after_epoch(self):
         epoch_info = "Train result: "
@@ -184,9 +185,9 @@ class InformationWriter(HookBase):
                     self.trainer.storage.history(key).avg,
                     self.trainer.epoch + 1,
                 )
-
-                wandb.log(
-                    {f"train/{key}": self.trainer.storage.history(key).val},  self.trainer.epoch + 1)
+                if (self.trainer.enable_wandb):
+                    wandb.log(
+                        {f"train/{key}": self.trainer.storage.history(key).val},  self.trainer.epoch + 1)
 
 
 @HOOKS.register_module()

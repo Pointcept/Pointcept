@@ -196,8 +196,9 @@ class SemSegEvaluator(HookBase):
             name = self.trainer.cfg.data.names[i]
             self.trainer.writer.add_scalar(
                 f"val/cls_{i}-{name} Iou",  iou_class[i], current_epoch)
-            wandb.log(
-                {f"val_cls/{i}-{name} IoU":  iou_class[i]}, step=current_epoch)
+            if (self.trainer.enable_wandb):
+                wandb.log(
+                    {f"val_cls/{i}-{name} IoU":  iou_class[i]}, step=current_epoch)
             self.trainer.logger.info(
                 "Class_{idx}-{name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}".format(
                     idx=i,
@@ -213,8 +214,9 @@ class SemSegEvaluator(HookBase):
             self.trainer.writer.add_scalar("val/mAcc", m_acc, current_epoch)
             self.trainer.writer.add_scalar(
                 "val/allAcc", all_acc, current_epoch)
-            wandb.log(
-                {"val/loss":  loss_avg, "val/mIoU": m_iou, "val/mAcc": m_acc}, step=current_epoch)
+            if (self.trainer.enable_wandb):
+                wandb.log(
+                    {"val/loss":  loss_avg, "val/mIoU": m_iou, "val/mAcc": m_acc}, step=current_epoch)
         self.trainer.logger.info(
             "<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
         # save for saver
@@ -256,8 +258,9 @@ class SemSegEvaluatorTrain(HookBase):
             name = self.trainer.cfg.data.names[i]
             self.trainer.writer.add_scalar(
                 f"train/cls_{i}-{name} Iou",  iou_class[i], current_epoch)
-            wandb.log(
-                {f"train_cls/{i}-{name} IoU":  iou_class[i]}, step=current_epoch)
+            if (self.trainer.enable_wandb):
+                wandb.log(
+                    {f"train_cls/{i}-{name} IoU":  iou_class[i]}, step=current_epoch)
             self.trainer.logger.info(
                 "Train Class_{idx}-{name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}".format(
                     idx=i,
@@ -273,8 +276,9 @@ class SemSegEvaluatorTrain(HookBase):
             self.trainer.writer.add_scalar("train/mAcc", m_acc, current_epoch)
             self.trainer.writer.add_scalar(
                 "train/allAcc", all_acc, current_epoch)
-            wandb.log(
-                {"train/mIoU": m_iou, "train/mAcc": m_acc}, step=current_epoch)
+            if (self.trainer.enable_wandb):
+                wandb.log(
+                    {"train/mIoU": m_iou, "train/mAcc": m_acc}, step=current_epoch)
         self.trainer.logger.info(
             "<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
         # save for saver

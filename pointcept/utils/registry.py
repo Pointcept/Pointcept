@@ -44,14 +44,18 @@ def build_from_cfg(cfg, registry, default_args=None):
     if isinstance(obj_type, str):
         obj_cls = registry.get(obj_type)
         if obj_cls is None:
-            raise KeyError(f"{obj_type} is not in the {registry.name} registry")
+            raise KeyError(
+                f"{obj_type} is not in the {registry.name} registry")
     elif inspect.isclass(obj_type):
         obj_cls = obj_type
     else:
-        raise TypeError(f"type must be a str or valid type, but got {type(obj_type)}")
+        raise TypeError(
+            f"type must be a str or valid type, but got {type(obj_type)}")
     try:
         return obj_cls(**args)
     except Exception as e:
+        # import pdb
+        # pdb.set_trace()
         # Normal TypeError does not print class name.
         raise type(e)(f"{obj_cls.__name__}: {e}")
 
@@ -165,7 +169,7 @@ class Registry:
         """
         split_index = key.find(".")
         if split_index != -1:
-            return key[:split_index], key[split_index + 1 :]
+            return key[:split_index], key[split_index + 1:]
         else:
             return None, key
 
@@ -237,7 +241,8 @@ class Registry:
 
     def _register_module(self, module_class, module_name=None, force=False):
         if not inspect.isclass(module_class):
-            raise TypeError("module must be a class, " f"but got {type(module_class)}")
+            raise TypeError(
+                "module must be a class, " f"but got {type(module_class)}")
 
         if module_name is None:
             module_name = module_class.__name__
@@ -245,7 +250,8 @@ class Registry:
             module_name = [module_name]
         for name in module_name:
             if not force and name in self._module_dict:
-                raise KeyError(f"{name} is already registered " f"in {self.name}")
+                raise KeyError(
+                    f"{name} is already registered " f"in {self.name}")
             self._module_dict[name] = module_class
 
     def deprecated_register_module(self, cls=None, force=False):
@@ -305,12 +311,14 @@ class Registry:
 
         # use it as a normal method: x.register_module(module=SomeClass)
         if module is not None:
-            self._register_module(module_class=module, module_name=name, force=force)
+            self._register_module(module_class=module,
+                                  module_name=name, force=force)
             return module
 
         # use it as a decorator: @x.register_module()
         def _register(cls):
-            self._register_module(module_class=cls, module_name=name, force=force)
+            self._register_module(
+                module_class=cls, module_name=name, force=force)
             return cls
 
         return _register

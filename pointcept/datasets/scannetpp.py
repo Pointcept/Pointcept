@@ -81,5 +81,5 @@ class ScanNetPPDataset(DefaultDataset):
         return data_dict
 
     # def __len__(self):
-    #     return 1000
-    #     # return 12
+    #    return 1000
+    #     #return 12
