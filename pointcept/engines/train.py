@@ -12,12 +12,14 @@ import torch
 import torch.nn as nn
 import torch.utils.data
 from functools import partial
+import json
 
 if sys.version_info >= (3, 10):
     from collections.abc import Iterator
 else:
     from collections import Iterator
 from tensorboardX import SummaryWriter
+import copy
 
 from .defaults import create_ddp_model, worker_init_fn
 from .hooks import HookBase, build_hooks
@@ -119,6 +121,7 @@ class TrainerBase:
 class Trainer(TrainerBase):
     def __init__(self, cfg):
         super(Trainer, self).__init__()
+        wandb_cfg = copy.deepcopy(cfg)
         self.epoch = 0
         self.start_epoch = 0
         self.max_epoch = cfg.eval_epoch
@@ -148,15 +151,10 @@ class Trainer(TrainerBase):
         wandb_project_name = cfg["wandb_project_name"]
         wandb_tags = cfg["wandb_tags"]
         self.enable_wandb = cfg["enable_wandb"]
-        # import pdb
-        # pdb.set_trace()
         if (self.enable_wandb):
             wandb.init(project=wandb_project_name,
-                       tags=wandb_tags)
+                       tags=wandb_tags, config=wandb_cfg)
             wandb.log({"Test/Log": 500}, step=0)
-
-        # wandb.define_metric("custom_step")
-        # wandb.define_metric("ok", step_metric="custom_step")
 
     def train(self):
         with EventStorage() as self.storage, ExceptionWriter():

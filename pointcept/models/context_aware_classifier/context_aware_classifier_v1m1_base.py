@@ -44,17 +44,20 @@ class CACSegmentor(nn.Module):
         # heads
         self.seg_head = nn.Linear(backbone_out_channels, num_classes)
         self.proj = nn.Sequential(
-            nn.Linear(backbone_out_channels * 2, backbone_out_channels * 2, bias=False),
+            nn.Linear(backbone_out_channels * 2,
+                      backbone_out_channels * 2, bias=False),
             nn.ReLU(inplace=True),
             nn.Linear(backbone_out_channels * 2, backbone_out_channels),
         )
         self.apd_proj = nn.Sequential(
-            nn.Linear(backbone_out_channels * 2, backbone_out_channels * 2, bias=False),
+            nn.Linear(backbone_out_channels * 2,
+                      backbone_out_channels * 2, bias=False),
             nn.ReLU(inplace=True),
             nn.Linear(backbone_out_channels * 2, backbone_out_channels),
         )
         self.feat_proj_layer = nn.Sequential(
-            nn.Linear(backbone_out_channels, backbone_out_channels, bias=False),
+            nn.Linear(backbone_out_channels,
+                      backbone_out_channels, bias=False),
             nn.BatchNorm1d(backbone_out_channels),
             nn.ReLU(inplace=True),
             nn.Linear(backbone_out_channels, backbone_out_channels),
@@ -82,11 +85,13 @@ class CACSegmentor(nn.Module):
 
         for tmp_y in unique_y:
             tmp_mask = (target == tmp_y).float()
-            tmp_proto = (feat * tmp_mask).sum(0) / (tmp_mask.sum(0) + 1e-4)  # c
+            tmp_proto = (feat * tmp_mask).sum(0) / \
+                (tmp_mask.sum(0) + 1e-4)  # c
             onehot_vec = torch.zeros(new_proto.shape[0], 1).cuda()  # cls, 1
             onehot_vec[tmp_y.long()] = 1
             new_proto = (
-                new_proto * (1 - onehot_vec) + tmp_proto.unsqueeze(0) * onehot_vec
+                new_proto * (1 - onehot_vec) +
+                tmp_proto.unsqueeze(0) * onehot_vec
             )
 
         new_proto = torch.cat([new_proto, proto], -1)
@@ -114,7 +119,8 @@ class CACSegmentor(nn.Module):
                     (pred.max(0)[0] >= self.conf_thresh).float().unsqueeze(0)
                 )  # 1, n
                 pred = pred * max_pred
-            pred_proto = (pred / (pred.sum(-1).unsqueeze(-1) + 1e-7)) @ raw_x  # cls, c
+            pred_proto = (
+                pred / (pred.sum(-1).unsqueeze(-1) + 1e-7)) @ raw_x  # cls, c
 
             pred_proto = torch.cat([pred_proto, proto], -1)  # cls, 2c
             pred_proto = self.proj(pred_proto)
@@ -134,7 +140,8 @@ class CACSegmentor(nn.Module):
                 pred = F.softmax(pred, 1).permute(1, 0)  # [n, cls] -> [cls, n]
                 if self.conf_thresh > 0:
                     max_pred = (
-                        (pred.max(0)[0] >= self.conf_thresh).float().unsqueeze(0)
+                        (pred.max(0)[0] >=
+                         self.conf_thresh).float().unsqueeze(0)
                     )  # 1, n
                     pred = pred * max_pred
                 pred_proto = (
@@ -169,7 +176,8 @@ class CACSegmentor(nn.Module):
                 smoothed_label.shape[1] - 1
             )
 
-        loss = torch.mul(-1 * F.log_softmax(pred, dim=1), smoothed_label)  # b, n, h, w
+        loss = torch.mul(-1 * F.log_softmax(pred, dim=1),
+                         smoothed_label)  # b, n, h, w
         loss = loss.sum(1)
 
         sm_soft = F.softmax(soft / 1, 1)  # n, c
@@ -188,7 +196,8 @@ class CACSegmentor(nn.Module):
             tmp_mask = (target == tmp_y).float().squeeze()
             tmp_entropy_mask = entropy_mask * tmp_mask
             class_weight = 1
-            tmp_loss = (loss * tmp_entropy_mask).sum() / (tmp_entropy_mask.sum() + 1e-4)
+            tmp_loss = (loss * tmp_entropy_mask).sum() / \
+                (tmp_entropy_mask.sum() + 1e-4)
             loss_list.append(class_weight * tmp_loss)
             weight_list.append(class_weight)
 
@@ -232,7 +241,8 @@ class CACSegmentor(nn.Module):
 
             seg_loss = self.criteria(refine_logits, target) * self.main_weight
             pre_loss = self.criteria(cac_pred, target) * self.pre_weight
-            pre_self_loss = self.criteria(pre_logits, target) * self.pre_self_weight
+            pre_self_loss = self.criteria(
+                pre_logits, target) * self.pre_self_weight
             kl_loss = (
                 self.get_distill_loss(
                     pred=refine_logits, soft=cac_pred.detach(), target=target
@@ -246,6 +256,7 @@ class CACSegmentor(nn.Module):
                 pre_loss=pre_loss,
                 pre_self_loss=pre_self_loss,
                 kl_loss=kl_loss,
+                seg_logits=seg_logits
             )
 
         elif "segment" in data_dict.keys():

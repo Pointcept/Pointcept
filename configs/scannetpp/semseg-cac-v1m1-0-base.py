@@ -9,31 +9,61 @@ num_worker = 24
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
-wandb_project_name = "oa-cnn"
-wandb_tags = ["Full-Train"]
+wandb_project_name = "cac"
+wandb_tags = ["Full Train"]
 enable_wandb = True
 
-
+# model settings
 model = dict(
-    type="DefaultSegmentor",
+    type="CAC-v1m1",
     backbone=dict(
-        type="OACNNs",
+        type="PT-v3m1",
         in_channels=6,
-        num_classes=100,
-        embed_channels=64,
-        enc_channels=[64, 64, 128, 256],
-        groups=[4, 4, 8, 16],
-        enc_depth=[3, 3, 3, 9, 8],
-        dec_channels=[256, 256, 256, 256, 256],
-        point_grid_size=[[8, 12, 16, 16], [
-            6, 9, 12, 12], [4, 6, 8, 8], [3, 4, 6, 6]],
-        dec_depth=[2, 2, 2, 2, 2],
-        enc_num_ref=[16, 16, 16, 16],
+        order=("z", "z-trans", "hilbert", "hilbert-trans"),
+        stride=(2, 2, 2, 2),
+        enc_depths=(2, 2, 2, 6, 2),
+        enc_channels=(32, 64, 128, 256, 512),
+        enc_num_head=(2, 4, 8, 16, 32),
+        enc_patch_size=(1024, 1024, 1024, 1024, 1024),
+        dec_depths=(2, 2, 2, 2),
+        dec_channels=(64, 64, 128, 256),
+        dec_num_head=(4, 4, 8, 16),
+        dec_patch_size=(1024, 1024, 1024, 1024),
+        mlp_ratio=4,
+        qkv_bias=True,
+        qk_scale=None,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        drop_path=0.3,
+        shuffle_orders=True,
+        pre_norm=True,
+        enable_rpe=False,
+        enable_flash=True,
+        upcast_attention=False,
+        upcast_softmax=False,
+        cls_mode=False,
+        pdnorm_bn=False,
+        pdnorm_ln=False,
+        pdnorm_decouple=True,
+        pdnorm_adaptive=False,
+        pdnorm_affine=True,
+        pdnorm_conditions=("ScanNet", "S3DIS", "Structured3D"),
     ),
-    criteria=[dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1),
-              dict(type="LovaszLoss", mode="multiclass",
-                   loss_weight=1.0, ignore_index=-1),],
+    criteria=[
+        dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1),
+        dict(type="LovaszLoss", mode="multiclass",
+             loss_weight=1.0, ignore_index=-1),
+    ],
 
+    num_classes=100,
+    backbone_out_channels=64,
+    cos_temp=15,
+    main_weight=1,
+    pre_weight=1,
+    pre_self_weight=1,
+    kl_weight=1,
+    conf_thresh=0.75,
+    detach_pre_logits=True,
 )
 
 epoch = 900
