@@ -23,12 +23,6 @@ IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2024 - Ora
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2024  
 [ Backbone ] [ OA-CNNs ] - [ [arXiv](https://arxiv.org/abs/2403.14418) ] [ [Bib](https://xywu.me/research/oacnns/bib.txt) ] &rarr; [here](#oa-cnns)
 
-- **PonderV2: Pave the Way for 3D Foundation Model with A Universal Pre-training Paradigm**  
-*Haoyi Zhu\*, Honghui Yang\*, Xiaoyang Wu\*, Di Huang\*, Sha Zhang, Xianglong He, Tong He, Hengshuang Zhao, Chunhua Shen, Yu Qiao, Wanli Ouyang*  
-arXiv Preprint 2023  
-[ Pretrain ] [PonderV2] - [ [arXiv](https://arxiv.org/abs/2310.08586) ] [ [Bib](https://xywu.me/research/ponderv2/bib.txt) ] [ [Project](https://github.com/OpenGVLab/PonderV2) ] &rarr; [here](https://github.com/OpenGVLab/PonderV2)
-
-
 - **Towards Large-scale 3D Representation Learning with Multi-dataset Point Prompt Training**  
 *Xiaoyang Wu, Zhuotao Tian, Xin Wen, Bohao Peng, Xihui Liu, Kaicheng Yu, Hengshuang Zhao*  
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2024  
