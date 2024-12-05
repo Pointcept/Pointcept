@@ -1,0 +1,17 @@
+1	trash
+3 	basket
+4	bathtub
+5	bed
+9	shelf
+13	cabinet
+18	chair
+20	keyboard
+22	tv
+30	lamp
+31	laptop
+35	microwave
+39	pillow
+42	printer
+47	sofa
+48	stove
+49	table
