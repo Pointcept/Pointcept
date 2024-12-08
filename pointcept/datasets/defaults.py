@@ -74,6 +74,13 @@ class DefaultDataset(Dataset):
         )
 
     def get_data_list(self):
+        # self.exclude_ids = ["6115eddb86",
+        #                     "825d228aec", "5ee7c22ba0", "7b6477cb95", "31a2c91c43"]
+        # files = os.listdir("./exp/octformer_val/result/submit")
+        # files_without_txt = [file[:-4]
+        #                      for file in files if file.endswith('.txt')]
+        # self.exclude_ids = files_without_txt
+        self.exclude_ids = []
         if isinstance(self.split, str):
             data_list = glob.glob(os.path.join(
                 self.data_root, self.split, "*"))
@@ -83,6 +90,10 @@ class DefaultDataset(Dataset):
                 data_list += glob.glob(os.path.join(self.data_root, split, "*"))
         else:
             raise NotImplementedError
+        if self.exclude_ids:
+            data_list = [item for item in data_list if not any(
+                id_str in item for id_str in self.exclude_ids)]
+
         return data_list
 
     def get_data(self, idx):

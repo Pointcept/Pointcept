@@ -4,8 +4,8 @@ _base_ = [
 ]
 
 # misc custom setting
-batch_size = 1  # bs: total bs in all gpus
-num_worker = 1
+batch_size = 4  # bs: total bs in all gpus
+num_worker = 24
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True

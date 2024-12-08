@@ -99,9 +99,11 @@ class TesterBase:
             test_dataset,
             batch_size=self.cfg.batch_size_test_per_gpu,
             shuffle=False,
-            num_workers=self.cfg.batch_size_test_per_gpu,
+            # num_workers=self.cfg.batch_size_test_per_gpu,
+            num_workers=0,
             pin_memory=False,
             sampler=test_sampler,
+
             collate_fn=self.__class__.collate_fn,
         )
         return test_loader
@@ -173,17 +175,22 @@ class SemSegTester(TesterBase):
         comm.synchronize()
         record = {}
         # fragment inference
+        # import pdb
+        # pdb.set_trace()
+       # import pdb
+        # pdb.set_trace()
+        # import pdb
+        # pdb.set_trace()
         for idx, data_dict in enumerate(self.test_loader):
             end = time.time()
             print("BEFORE ", idx)
+            # if (idx < 5):
+            #     continue
             data_dict = data_dict[0]  # current assume batch size is 1
             fragment_list = data_dict.pop("fragment_list")
             segment = data_dict.pop("segment")
             data_name = data_dict.pop("name")
             print(data_name, "NAME")
-            # if (data_name in seen):
-            #     print(idx, "SEEN?")
-            #     continue
             print("At: ", idx)
             pred_save_path = os.path.join(
                 save_path, "{}_pred.npy".format(data_name))
@@ -214,6 +221,7 @@ class SemSegTester(TesterBase):
                         pred_part = self.model(input_dict)[
                             "seg_logits"]  # (n, k)
                         pred_part = F.softmax(pred_part, -1)
+                        torch.cuda.empty_cache()
                         if self.cfg.empty_cache:
                             torch.cuda.empty_cache()
                         bs = 0
@@ -250,7 +258,6 @@ class SemSegTester(TesterBase):
                     fmt="%d",
                 )
             elif self.cfg.data.test.type == "ScanNetPPDataset":
-                "PRINT STUCK HERE???"
                 np.savetxt(
                     os.path.join(save_path, "submit",
                                  "{}.txt".format(data_name)),
@@ -329,6 +336,7 @@ class SemSegTester(TesterBase):
                     m_iou=m_iou,
                 )
             )
+            torch.cuda.empty_cache()
 
         logger.info("Syncing ...")
         comm.synchronize()

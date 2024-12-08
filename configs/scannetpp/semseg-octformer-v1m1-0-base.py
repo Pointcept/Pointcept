@@ -141,7 +141,7 @@ data = dict(
     ),
     test=dict(
         type=dataset_type,
-        split="val",
+        split="test",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
