@@ -128,8 +128,12 @@ class SemSegEvaluator(HookBase):
             for key in input_dict.keys():
                 if isinstance(input_dict[key], torch.Tensor):
                     input_dict[key] = input_dict[key].cuda(non_blocking=True)
+            # import pdb
+            # pdb.set_trace()
             with torch.no_grad():
+                # with torch.cuda.amp.autocast(enabled=self.trainer.cfg.enable_amp):
                 output_dict = self.trainer.model(input_dict)
+
             output = output_dict["seg_logits"]
             loss = output_dict["loss"]
             pred = output.max(1)[1]

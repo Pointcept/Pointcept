@@ -55,7 +55,8 @@ class OctreeT(Octree):
 
         self.block_num = patch_size * dilation
         self.nnum_t = self.nnum_nempty if nempty else self.nnum
-        self.nnum_a = ((self.nnum_t / self.block_num).ceil() * self.block_num).int()
+        self.nnum_a = ((self.nnum_t / self.block_num).ceil()
+                       * self.block_num).int()
 
         num = self.max_depth + 1
         self.batch_idx = [None] * num
@@ -73,7 +74,8 @@ class OctreeT(Octree):
 
     def build_batch_idx(self, depth: int):
         batch = self.batch_id(depth, self.nempty)
-        self.batch_idx[depth] = self.patch_partition(batch, depth, self.batch_size)
+        self.batch_idx[depth] = self.patch_partition(
+            batch, depth, self.batch_size)
 
     def build_attn_mask(self, depth: int):
         batch = self.batch_idx[depth]
@@ -86,7 +88,8 @@ class OctreeT(Octree):
 
     def _calc_attn_mask(self, mask: torch.Tensor):
         attn_mask = mask.unsqueeze(2) - mask.unsqueeze(1)
-        attn_mask = attn_mask.masked_fill(attn_mask != 0, self.invalid_mask_value)
+        attn_mask = attn_mask.masked_fill(
+            attn_mask != 0, self.invalid_mask_value)
         return attn_mask
 
     def build_rel_pos(self, depth: int):
@@ -168,7 +171,8 @@ class RPE(torch.nn.Module):
         self.dilation = dilation
         self.pos_bnd = self.get_pos_bnd(patch_size)
         self.rpe_num = 2 * self.pos_bnd + 1
-        self.rpe_table = torch.nn.Parameter(torch.zeros(3 * self.rpe_num, num_heads))
+        self.rpe_table = torch.nn.Parameter(
+            torch.zeros(3 * self.rpe_num, num_heads))
         torch.nn.init.trunc_normal_(self.rpe_table, std=0.02)
 
     def get_pos_bnd(self, patch_size: int):
@@ -239,7 +243,8 @@ class OctreeAttention(torch.nn.Module):
         data = data.view(-1, K, C)
 
         # qkv
-        qkv = self.qkv(data).reshape(-1, K, 3, H, C // H).permute(2, 0, 3, 1, 4)
+        qkv = self.qkv(data).reshape(-1, K, 3, H,
+                                     C // H).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]  # (N, H, K, C')
         q = q * self.scale
 
@@ -355,7 +360,8 @@ class OctFormerStage(torch.nn.Module):
                     attn_drop=attn_drop,
                     proj_drop=proj_drop,
                     drop_path=(
-                        drop_path[i] if isinstance(drop_path, list) else drop_path
+                        drop_path[i] if isinstance(
+                            drop_path, list) else drop_path
                     ),
                     nempty=nempty,
                     activation=activation,
@@ -416,14 +422,17 @@ class OctFormerDecoder(torch.nn.Module):
         feature = self.conv1x1[0](features[depth])
         conv_out = self.conv3x3[0](feature, octree, depth)
         out = self.upsample(conv_out, octree, depth, depth_max)
+
         for i in range(1, self.num_stages):
             depth_i = depth + i
             feature = self.upsample(feature, octree, depth_i - 1)
             feature = self.conv1x1[i](features[depth_i]) + feature
             conv_out = self.conv3x3[i](feature, octree, depth_i)
             out = out + self.upsample(conv_out, octree, depth_i, depth_max)
+
         for i in range(self.head_up):
             out = self.up_conv[i](out, octree, depth_max + i)
+
         return out
 
 
@@ -538,7 +547,8 @@ class OctFormer(torch.nn.Module):
         self.octree_full_depth = octree_full_depth
         drop_ratio = torch.linspace(0, drop_path, sum(num_blocks)).tolist()
 
-        self.patch_embed = PatchEmbed(in_channels, channels[0], stem_down, nempty)
+        self.patch_embed = PatchEmbed(
+            in_channels, channels[0], stem_down, nempty)
         self.layers = torch.nn.ModuleList(
             [
                 OctFormerStage(
@@ -546,7 +556,7 @@ class OctFormer(torch.nn.Module):
                     num_heads=num_heads[i],
                     patch_size=patch_size,
                     drop_path=drop_ratio[
-                        sum(num_blocks[:i]) : sum(num_blocks[: i + 1])
+                        sum(num_blocks[:i]): sum(num_blocks[: i + 1])
                     ],
                     dilation=dilation,
                     nempty=nempty,
@@ -557,7 +567,8 @@ class OctFormer(torch.nn.Module):
         )
         self.downsamples = torch.nn.ModuleList(
             [
-                Downsample(channels[i], channels[i + 1], kernel_size=[2], nempty=nempty)
+                Downsample(channels[i], channels[i + 1],
+                           kernel_size=[2], nempty=nempty)
                 for i in range(self.num_stages - 1)
             ]
         )
@@ -604,7 +615,8 @@ class OctFormer(torch.nn.Module):
         octree.build_octree(point)
         octree.construct_all_neigh()
 
-        feat = self.patch_embed(octree.features[octree.depth], octree, octree.depth)
+        feat = self.patch_embed(
+            octree.features[octree.depth], octree, octree.depth)
         depth = octree.depth - self.stem_down  # current octree depth
         octree = OctreeT(
             octree,
@@ -622,8 +634,11 @@ class OctFormer(torch.nn.Module):
             if i < self.num_stages - 1:
                 feat = self.downsamples[i](feat, octree, depth_i)
         out = self.decoder(features, octree)
+
         # interp representation to points before Octreeization
-        query_pts = torch.cat([point.points, point.batch_id], dim=1).contiguous()
+        query_pts = torch.cat(
+            [point.points, point.batch_id], dim=1).contiguous()
         out = self.interp(out, octree, octree.depth, query_pts)
         out = self.seg_head(out)
+
         return out

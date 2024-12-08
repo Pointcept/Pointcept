@@ -188,6 +188,22 @@ class Trainer(TrainerBase):
             # => after train
             self.after_train()
 
+    def train2(self):
+        with EventStorage() as self.storage, ExceptionWriter():
+            # => before train
+            self.before_train()
+            self.logger.info(
+                ">>>>>>>>>>>>>>>> Start Training >>>>>>>>>>>>>>>>")
+            for self.epoch in range(self.start_epoch, self.max_epoch):
+                # => before epoch
+                # TODO: optimize to iteration based
+                if comm.get_world_size() > 1:
+                    self.train_loader.sampler.set_epoch(self.epoch)
+                self.model.train()
+                self.data_iterator = enumerate(self.train_loader)
+                self.before_epoch()
+                self.after_epoch()
+
     def run_step(self):
         input_dict = self.comm_info["input_dict"]
         for key in input_dict.keys():
@@ -199,6 +215,8 @@ class Trainer(TrainerBase):
             if (len(unique) == 1 and unique[0] == -1):
                 print("Step Skipped")
                 return
+            # import pdb
+            # pdb.set_trace()
             output_dict = self.model(input_dict)
             loss = output_dict["loss"]
 
