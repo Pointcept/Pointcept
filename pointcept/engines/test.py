@@ -99,8 +99,8 @@ class TesterBase:
             test_dataset,
             batch_size=self.cfg.batch_size_test_per_gpu,
             shuffle=False,
-            # num_workers=self.cfg.batch_size_test_per_gpu,
-            num_workers=0,
+            num_workers=self.cfg.batch_size_test_per_gpu,
+            # num_workers=0,
             pin_memory=False,
             sampler=test_sampler,
 
@@ -116,15 +116,15 @@ class TesterBase:
         raise collate_fn(batch)
 
 
-seen = [
-    '09c1414f1b', '286b55a2bf', '45b0dac5e3', '7831862f02', 'bcd2436daf', 'd755b3d9d8',
-    '0d2ee665be', '31a2c91c43', '5748ce6f01', '7b6477cb95', 'bde1e479ad', 'e398684d27',
-    '13c3e046d7', '3864514494', '5942004064', '7bc286c1b6', 'c49a8c6cff', 'f3d64c30f8',
-    '1ada7a0617', '38d58a7a31', '5eb31827b7', '825d228aec', 'c4c04e6d6c', 'f9f95681fd',
-    '21d970d8de', '3e8bba0176', '5ee7c22ba0', 'a8bf42d646', 'c50d2d1d42', 'fb5a96b1a2',
-    '25f3b7a318', '3f15a9266d', '5f99900f09', 'a980334473', 'c5439f4607',
-    '27dd4da69e', '40aec5fffa', '6115eddb86', 'b0a08200c9', 'cc5237fd77'
-]
+# seen = [
+#     '09c1414f1b', '286b55a2bf', '45b0dac5e3', '7831862f02', 'bcd2436daf', 'd755b3d9d8',
+#     '0d2ee665be', '31a2c91c43', '5748ce6f01', '7b6477cb95', 'bde1e479ad', 'e398684d27',
+#     '13c3e046d7', '3864514494', '5942004064', '7bc286c1b6', 'c49a8c6cff', 'f3d64c30f8',
+#     '1ada7a0617', '38d58a7a31', '5eb31827b7', '825d228aec', 'c4c04e6d6c', 'f9f95681fd',
+#     '21d970d8de', '3e8bba0176', '5ee7c22ba0', 'a8bf42d646', 'c50d2d1d42', 'fb5a96b1a2',
+#     '25f3b7a318', '3f15a9266d', '5f99900f09', 'a980334473', 'c5439f4607',
+#     '27dd4da69e', '40aec5fffa', '6115eddb86', 'b0a08200c9', 'cc5237fd77'
+# ]
 
 
 @TESTERS.register_module()
@@ -183,14 +183,14 @@ class SemSegTester(TesterBase):
         # pdb.set_trace()
         for idx, data_dict in enumerate(self.test_loader):
             end = time.time()
-            print("BEFORE ", idx)
+            # print("BEFORE ", idx)
             # if (idx < 5):
             #     continue
             data_dict = data_dict[0]  # current assume batch size is 1
             fragment_list = data_dict.pop("fragment_list")
             segment = data_dict.pop("segment")
             data_name = data_dict.pop("name")
-            print(data_name, "NAME")
+            print(data_name, "Name")
             print("At: ", idx)
             pred_save_path = os.path.join(
                 save_path, "{}_pred.npy".format(data_name))
