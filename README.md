@@ -70,7 +70,7 @@ python tools/train.py --config-file ${CONFIG_PATH} --num-gpus ${NUM_GPU} --optio
 python tools/train.py --config-file ./configs/scannetpp/semseg-pt-v3m1-0-base.py --num-gpus 1 --options save_path=./exp/ptv3/full-train-1 &
 
 #OACnn
-python tools/train.py --config-file ./configs/scannetpp/semseg-oacnn-v1m1-0-base.py --num-gpus 1 --options save_path=./exp/oa-cnn/full-train-1 &
+python tools/train.py --config-file ./configs/scannetpp/semseg-oacnn-v1m1-0-base.py --num-gpus 1 --options save_path=./exp/oacnn/full-train-1 &
 
 #Octformer
 python tools/train.py --config-file ./configs/scannetpp/semseg-octformer-v1m1-0-base.py --num-gpus 1 --options save_path=./exp/oct-former/full-train-1 &
@@ -84,5 +84,35 @@ python tools/train.py --config-file ./configs/scannetpp/semseg-pt-v2m2-0-base.py
 #spunet
 python tools/train.py --config-file ./configs/scannetpp/semseg-spunet-v1m1-0-base.py --num-gpus 1 --options save_path=./exp/spUnet/full-train-1 &
 ```
+### Notes
+* Each config file contains relevant settings/hyperparams for the training experiment.
+* The batch size for each experiment is set to maximize a single A500 24GB gpu, so it can be changed if a larger gpu is available.
+* The wandb configs for each experiment are also in the config files `wandb_project_name`, `wandb_tags`, `enable_wandb`
+---
+## Evaluation
+
+Official guide: https://github.com/Pointcept/Pointcept?tab=readme-ov-file#testing
+* Running the evaluation is very straight forward like for training
+
+* General command structure: 
+```
+export PYTHONPATH=./
+python tools/test.py --config-file ${CONFIG_PATH} --num-gpus ${NUM_GPU} --options save_path=${SAVE_PATH} weight=${CHECKPOINT_PATH}
+
+```
+
+* Ready to scripts
+```
+
+#ptv3 
+python tools/test.py --config-file ./configs/scannetpp/semseg-pt-v3m1-0-base.py --num-gpus 1 --options save_path="./exp/ptv3_eval_val" weight="./exp/ptv3/full-train-1/model/model_best.pth"
+
+#OACnn
+python tools/test.py --config-file ./configs/scannetpp/semseg-oacnn-v1m1-0-base.py --num-gpus 1 --options save_path="./exp/oacnn_eval_val" weight="./exp/oacnn/full-train-1/model/model_best.pth"
 
 
+semseg-octformer-v1m1-0-base.p
+#Octformer
+python tools/test.py --config-file ./configs/scannetpp/semseg-octformer-v1m1-0-base.py --num-gpus 1 --options save_path="./exp/octformer_eval_val" weight="./exp/oct-former/full-train-1/model/model_best.pth"
+...
+```
