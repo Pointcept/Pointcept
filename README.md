@@ -1,6 +1,6 @@
 # Pointcept Installation
 ---
-Official Repo link: https://github.com/Pointcept/Pointcept
+Official Repo link: https://gitlab.lrz.de/projects-phd/pointcept-scannetpp-v2
 
 Our fork: https://gitlab.lrz.de/00000000014B31F0/pointcept (this has setup files to make things quicker)
 
@@ -30,12 +30,59 @@ Our fork: https://gitlab.lrz.de/00000000014B31F0/pointcept (this has setup files
 ----
 
 ## Data Preperation
-For the dataset preperation, it is best to follow the official guide: https://github.com/Pointcept/Pointcept?tab=readme-ov-file#scannet
+official guide: https://github.com/Pointcept/Pointcept?tab=readme-ov-file#scannet
+* Sampling and chunking large point cloud data in train/val split as follows (only used for training):
+```
+# RAW_SCANNETPP_DIR: the directory of downloaded ScanNet++ raw dataset.
+# PROCESSED_SCANNETPP_DIR: the directory of the processed ScanNet++ dataset (output dir).
+# NUM_WORKERS: the number of workers for parallel preprocessing.
+python pointcept/datasets/preprocessing/scannetpp/preprocess_scannetpp.py --dataset_root ${RAW_SCANNETPP_DIR} --output_root ./raw_dataset --num_workers ${NUM_WORKERS}
+```
+*Note: it is very important to keep the `output folder` as `./raw_datset` because this is the assumed output folder in all the config files*
 
+* Sampling and chunking large point cloud data in train/val split as follows (only used for training)
+```
+# PROCESSED_SCANNETPP_DIR: the directory of the processed ScanNet++ dataset (output dir).
+# NUM_WORKERS: the number of workers for parallel preprocessing.
+python pointcept/datasets/preprocessing/sampling_chunking_data.py --dataset_root ./raw_dataset --grid_size 0.01 --chunk_range 6 6 --chunk_stride 3 3 --split train --num_workers ${NUM_WORKERS}
+python pointcept/datasets/preprocessing/sampling_chunking_data.py --dataset_root ./raw_dataset --grid_size 0.01 --chunk_range 6 6 --chunk_stride 3 3 --split val --num_workers ${NUM_WORKERS}
+
+```
 ---
 ## Training
 
-For training, it is best to follow the official guide:
-https://github.com/Pointcept/Pointcept?tab=readme-ov-file#scannet
+official guide: https://github.com/Pointcept/Pointcept?tab=readme-ov-file#quick-start
+
+* login to wandb from the terminal by `wandb login <your api key>`
+* All commans should be run inside a poetry shell i.e run `poetry shell` in the project root.
+
+* General command structure
+```
+export PYTHONPATH=./
+python tools/train.py --config-file ${CONFIG_PATH} --num-gpus ${NUM_GPU} --options save_path=${SAVE_PATH}
+
+```
+* *Note: you can use nohup to keep the process running in the background by running `nohup python tools/train.py --config-file ${CONFIG_PATH} --num-gpus ${NUM_GPU} --options save_path=${SAVE_PATH} & `*
+
+* Ready to go training scripts
+```
+#ptv3 
+python tools/train.py --config-file ./configs/scannetpp/semseg-pt-v3m1-0-base.py --num-gpus 1 --options save_path=./exp/ptv3/full-train-1 &
+
+#OACnn
+python tools/train.py --config-file ./configs/scannetpp/semseg-oacnn-v1m1-0-base.py --num-gpus 1 --options save_path=./exp/oa-cnn/full-train-1 &
+
+#Octformer
+python tools/train.py --config-file ./configs/scannetpp/semseg-octformer-v1m1-0-base.py --num-gpus 1 --options save_path=./exp/oct-former/full-train-1 &
+
+# Context aware classifier
+python tools/train.py --config-file ./configs/scannetpp/semseg-cac-v1m1-0-base.py --num-gpus 1 --options save_path=./exp/cac/full-train-1 &
+
+# ptv2
+python tools/train.py --config-file ./configs/scannetpp/semseg-pt-v2m2-0-base.py --num-gpus 1 --options save_path=./exp/ptv2/full-train-1 &
+
+#spunet
+python tools/train.py --config-file ./configs/scannetpp/semseg-spunet-v1m1-0-base.py --num-gpus 1 --options save_path=./exp/spUnet/full-train-1 &
+```
 
 
