@@ -114,5 +114,30 @@ python tools/test.py --config-file ./configs/scannetpp/semseg-oacnn-v1m1-0-base.
 semseg-octformer-v1m1-0-base.p
 #Octformer
 python tools/test.py --config-file ./configs/scannetpp/semseg-octformer-v1m1-0-base.py --num-gpus 1 --options save_path="./exp/octformer_eval_val" weight="./exp/oct-former/full-train-1/model/model_best.pth"
-...
+
+... rest follow th e same structure
 ```
+
+### Evaluation notes:
+* Each config file speciefies which data split to use in the evaluation phase:
+
+```
+ test=dict(
+        type=dataset_type,
+        split="test",
+        data_root=data_root,
+        transform=[
+            dict(type="CenterShift", apply_z=True),
+            dict(type="NormalizeColor"),
+            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
+            dict(
+                type="GridSample",
+                grid_size=0.01,
+                hash_type="fnv",
+                mode="train",
+                keys=("coord", "color", "normal", "segment"),
+                return_inverse=True,
+            ),
+        ],
+```
+To evaluate on the val split, it is requried to change the `split` key to be `val` and vice verca.
