@@ -10,8 +10,10 @@ mix_prob = 0.8
 empty_cache = False
 enable_amp = True
 wandb_project_name = "spunet"
-wandb_tags = ["Full-Train"]
+wandb_tags = ["spunet-full-train"]
 enable_wandb = True
+use_step_logging = True
+log_every = 500
 
 # model settings
 model = dict(

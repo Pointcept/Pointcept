@@ -12,6 +12,8 @@ enable_amp = True
 wandb_project_name = "oct-former"
 wandb_tags = ["Full-Train Nan Debug"]
 enable_wandb = True
+use_step_logging = True
+log_every = 500
 
 
 model = dict(

@@ -31,7 +31,7 @@ from pointcept.utils.optimizer import build_optimizer
 from pointcept.utils.scheduler import build_scheduler
 from pointcept.utils.events import EventStorage, ExceptionWriter
 from pointcept.utils.registry import Registry
-import wandb
+from pointcept.engines.utils.wandb import Wandb
 
 
 TRAINERS = Registry("trainers")
@@ -151,10 +151,20 @@ class Trainer(TrainerBase):
         wandb_project_name = cfg["wandb_project_name"]
         wandb_tags = cfg["wandb_tags"]
         self.enable_wandb = cfg["enable_wandb"]
-        if (self.enable_wandb):
-            wandb.init(project=wandb_project_name,
-                       tags=wandb_tags, config=wandb_cfg)
-            wandb.log({"Test/Log": 500}, step=0)
+        self.use_step_logging = cfg["use_step_logging"]
+        self.log_every = cfg["log_every"]
+        self.wandb = Wandb(self.enable_wandb, wandb_project_name,
+                           self.logger, tags=wandb_tags, cfg=wandb_cfg,
+                           use_step_logging=self.use_step_logging,
+                           print_every=self.log_every
+                           )
+        self.wandb.init()
+        # if (self.enable_wandb):
+        #     wandb.init(project=wandb_project_name,
+        #                tags=wandb_tags, config=wandb_cfg)
+        #     wandb.log({"Test/Log": 500}, step=0)
+        self.global_step = 0
+        self.log_every = 50
 
     def train(self):
         with EventStorage() as self.storage, ExceptionWriter():
@@ -167,6 +177,7 @@ class Trainer(TrainerBase):
                 # TODO: optimize to iteration based
                 if comm.get_world_size() > 1:
                     self.train_loader.sampler.set_epoch(self.epoch)
+                self.wandb.set_epoch(self.epoch)
                 self.model.train()
                 self.data_iterator = enumerate(self.train_loader)
                 self.before_epoch()
@@ -182,27 +193,29 @@ class Trainer(TrainerBase):
                     self.run_step()
                     # => after_step
                     self.after_step()
+                    self.global_step += 1
+                    self.wandb.set_global_step(self.global_step)
                 # => after epoch
 
                 self.after_epoch()
             # => after train
             self.after_train()
 
-    def train2(self):
-        with EventStorage() as self.storage, ExceptionWriter():
-            # => before train
-            self.before_train()
-            self.logger.info(
-                ">>>>>>>>>>>>>>>> Start Training >>>>>>>>>>>>>>>>")
-            for self.epoch in range(self.start_epoch, self.max_epoch):
-                # => before epoch
-                # TODO: optimize to iteration based
-                if comm.get_world_size() > 1:
-                    self.train_loader.sampler.set_epoch(self.epoch)
-                self.model.train()
-                self.data_iterator = enumerate(self.train_loader)
-                self.before_epoch()
-                self.after_epoch()
+    # def train2(self):
+    #     with EventStorage() as self.storage, ExceptionWriter():
+    #         # => before train
+    #         self.before_train()
+    #         self.logger.info(
+    #             ">>>>>>>>>>>>>>>> Start Training >>>>>>>>>>>>>>>>")
+    #         for self.epoch in range(self.start_epoch, self.max_epoch):
+    #             # => before epoch
+    #             # TODO: optimize to iteration based
+    #             if comm.get_world_size() > 1:
+    #                 self.train_loader.sampler.set_epoch(self.epoch)
+    #             self.model.train()
+    #             self.data_iterator = enumerate(self.train_loader)
+    #             self.before_epoch()
+    #             self.after_epoch()
 
     def run_step(self):
         input_dict = self.comm_info["input_dict"]
@@ -353,9 +366,13 @@ class Trainer(TrainerBase):
         scaler = torch.cuda.amp.GradScaler() if self.cfg.enable_amp else None
         return scaler
 
+    def is_log(self):
+        return self.global_step % (self.log_every - 1)
+
 
 @TRAINERS.register_module("MultiDatasetTrainer")
 class MultiDatasetTrainer(Trainer):
+
     def build_train_loader(self):
         from pointcept.datasets import MultiDatasetDataloader
 

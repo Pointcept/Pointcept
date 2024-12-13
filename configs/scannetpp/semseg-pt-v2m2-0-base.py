@@ -12,6 +12,8 @@ enable_amp = True
 enable_wandb = True
 wandb_project_name = "ptV2"
 wandb_tags = ["Full_train"]
+use_step_logging = True
+log_every = 500
 
 # model settings
 model = dict(
