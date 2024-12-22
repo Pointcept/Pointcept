@@ -36,7 +36,9 @@ class Wandb():
             self.logger.info("Wandb not enabled")
             return None
         wandb.init(project=self.project_name,
-                   tags=self.tags, config=self.cfg)
+                   tags=self.tags,
+                   config=self.cfg,
+                   name=self.cfg.run_name)
         wandb.log({"Test/Log": 500}, step=0)
 
     def log(self, data_dict):
