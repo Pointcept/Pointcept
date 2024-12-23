@@ -108,6 +108,40 @@ class SemSegEvaluator(HookBase):
         if self.trainer.cfg.evaluate:
             self.eval()
 
+    def print_results(self, intersection, union, target):
+        iou_class = intersection / (union + 1e-10)
+        acc_class = intersection / (target + 1e-10)
+        m_iou = np.mean(iou_class)
+        m_acc = np.mean(acc_class)
+        all_acc = sum(intersection) / (sum(target) + 1e-10)
+        
+        sep = ""
+        col1 = ":"
+        lineLen = 40
+        self.trainer.logger.info("#" * lineLen)
+        line = ""
+        line += "{:<15}".format("what") + sep + col1
+        line += "{:>10}".format("mIoU") + sep
+        line += "{:>10}".format("Acc") + sep
+        self.trainer.logger.info(line)
+        self.trainer.logger.info("#" * lineLen)
+
+        for i in range(self.trainer.cfg.data.num_classes):
+            iou = iou_class[i]
+            acc = acc_class[i]
+            lable_name = self.trainer.cfg.data.names[i]
+            line = "{:<15}".format(lable_name) + sep + col1
+            line += sep + "{:>10.4f}".format(iou) + sep
+            line += sep + "{:>10.4f}".format(acc) + sep
+            self.trainer.logger.info(line)
+        self.trainer.logger.info("#" * lineLen)
+        self.trainer.logger.info(
+            "Overall: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}.".format(
+                m_iou, m_acc, all_acc
+            )
+        )
+        return m_iou, m_acc, all_acc
+    
     def eval(self):
         self.trainer.logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
         self.trainer.model.eval()
@@ -166,25 +200,7 @@ class SemSegEvaluator(HookBase):
         intersection = self.trainer.storage.history("val_intersection").total
         union = self.trainer.storage.history("val_union").total
         target = self.trainer.storage.history("val_target").total
-        iou_class = intersection / (union + 1e-10)
-        acc_class = intersection / (target + 1e-10)
-        m_iou = np.mean(iou_class)
-        m_acc = np.mean(acc_class)
-        all_acc = sum(intersection) / (sum(target) + 1e-10)
-        self.trainer.logger.info(
-            "Val result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}.".format(
-                m_iou, m_acc, all_acc
-            )
-        )
-        for i in range(self.trainer.cfg.data.num_classes):
-            self.trainer.logger.info(
-                "Class_{idx}-{name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}".format(
-                    idx=i,
-                    name=self.trainer.cfg.data.names[i],
-                    iou=iou_class[i],
-                    accuracy=acc_class[i],
-                )
-            )
+        m_iou, m_acc, all_acc = self.print_results(intersection, union, target)
         current_epoch = self.trainer.epoch + 1
         if self.trainer.writer is not None:
             self.trainer.writer.add_scalar("val/loss", loss_avg, current_epoch)
