@@ -76,9 +76,12 @@ class IterationTimer(HookBase):
 
 @HOOKS.register_module()
 class InformationWriter(HookBase):
-    def __init__(self):
+    def __init__(self, interval=1, logger_keys=("loss", )):
         self.curr_iter = 0
         self.model_output_keys = []
+
+        self.interval = interval
+        self.logger_keys = logger_keys
 
     def before_train(self):
         self.trainer.comm_info["iter_info"] = ""
@@ -110,12 +113,14 @@ class InformationWriter(HookBase):
                 self.trainer.storage.put_scalar(key, model_output_dict[key].item())
 
         for key in self.model_output_keys:
-            self.trainer.comm_info["iter_info"] += "{key}: {value:.4f} ".format(
-                key=key, value=self.trainer.storage.history(key).val
-            )
+            if key in self.logger_keys:
+                self.trainer.comm_info["iter_info"] += "{key}: {value:.4f} ".format(
+                    key=key, value=self.trainer.storage.history(key).val
+                )
         lr = self.trainer.optimizer.state_dict()["param_groups"][0]["lr"]
-        self.trainer.comm_info["iter_info"] += "Lr: {lr:.5f}".format(lr=lr)
-        self.trainer.logger.info(self.trainer.comm_info["iter_info"])
+        self.trainer.comm_info["iter_info"] += "Lr: {lr:.5e}".format(lr=lr)
+        if (self.trainer.comm_info["iter"] + 1) % self.interval == 0:
+            self.trainer.logger.info(self.trainer.comm_info["iter_info"])
         self.trainer.comm_info["iter_info"] = ""  # reset iter info
         if self.trainer.writer is not None:
             self.trainer.writer.add_scalar("lr", lr, self.curr_iter)
