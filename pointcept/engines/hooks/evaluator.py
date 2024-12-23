@@ -519,6 +519,41 @@ class InsSegEvaluator(HookBase):
             )
         return ap_scores
 
+    def print_results(self, ap_scores):
+        all_ap = ap_scores["all_ap"]
+        all_ap_50 = ap_scores["all_ap_50%"]
+        all_ap_25 = ap_scores["all_ap_25%"]
+        
+        sep = ""
+        col1 = ":"
+        lineLen = 48
+        self.trainer.logger.info("#" * lineLen)
+        line = ""
+        line += "{:<15}".format("what") + sep + col1
+        line += "{:>10}".format("AP") + sep
+        line += "{:>10}".format("AP_50%") + sep
+        line += "{:>10}".format("AP_25%") + sep
+        self.trainer.logger.info(line)
+        self.trainer.logger.info("#" * lineLen)
+
+        for _, label_name in enumerate(self.valid_class_names):
+            ap = ap_scores["classes"][label_name]["ap"]
+            ap_50 = ap_scores["classes"][label_name]["ap50%"]
+            ap_25 = ap_scores["classes"][label_name]["ap25%"]
+            line = "{:<15}".format(label_name) + sep + col1
+            line += sep + "{:>10.4f}".format(ap) + sep
+            line += sep + "{:>10.4f}".format(ap_50) + sep
+            line += sep + "{:>10.4f}".format(ap_25) + sep
+            self.trainer.logger.info(line)
+            
+        self.trainer.logger.info("-" * lineLen)
+        line = "{:<15}".format("average") + sep + col1
+        line += "{:>10.4f}".format(all_ap) + sep
+        line += "{:>10.4f}".format(all_ap_50) + sep
+        line += "{:>10.4f}".format(all_ap_25) + sep
+        self.trainer.logger.info(line)
+        self.trainer.logger.info("#" * lineLen)
+
     def eval(self):
         self.trainer.logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
         self.trainer.model.eval()
@@ -569,29 +604,13 @@ class InsSegEvaluator(HookBase):
         scenes_sync = comm.gather(scenes, dst=0)
         scenes = [scene for scenes_ in scenes_sync for scene in scenes_]
         ap_scores = self.evaluate_matches(scenes)
-        all_ap = ap_scores["all_ap"]
-        all_ap_50 = ap_scores["all_ap_50%"]
-        all_ap_25 = ap_scores["all_ap_25%"]
-        self.trainer.logger.info(
-            "Val result: mAP/AP50/AP25 {:.4f}/{:.4f}/{:.4f}.".format(
-                all_ap, all_ap_50, all_ap_25
-            )
-        )
-        for i, label_name in enumerate(self.valid_class_names):
-            ap = ap_scores["classes"][label_name]["ap"]
-            ap_50 = ap_scores["classes"][label_name]["ap50%"]
-            ap_25 = ap_scores["classes"][label_name]["ap25%"]
-            self.trainer.logger.info(
-                "Class_{idx}-{name} Result: AP/AP50/AP25 {AP:.4f}/{AP50:.4f}/{AP25:.4f}".format(
-                    idx=i, name=label_name, AP=ap, AP50=ap_50, AP25=ap_25
-                )
-            )
+        self.print_results(ap_scores)
         current_epoch = self.trainer.epoch + 1
         if self.trainer.writer is not None:
             self.trainer.writer.add_scalar("val/loss", loss_avg, current_epoch)
-            self.trainer.writer.add_scalar("val/mAP", all_ap, current_epoch)
-            self.trainer.writer.add_scalar("val/AP50", all_ap_50, current_epoch)
-            self.trainer.writer.add_scalar("val/AP25", all_ap_25, current_epoch)
+            self.trainer.writer.add_scalar("val/mAP", ap_scores["all_ap"], current_epoch)
+            self.trainer.writer.add_scalar("val/AP50", ap_scores["all_ap_50%"], current_epoch)
+            self.trainer.writer.add_scalar("val/AP25", ap_scores["all_ap_25%"], current_epoch)
         self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
-        self.trainer.comm_info["current_metric_value"] = all_ap_50  # save for saver
+        self.trainer.comm_info["current_metric_value"] = ap_scores["all_ap_50%"]  # save for saver
         self.trainer.comm_info["current_metric_name"] = "AP50"  # save for saver
