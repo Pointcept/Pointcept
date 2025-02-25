@@ -135,7 +135,7 @@ conda install ninja -y
 # Choose version you want here: https://pytorch.org/get-started/previous-versions/
 conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 -c pytorch -y
 conda install h5py pyyaml -c anaconda -y
-conda install sharedarray tensorboard tensorboardx yapf addict einops scipy plyfile termcolor timm -c conda-forge -y
+conda install sharedarray tensorboard tensorboardx yapf addict einops scipy plyfile termcolor timm wandb -c conda-forge -y
 conda install pytorch-cluster pytorch-scatter pytorch-sparse -c pyg -y
 pip install torch-geometric
 
@@ -885,6 +885,21 @@ sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m1-1-spunet-pointcontrast 
 sh scripts/train.sh -g 8 -d scannet -c pretrain-msc-v1m2-0-spunet-csc -n pretrain-msc-v1m2-0-spunet-csc
 ```
 3. Fine-tuning refer [MSC](#masked-scene-contrast-msc).
+
+## Wandb Logging
+1. Run `wandb login`
+2. Add the preferred wandb configuration to the experiment config file. The following table provides the list of possible wandb config params.
+   This table provides details on the configurable parameters used in the project.
+
+| Name               | Type    | Description                                      | Example Value  |
+|--------------------|--------|--------------------------------------------------|---------------|
+| `enable_wandb`     | boolean | Flag to enable or disable W&B logging. | `True` |
+| `wandb_project_name` | string  | The name of the Weights & Biases (W&B) project where logs will be stored. | `"pointcept"` |
+| `wandb_tags`       | list    | Tags associated with the W&B run for categorization and filtering. | `["oa-cnn"]` |
+| `use_step_logging` | boolean | If `True`, enables step-based logging instead of epoch-based logging. | `True` |
+| `log_every`        | integer | Defines how frequently (in steps) logs should be recorded. | `500` |
+
+For more info refer to [W&B](https://docs.wandb.ai/ref/)
 
 ## Acknowledgement
 _Pointcept_ is designed by [Xiaoyang](https://xywu.me/), named by [Yixing](https://github.com/yxlao) and the logo is created by [Yuechen](https://julianjuaner.github.io/). It is derived from [Hengshuang](https://hszhao.github.io/)'s [Semseg](https://github.com/hszhao/semseg) and inspirited by several repos, e.g., [MinkowskiEngine](https://github.com/NVIDIA/MinkowskiEngine), [pointnet2](https://github.com/charlesq34/pointnet2), [mmcv](https://github.com/open-mmlab/mmcv/tree/master/mmcv), and [Detectron2](https://github.com/facebookresearch/detectron2).

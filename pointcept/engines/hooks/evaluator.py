@@ -189,6 +189,7 @@ class SemSegEvaluator(HookBase):
             self.trainer.writer.add_scalar(
                 f"val/cls_{i}-{name} Iou", iou_class[i], current_epoch
             )
+            self.trainer.wandb.log({f"val_cls/{i}-{name} IoU": iou_class[i]})
             self.trainer.logger.info(
                 "Class_{idx}-{name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}".format(
                     idx=i,
@@ -203,6 +204,9 @@ class SemSegEvaluator(HookBase):
             self.trainer.writer.add_scalar("val/mIoU", m_iou, current_epoch)
             self.trainer.writer.add_scalar("val/mAcc", m_acc, current_epoch)
             self.trainer.writer.add_scalar("val/allAcc", all_acc, current_epoch)
+            self.trainer.wandb.log(
+                {"val/loss": loss_avg, "val/mIoU": m_iou, "val/mAcc": m_acc}
+            )
         self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
         self.trainer.comm_info["current_metric_value"] = m_iou  # save for saver
         self.trainer.comm_info["current_metric_name"] = "mIoU"  # save for saver
@@ -211,6 +215,59 @@ class SemSegEvaluator(HookBase):
         self.trainer.logger.info(
             "Best {}: {:.4f}".format("mIoU", self.trainer.best_metric_value)
         )
+
+
+@HOOKS.register_module()
+class SemSegEvaluatorTrain(HookBase):
+    def after_epoch(self):
+        if self.trainer.cfg.evaluate:
+            self.eval()
+
+    def eval(self):
+        self.trainer.logger.info(
+            ">>>>>>>>>>>>>>>> Start Evaluation Train >>>>>>>>>>>>>>>>"
+        )
+        intersection = self.trainer.storage.history("train_intersection").total
+        union = self.trainer.storage.history("train_union").total
+        target = self.trainer.storage.history("train_target").total
+        iou_class = intersection / (union + 1e-10)
+        acc_class = intersection / (target + 1e-10)
+        m_iou = np.mean(iou_class)
+        m_acc = np.mean(acc_class)
+        all_acc = sum(intersection) / (sum(target) + 1e-10)
+        self.trainer.logger.info(
+            "Traine result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}.".format(
+                m_iou, m_acc, all_acc
+            )
+        )
+        current_epoch = self.trainer.epoch + 1
+        for i in range(self.trainer.cfg.data.num_classes):
+            name = self.trainer.cfg.data.names[i]
+            self.trainer.writer.add_scalar(
+                f"train/cls_{i}-{name} Iou", iou_class[i], current_epoch
+            )
+            self.trainer.wandb.log({f"train_cls/{i}-{name} IoU": iou_class[i]})
+            self.trainer.logger.info(
+                "Train Class_{idx}-{name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}".format(
+                    idx=i,
+                    name=self.trainer.cfg.data.names[i],
+                    iou=iou_class[i],
+                    accuracy=acc_class[i],
+                )
+            )
+
+        if self.trainer.writer is not None:
+            # self.trainer.writer.add_scalar("val/loss", loss_avg, current_epoch)
+            self.trainer.writer.add_scalar("train/mIoU", m_iou, current_epoch)
+            self.trainer.writer.add_scalar("train/mAcc", m_acc, current_epoch)
+            self.trainer.writer.add_scalar("train/allAcc", all_acc, current_epoch)
+            self.trainer.wandb.log({"train/mIoU": m_iou, "train/mAcc": m_acc})
+        self.trainer.logger.info(
+            "<<<<<<<<<<<<<<<<< End Evaluation Train <<<<<<<<<<<<<<<<<"
+        )
+
+    def after_train(self):
+        self.trainer.logger.info("Evaluation Train Done")
 
 
 @HOOKS.register_module()

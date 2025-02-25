@@ -9,6 +9,12 @@ num_worker = 24
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
+# logging settings
+wandb_project_name = "pointcept"
+wandb_tags = ["spunet"]
+enable_wandb = True
+use_step_logging = True
+log_every = 500
 
 # model settings
 model = dict(
@@ -42,6 +48,7 @@ scheduler = dict(
 # dataset settings
 dataset_type = "ScanNetPPDataset"
 data_root = "data/scannetpp"
+
 
 data = dict(
     num_classes=100,
@@ -272,3 +279,14 @@ data = dict(
         ),
     ),
 )
+
+# hook
+hooks = [
+    dict(type="CheckpointLoader"),
+    dict(type="IterationTimer", warmup_iter=2),
+    dict(type="InformationWriter"),
+    dict(type="SemSegEvaluator"),
+    dict(type="CheckpointSaver", save_freq=None),
+    dict(type="PreciseEvaluator", test_last=False),
+    dict(type="SemSegEvaluatorTrain"),
+]
