@@ -213,7 +213,6 @@ The preprocessing supports semantic and instance segmentation for both `ScanNet2
   python pointcept/datasets/preprocessing/sampling_chunking_data.py --dataset_root ${PROCESSED_SCANNETPP_DIR} --grid_size 0.01 --chunk_range 6 6 --chunk_stride 3 3 --split train --num_workers ${NUM_WORKERS}
   python pointcept/datasets/preprocessing/sampling_chunking_data.py --dataset_root ${PROCESSED_SCANNETPP_DIR} --grid_size 0.01 --chunk_range 6 6 --chunk_stride 3 3 --split val --num_workers ${NUM_WORKERS}
   ```
-- (Alternative) Our preprocess data can be directly downloaded [[here](https://huggingface.co/datasets/Pointcept/scannetpp-compressed)], please agree the official license before download it.
 - Link processed dataset to codebase:
   ```bash
   # PROCESSED_SCANNETPP_DIR: the directory of the processed ScanNet dataset.
