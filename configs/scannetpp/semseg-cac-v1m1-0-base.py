@@ -46,10 +46,7 @@ model = dict(
         pdnorm_affine=True,
         pdnorm_conditions=("ScanNet", "S3DIS", "Structured3D"),
     ),
-    criteria=[
-        dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1),
-        dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0, ignore_index=-1),
-    ],
+    criteria=[dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1)],
     num_classes=100,
     backbone_out_channels=64,
     cos_temp=15,
@@ -150,7 +147,7 @@ data = dict(
     ),
     test=dict(
         type=dataset_type,
-        split="test",
+        split="val",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),

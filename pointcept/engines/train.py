@@ -179,12 +179,6 @@ class Trainer(TrainerBase):
             if isinstance(input_dict[key], torch.Tensor):
                 input_dict[key] = input_dict[key].cuda(non_blocking=True)
         with torch.cuda.amp.autocast(enabled=self.cfg.enable_amp):
-            seg = input_dict["segment"]
-            ignore_index = self.cfg["data"].get("ignore_index", -1)
-            unique = torch.unique(seg)
-            if len(unique) == 1 and unique[0] == ignore_index:
-                self.logger.info(f"Step {self.global_step} skipped")
-                return
             output_dict = self.model(input_dict)
             loss = output_dict["loss"]
         self.optimizer.zero_grad()
@@ -269,7 +263,7 @@ class Trainer(TrainerBase):
             collate_fn=partial(point_collate_fn, mix_prob=self.cfg.mix_prob),
             pin_memory=True,
             worker_init_fn=init_fn,
-            drop_last=len(train_data) > self.cfg.batch_size_val_per_gpu,
+            drop_last=len(train_data) > self.cfg.batch_size,
             persistent_workers=True,
         )
         return train_loader

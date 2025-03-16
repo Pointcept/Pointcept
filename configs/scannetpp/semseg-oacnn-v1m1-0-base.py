@@ -26,10 +26,7 @@ model = dict(
         dec_depth=[2, 2, 2, 2, 2],
         enc_num_ref=[16, 16, 16, 16],
     ),
-    criteria=[
-        dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1),
-        dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0, ignore_index=-1),
-    ],
+    criteria=[dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1)],
 )
 
 epoch = 900
@@ -121,7 +118,7 @@ data = dict(
     ),
     test=dict(
         type=dataset_type,
-        split="test",
+        split="val",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
