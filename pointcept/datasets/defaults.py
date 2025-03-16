@@ -194,7 +194,8 @@ class ConcatDataset(Dataset):
         for i in range(len(self.datasets)):
             data_list.extend(
                 zip(
-                    np.ones(len(self.datasets[i])) * i, np.arange(len(self.datasets[i]))
+                    np.ones(len(self.datasets[i]), dtype=int) * i,
+                    np.arange(len(self.datasets[i])),
                 )
             )
         return data_list
