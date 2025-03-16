@@ -3,7 +3,7 @@ _base_ = [
     "../_base_/dataset/scannetpp.py",
 ]
 
-# misc custom setting
+
 batch_size = 12  # bs: total bs in all gpus
 num_worker = 24
 mix_prob = 0.8
@@ -11,20 +11,26 @@ empty_cache = False
 enable_amp = True
 # logging settings
 wandb_project_name = "pointcept"
-wandb_tags = ["spunet"]
+wandb_tags = ["oacnn"]
 enable_wandb = True
 use_step_logging = True
 log_every = 500
 
-# model settings
+
 model = dict(
     type="DefaultSegmentor",
     backbone=dict(
-        type="SpUNet-v1m1",
+        type="OACNNs",
         in_channels=6,
         num_classes=100,
-        channels=(32, 64, 128, 256, 256, 128, 96, 96),
-        layers=(2, 3, 4, 6, 2, 2, 2, 2),
+        embed_channels=64,
+        enc_channels=[64, 64, 128, 256],
+        groups=[4, 4, 8, 16],
+        enc_depth=[3, 3, 3, 9, 8],
+        dec_channels=[256, 256, 256, 256, 256],
+        point_grid_size=[[8, 12, 16, 16], [6, 9, 12, 12], [4, 6, 8, 8], [3, 4, 6, 6]],
+        dec_depth=[2, 2, 2, 2, 2],
+        enc_num_ref=[16, 16, 16, 16],
     ),
     criteria=[
         dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1),
@@ -32,20 +38,17 @@ model = dict(
     ],
 )
 
-
-# scheduler settings
-epoch = 800
-optimizer = dict(type="SGD", lr=0.05, momentum=0.9, weight_decay=0.0001, nesterov=True)
+epoch = 900
+optimizer = dict(type="AdamW", lr=0.001, weight_decay=0.02)
 scheduler = dict(
     type="OneCycleLR",
     max_lr=optimizer["lr"],
     pct_start=0.05,
     anneal_strategy="cos",
     div_factor=10.0,
-    final_div_factor=10000.0,
+    final_div_factor=1000.0,
 )
 
-# dataset settings
 dataset_type = "ScanNetPPDataset"
 data_root = "data/scannetpp"
 
@@ -56,6 +59,7 @@ data = dict(
     train=dict(
         type=dataset_type,
         split="train_grid1mm_chunk6x6_stride3x3",
+        # split="train",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),

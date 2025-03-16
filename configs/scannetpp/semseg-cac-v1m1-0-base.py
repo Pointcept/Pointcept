@@ -3,7 +3,7 @@ _base_ = [
     "../_base_/dataset/scannetpp.py",
 ]
 
-# misc custom setting
+
 batch_size = 12  # bs: total bs in all gpus
 num_worker = 24
 mix_prob = 0.8
@@ -11,38 +11,71 @@ empty_cache = False
 enable_amp = True
 # logging settings
 wandb_project_name = "pointcept"
-wandb_tags = ["spunet"]
+wandb_tags = ["cac"]
 enable_wandb = True
 use_step_logging = True
 log_every = 500
 
 # model settings
 model = dict(
-    type="DefaultSegmentor",
+    type="CAC-v1m1",
     backbone=dict(
-        type="SpUNet-v1m1",
+        type="PT-v3m1",
         in_channels=6,
-        num_classes=100,
-        channels=(32, 64, 128, 256, 256, 128, 96, 96),
-        layers=(2, 3, 4, 6, 2, 2, 2, 2),
+        order=("z", "z-trans", "hilbert", "hilbert-trans"),
+        stride=(2, 2, 2, 2),
+        enc_depths=(2, 2, 2, 6, 2),
+        enc_channels=(32, 64, 128, 256, 512),
+        enc_num_head=(2, 4, 8, 16, 32),
+        enc_patch_size=(1024, 1024, 1024, 1024, 1024),
+        dec_depths=(2, 2, 2, 2),
+        dec_channels=(64, 64, 128, 256),
+        dec_num_head=(4, 4, 8, 16),
+        dec_patch_size=(1024, 1024, 1024, 1024),
+        mlp_ratio=4,
+        qkv_bias=True,
+        qk_scale=None,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        drop_path=0.3,
+        shuffle_orders=True,
+        pre_norm=True,
+        enable_rpe=False,
+        enable_flash=True,
+        upcast_attention=False,
+        upcast_softmax=False,
+        cls_mode=False,
+        pdnorm_bn=False,
+        pdnorm_ln=False,
+        pdnorm_decouple=True,
+        pdnorm_adaptive=False,
+        pdnorm_affine=True,
+        pdnorm_conditions=("ScanNet", "S3DIS", "Structured3D"),
     ),
     criteria=[
         dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1),
         dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0, ignore_index=-1),
     ],
+    num_classes=100,
+    backbone_out_channels=64,
+    cos_temp=15,
+    main_weight=1,
+    pre_weight=1,
+    pre_self_weight=1,
+    kl_weight=1,
+    conf_thresh=0.75,
+    detach_pre_logits=True,
 )
 
-
-# scheduler settings
-epoch = 800
-optimizer = dict(type="SGD", lr=0.05, momentum=0.9, weight_decay=0.0001, nesterov=True)
+epoch = 900
+optimizer = dict(type="AdamW", lr=0.001, weight_decay=0.02)
 scheduler = dict(
     type="OneCycleLR",
     max_lr=optimizer["lr"],
     pct_start=0.05,
     anneal_strategy="cos",
     div_factor=10.0,
-    final_div_factor=10000.0,
+    final_div_factor=1000.0,
 )
 
 # dataset settings
@@ -56,6 +89,7 @@ data = dict(
     train=dict(
         type=dataset_type,
         split="train_grid1mm_chunk6x6_stride3x3",
+        # split="train",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),

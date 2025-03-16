@@ -246,6 +246,7 @@ class CACSegmentor(nn.Module):
                 pre_loss=pre_loss,
                 pre_self_loss=pre_self_loss,
                 kl_loss=kl_loss,
+                seg_logits=seg_logits,
             )
 
         elif "segment" in data_dict.keys():
