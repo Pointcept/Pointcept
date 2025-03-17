@@ -3,59 +3,52 @@ _base_ = [
     "../_base_/dataset/scannetpp.py",
 ]
 
-# misc custom setting
+
 batch_size = 12  # bs: total bs in all gpus
 num_worker = 24
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
 
-# model settings
+
 model = dict(
     type="DefaultSegmentor",
     backbone=dict(
-        type="PT-v2m2",
-        in_channels=9,
+        type="OctFormer-v1m1",
+        in_channels=10,
         num_classes=100,
-        patch_embed_depth=1,
-        patch_embed_channels=48,
-        patch_embed_groups=6,
-        patch_embed_neighbours=8,
-        enc_depths=(2, 2, 6, 2),
-        enc_channels=(96, 192, 384, 512),
-        enc_groups=(12, 24, 48, 64),
-        enc_neighbours=(16, 16, 16, 16),
-        dec_depths=(1, 1, 1, 1),
-        dec_channels=(48, 96, 192, 384),
-        dec_groups=(6, 12, 24, 48),
-        dec_neighbours=(16, 16, 16, 16),
-        grid_sizes=(0.06, 0.15, 0.375, 0.9375),  # x3, x2.5, x2.5, x2.5
-        attn_qkv_bias=True,
-        pe_multiplier=False,
-        pe_bias=True,
-        attn_drop_rate=0.0,
-        drop_path_rate=0.3,
-        enable_checkpoint=False,
-        unpool_backend="map",  # map / interp
+        fpn_channels=168,
+        channels=(96, 192, 384, 384),
+        num_blocks=(2, 2, 18, 2),
+        num_heads=(6, 12, 24, 24),
+        patch_size=26,
+        stem_down=2,
+        head_up=2,
+        dilation=4,
+        drop_path=0.5,
+        nempty=True,
+        octree_depth=11,
+        octree_full_depth=2,
     ),
     criteria=[dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1)],
 )
 
 # scheduler settings
-epoch = 900
-optimizer = dict(type="AdamW", lr=0.005, weight_decay=0.02)
+epoch = 600
+optimizer = dict(type="AdamW", lr=0.0015, weight_decay=0.05)
 scheduler = dict(
-    type="OneCycleLR",
-    max_lr=optimizer["lr"],
-    pct_start=0.05,
-    anneal_strategy="cos",
-    div_factor=10.0,
-    final_div_factor=1000.0,
+    type="MultiStepWithWarmupLR",
+    milestones=[0.6, 0.9],
+    gamma=0.1,
+    warmup_rate=0.05,
+    warmup_scale=1e-5,
 )
+param_dicts = [dict(keyword="blocks", lr=0.00015)]
 
-# dataset settings
+
 dataset_type = "ScanNetPPDataset"
 data_root = "data/scannetpp"
+
 
 data = dict(
     num_classes=100,
@@ -63,6 +56,8 @@ data = dict(
     train=dict(
         type=dataset_type,
         split="train_grid1mm_chunk6x6_stride3x3",
+        # split="val",
+        # split="train",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
@@ -79,26 +74,29 @@ data = dict(
             dict(type="RandomJitter", sigma=0.005, clip=0.02),
             dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
             dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
-            dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
+            dict(type="ChromaticTranslation", p=0.95, ratio=0.1),
             dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
             dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.01,
                 hash_type="fnv",
                 mode="train",
-                return_grid_coord=True,
+                return_min_coord=True,
+                return_displacement=True,
+                project_displacement=True,
             ),
-            dict(type="SphereCrop", point_max=204800, mode="random"),
+            dict(type="SphereCrop", sample_rate=0.8, mode="random"),
+            dict(type="SphereCrop", point_max=120000, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             # dict(type="ShufflePoint"),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=("coord", "grid_coord", "segment"),
-                feat_keys=("coord", "color", "normal"),
+                keys=("coord", "normal", "segment"),
+                feat_keys=("coord", "color", "normal", "displacement"),
             ),
         ],
         test_mode=False,
@@ -111,18 +109,21 @@ data = dict(
             dict(type="CenterShift", apply_z=True),
             dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.01,
                 hash_type="fnv",
                 mode="train",
-                return_grid_coord=True,
+                return_min_coord=True,
+                return_displacement=True,
+                project_displacement=True,
             ),
+            # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=("coord", "grid_coord", "segment"),
-                feat_keys=("coord", "color", "normal"),
+                keys=("coord", "normal", "segment"),
+                feat_keys=("coord", "color", "normal", "displacement"),
             ),
         ],
         test_mode=False,
@@ -134,25 +135,17 @@ data = dict(
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(type="NormalizeColor"),
-            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
-            dict(
-                type="GridSample",
-                grid_size=0.01,
-                hash_type="fnv",
-                mode="train",
-                keys=("coord", "color", "normal", "segment"),
-                return_inverse=True,
-            ),
         ],
         test_mode=True,
         test_cfg=dict(
             voxelize=dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.01,
                 hash_type="fnv",
                 mode="test",
                 keys=("coord", "color", "normal"),
-                return_grid_coord=True,
+                return_displacement=True,
+                project_displacement=True,
             ),
             crop=None,
             post_transform=[
@@ -160,8 +153,8 @@ data = dict(
                 dict(type="ToTensor"),
                 dict(
                     type="Collect",
-                    keys=("coord", "grid_coord", "index"),
-                    feat_keys=("coord", "color", "normal"),
+                    keys=("coord", "normal", "index"),
+                    feat_keys=("coord", "color", "normal", "displacement"),
                 ),
             ],
             aug_transform=[

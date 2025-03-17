@@ -3,7 +3,7 @@ _base_ = [
     "../_base_/dataset/scannetpp.py",
 ]
 
-# misc custom setting
+
 batch_size = 12  # bs: total bs in all gpus
 num_worker = 24
 mix_prob = 0.8
@@ -12,38 +12,54 @@ enable_amp = True
 
 # model settings
 model = dict(
-    type="DefaultSegmentor",
+    type="CAC-v1m1",
     backbone=dict(
-        type="PT-v2m2",
-        in_channels=9,
-        num_classes=100,
-        patch_embed_depth=1,
-        patch_embed_channels=48,
-        patch_embed_groups=6,
-        patch_embed_neighbours=8,
-        enc_depths=(2, 2, 6, 2),
-        enc_channels=(96, 192, 384, 512),
-        enc_groups=(12, 24, 48, 64),
-        enc_neighbours=(16, 16, 16, 16),
-        dec_depths=(1, 1, 1, 1),
-        dec_channels=(48, 96, 192, 384),
-        dec_groups=(6, 12, 24, 48),
-        dec_neighbours=(16, 16, 16, 16),
-        grid_sizes=(0.06, 0.15, 0.375, 0.9375),  # x3, x2.5, x2.5, x2.5
-        attn_qkv_bias=True,
-        pe_multiplier=False,
-        pe_bias=True,
-        attn_drop_rate=0.0,
-        drop_path_rate=0.3,
-        enable_checkpoint=False,
-        unpool_backend="map",  # map / interp
+        type="PT-v3m1",
+        in_channels=6,
+        order=("z", "z-trans", "hilbert", "hilbert-trans"),
+        stride=(2, 2, 2, 2),
+        enc_depths=(2, 2, 2, 6, 2),
+        enc_channels=(32, 64, 128, 256, 512),
+        enc_num_head=(2, 4, 8, 16, 32),
+        enc_patch_size=(1024, 1024, 1024, 1024, 1024),
+        dec_depths=(2, 2, 2, 2),
+        dec_channels=(64, 64, 128, 256),
+        dec_num_head=(4, 4, 8, 16),
+        dec_patch_size=(1024, 1024, 1024, 1024),
+        mlp_ratio=4,
+        qkv_bias=True,
+        qk_scale=None,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        drop_path=0.3,
+        shuffle_orders=True,
+        pre_norm=True,
+        enable_rpe=False,
+        enable_flash=True,
+        upcast_attention=False,
+        upcast_softmax=False,
+        cls_mode=False,
+        pdnorm_bn=False,
+        pdnorm_ln=False,
+        pdnorm_decouple=True,
+        pdnorm_adaptive=False,
+        pdnorm_affine=True,
+        pdnorm_conditions=("ScanNet", "S3DIS", "Structured3D"),
     ),
     criteria=[dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1)],
+    num_classes=100,
+    backbone_out_channels=64,
+    cos_temp=15,
+    main_weight=1,
+    pre_weight=1,
+    pre_self_weight=1,
+    kl_weight=1,
+    conf_thresh=0.75,
+    detach_pre_logits=True,
 )
 
-# scheduler settings
 epoch = 900
-optimizer = dict(type="AdamW", lr=0.005, weight_decay=0.02)
+optimizer = dict(type="AdamW", lr=0.001, weight_decay=0.02)
 scheduler = dict(
     type="OneCycleLR",
     max_lr=optimizer["lr"],
@@ -57,12 +73,14 @@ scheduler = dict(
 dataset_type = "ScanNetPPDataset"
 data_root = "data/scannetpp"
 
+
 data = dict(
     num_classes=100,
     ignore_index=-1,
     train=dict(
         type=dataset_type,
         split="train_grid1mm_chunk6x6_stride3x3",
+        # split="train",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
@@ -98,7 +116,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("coord", "color", "normal"),
+                feat_keys=("color", "normal"),
             ),
         ],
         test_mode=False,
@@ -122,7 +140,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("coord", "color", "normal"),
+                feat_keys=("color", "normal"),
             ),
         ],
         test_mode=False,
@@ -161,7 +179,7 @@ data = dict(
                 dict(
                     type="Collect",
                     keys=("coord", "grid_coord", "index"),
-                    feat_keys=("coord", "color", "normal"),
+                    feat_keys=("color", "normal"),
                 ),
             ],
             aug_transform=[
