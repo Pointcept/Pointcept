@@ -122,9 +122,9 @@ class NormalizeCoord(object):
     def __call__(self, data_dict):
         if "coord" in data_dict.keys():
             # modified from pointnet2
-            centroid = np.mean(data_dict["coord"], axis=0)
+            centroid = torch.mean(data_dict["coord"], dim=0)
             data_dict["coord"] -= centroid
-            m = np.max(np.sqrt(np.sum(data_dict["coord"] ** 2, axis=1)))
+            m = torch.max(torch.norm(data_dict["coord"], dim=1))
             data_dict["coord"] = data_dict["coord"] / m
         return data_dict
 
@@ -133,7 +133,7 @@ class NormalizeCoord(object):
 class PositiveShift(object):
     def __call__(self, data_dict):
         if "coord" in data_dict.keys():
-            coord_min = np.min(data_dict["coord"], 0)
+            coord_min = torch.min(data_dict["coord"], 0)[0]
             data_dict["coord"] -= coord_min
         return data_dict
 
@@ -145,12 +145,13 @@ class CenterShift(object):
 
     def __call__(self, data_dict):
         if "coord" in data_dict.keys():
-            x_min, y_min, z_min = data_dict["coord"].min(axis=0)
-            x_max, y_max, _ = data_dict["coord"].max(axis=0)
+            coord = data_dict["coord"]
+            x_min, y_min, z_min = torch.min(coord, 0)[0]
+            x_max, y_max, _ = torch.max(coord, 0)[0]
             if self.apply_z:
-                shift = [(x_min + x_max) / 2, (y_min + y_max) / 2, z_min]
+                shift = coord.new_tensor([(x_min + x_max) / 2, (y_min + y_max) / 2, z_min])
             else:
-                shift = [(x_min + x_max) / 2, (y_min + y_max) / 2, 0]
+                shift = coord.new_tensor([(x_min + x_max) / 2, (y_min + y_max) / 2, 0])
             data_dict["coord"] -= shift
         return data_dict
 
@@ -162,10 +163,14 @@ class RandomShift(object):
 
     def __call__(self, data_dict):
         if "coord" in data_dict.keys():
-            shift_x = np.random.uniform(self.shift[0][0], self.shift[0][1])
-            shift_y = np.random.uniform(self.shift[1][0], self.shift[1][1])
-            shift_z = np.random.uniform(self.shift[2][0], self.shift[2][1])
-            data_dict["coord"] += [shift_x, shift_y, shift_z]
+            coord = data_dict["coord"]
+            shift = coord.new_tensor(
+                [
+                    torch.FloatTensor(1).uniform_(*s).item()
+                    for s in self.shift
+                ]
+            )
+            data_dict["coord"] += shift
         return data_dict
 
 
@@ -176,10 +181,11 @@ class PointClip(object):
 
     def __call__(self, data_dict):
         if "coord" in data_dict.keys():
-            data_dict["coord"] = np.clip(
-                data_dict["coord"],
-                a_min=self.point_cloud_range[:3],
-                a_max=self.point_cloud_range[3:],
+            coord = data_dict["coord"]
+            data_dict["coord"] = torch.clamp(
+                coord,
+                min=coord.new_tensor(self.point_cloud_range[:3]),
+                max=coord.new_tensor(self.point_cloud_range[3:]),
             )
         return data_dict
 
@@ -196,13 +202,13 @@ class RandomDropout(object):
     def __call__(self, data_dict):
         if random.random() < self.dropout_application_ratio:
             n = len(data_dict["coord"])
-            idx = np.random.choice(n, int(n * (1 - self.dropout_ratio)), replace=False)
+            idx = torch.randperm(n)[: int(n * (1 - self.dropout_ratio))]
             if "sampled_index" in data_dict:
                 # for ScanNet data efficient, we need to make sure labeled point is sampled.
-                idx = np.unique(np.append(idx, data_dict["sampled_index"]))
-                mask = np.zeros_like(data_dict["segment"]).astype(bool)
+                idx = torch.unique(torch.cat([idx, data_dict["sampled_index"]]))
+                mask = torch.zeros_like(data_dict["segment"]).bool()
                 mask[data_dict["sampled_index"]] = True
-                data_dict["sampled_index"] = np.where(mask[idx])[0]
+                data_dict["sampled_index"] = torch.where(mask[idx])[0]
             if "coord" in data_dict.keys():
                 data_dict["coord"] = data_dict["coord"][idx]
             if "color" in data_dict.keys():
@@ -230,28 +236,27 @@ class RandomRotate(object):
     def __call__(self, data_dict):
         if random.random() > self.p:
             return data_dict
-        angle = np.random.uniform(self.angle[0], self.angle[1]) * np.pi
-        rot_cos, rot_sin = np.cos(angle), np.sin(angle)
+        coord = data_dict["coord"]
+        angle = torch.FloatTensor(1).uniform_(*self.angle) * torch.pi
+        rot_cos, rot_sin = torch.cos(angle), torch.sin(angle)
         if self.axis == "x":
-            rot_t = np.array([[1, 0, 0], [0, rot_cos, -rot_sin], [0, rot_sin, rot_cos]])
+            rot_t = coord.new_tensor([[1, 0, 0], [0, rot_cos, -rot_sin], [0, rot_sin, rot_cos]])
         elif self.axis == "y":
-            rot_t = np.array([[rot_cos, 0, rot_sin], [0, 1, 0], [-rot_sin, 0, rot_cos]])
+            rot_t = coord.new_tensor([[rot_cos, 0, rot_sin], [0, 1, 0], [-rot_sin, 0, rot_cos]])
         elif self.axis == "z":
-            rot_t = np.array([[rot_cos, -rot_sin, 0], [rot_sin, rot_cos, 0], [0, 0, 1]])
+            rot_t = coord.new_tensor([[rot_cos, -rot_sin, 0], [rot_sin, rot_cos, 0], [0, 0, 1]])
         else:
             raise NotImplementedError
         if "coord" in data_dict.keys():
             if self.center is None:
-                x_min, y_min, z_min = data_dict["coord"].min(axis=0)
-                x_max, y_max, z_max = data_dict["coord"].max(axis=0)
-                center = [(x_min + x_max) / 2, (y_min + y_max) / 2, (z_min + z_max) / 2]
+                center = (coord.min(0)[0] + coord.max(0)[0]) / 2
             else:
-                center = self.center
+                center = coord.new_tensor(self.center)
             data_dict["coord"] -= center
-            data_dict["coord"] = np.dot(data_dict["coord"], np.transpose(rot_t))
+            data_dict["coord"] = torch.mm(data_dict["coord"], rot_t.T)
             data_dict["coord"] += center
         if "normal" in data_dict.keys():
-            data_dict["normal"] = np.dot(data_dict["normal"], np.transpose(rot_t))
+            data_dict["normal"] = torch.mm(data_dict["normal"], rot_t.T)
         return data_dict
 
 
@@ -269,28 +274,27 @@ class RandomRotateTargetAngle(object):
     def __call__(self, data_dict):
         if random.random() > self.p:
             return data_dict
-        angle = np.random.choice(self.angle) * np.pi
+        coord = data_dict["coord"]
+        angle = torch.tensor(self.angle).to(coord.device) * torch.pi
         rot_cos, rot_sin = np.cos(angle), np.sin(angle)
         if self.axis == "x":
-            rot_t = np.array([[1, 0, 0], [0, rot_cos, -rot_sin], [0, rot_sin, rot_cos]])
+            rot_t = coord.new_tensor([[1, 0, 0], [0, rot_cos, -rot_sin], [0, rot_sin, rot_cos]])
         elif self.axis == "y":
-            rot_t = np.array([[rot_cos, 0, rot_sin], [0, 1, 0], [-rot_sin, 0, rot_cos]])
+            rot_t = coord.new_tensor([[rot_cos, 0, rot_sin], [0, 1, 0], [-rot_sin, 0, rot_cos]])
         elif self.axis == "z":
-            rot_t = np.array([[rot_cos, -rot_sin, 0], [rot_sin, rot_cos, 0], [0, 0, 1]])
+            rot_t = coord.new_tensor([[rot_cos, -rot_sin, 0], [rot_sin, rot_cos, 0], [0, 0, 1]])
         else:
             raise NotImplementedError
         if "coord" in data_dict.keys():
             if self.center is None:
-                x_min, y_min, z_min = data_dict["coord"].min(axis=0)
-                x_max, y_max, z_max = data_dict["coord"].max(axis=0)
-                center = [(x_min + x_max) / 2, (y_min + y_max) / 2, (z_min + z_max) / 2]
+                center = (coord.min(0)[0] + coord.max(0)[0]) / 2
             else:
-                center = self.center
+                center = coord.new_tensor(self.center)
             data_dict["coord"] -= center
-            data_dict["coord"] = np.dot(data_dict["coord"], np.transpose(rot_t))
+            data_dict["coord"] = torch.mm(data_dict["coord"], rot_t.T)
             data_dict["coord"] += center
         if "normal" in data_dict.keys():
-            data_dict["normal"] = np.dot(data_dict["normal"], np.transpose(rot_t))
+            data_dict["normal"] = torch.mm(data_dict["normal"], rot_t.T)
         return data_dict
 
 
@@ -302,9 +306,10 @@ class RandomScale(object):
 
     def __call__(self, data_dict):
         if "coord" in data_dict.keys():
-            scale = np.random.uniform(
-                self.scale[0], self.scale[1], 3 if self.anisotropic else 1
-            )
+            if self.anisotropic:
+                scale = torch.FloatTensor(3).uniform_(*self.scale)
+            else:
+                scale = torch.FloatTensor(1).uniform_(*self.scale)
             data_dict["coord"] *= scale
         return data_dict
 
@@ -337,8 +342,8 @@ class RandomJitter(object):
 
     def __call__(self, data_dict):
         if "coord" in data_dict.keys():
-            jitter = np.clip(
-                self.sigma * np.random.randn(data_dict["coord"].shape[0], 3),
+            jitter = torch.clamp(
+                self.sigma * torch.randn_like(data_dict["coord"]),
                 -self.clip,
                 self.clip,
             )
@@ -346,6 +351,7 @@ class RandomJitter(object):
         return data_dict
 
 
+# TODO
 @TRANSFORMS.register_module()
 class ClipGaussianJitter(object):
     def __init__(self, scalar=0.02, store_jitter=False):
@@ -375,12 +381,13 @@ class ChromaticAutoContrast(object):
 
     def __call__(self, data_dict):
         if "color" in data_dict.keys() and np.random.rand() < self.p:
-            lo = np.min(data_dict["color"], 0, keepdims=True)
-            hi = np.max(data_dict["color"], 0, keepdims=True)
+            color = data_dict["color"]
+            lo = color.min(0, keepdims=True)[0]
+            hi = color.max(0, keepdims=True)[0]
             scale = 255 / (hi - lo)
-            contrast_feat = (data_dict["color"][:, :3] - lo) * scale
+            contrast_feat = (color[:, :3] - lo) * scale
             blend_factor = (
-                np.random.rand() if self.blend_factor is None else self.blend_factor
+                torch.rand(1).item() if self.blend_factor is None else self.blend_factor
             )
             data_dict["color"][:, :3] = (1 - blend_factor) * data_dict["color"][
                 :, :3
@@ -396,8 +403,10 @@ class ChromaticTranslation(object):
 
     def __call__(self, data_dict):
         if "color" in data_dict.keys() and np.random.rand() < self.p:
-            tr = (np.random.rand(1, 3) - 0.5) * 255 * 2 * self.ratio
-            data_dict["color"][:, :3] = np.clip(tr + data_dict["color"][:, :3], 0, 255)
+            tr = (torch.rand(1, 3) - 0.5) * 255 * 2 * self.ratio
+            data_dict["color"][:, :3] = torch.clamp(
+                tr + data_dict["color"][:, :3], 0, 255
+            )
         return data_dict
 
 
@@ -409,9 +418,9 @@ class ChromaticJitter(object):
 
     def __call__(self, data_dict):
         if "color" in data_dict.keys() and np.random.rand() < self.p:
-            noise = np.random.randn(data_dict["color"].shape[0], 3)
+            noise = torch.randn_like(data_dict["color"][:, :3])
             noise *= self.std * 255
-            data_dict["color"][:, :3] = np.clip(
+            data_dict["color"][:, :3] = torch.clamp(
                 noise + data_dict["color"][:, :3], 0, 255
             )
         return data_dict
@@ -436,10 +445,10 @@ class RandomColorGrayScale(object):
 
         r, g, b = color[..., 0], color[..., 1], color[..., 2]
         gray = (0.2989 * r + 0.587 * g + 0.114 * b).astype(color.dtype)
-        gray = np.expand_dims(gray, axis=-1)
+        gray = gray.unsqueeze(-1)
 
         if num_output_channels == 3:
-            gray = np.broadcast_to(gray, color.shape)
+            gray = gray.expand_as(color)
 
         return gray
 
@@ -449,6 +458,7 @@ class RandomColorGrayScale(object):
         return data_dict
 
 
+# TODO
 @TRANSFORMS.register_module()
 class RandomColorJitter(object):
     """
@@ -771,14 +781,19 @@ class ElasticDistortion(object):
 
     def __call__(self, data_dict):
         if "coord" in data_dict.keys() and self.distortion_params is not None:
+            coord = data_dict["coord"]
+            device = coord.device
+            coord = coord.cpu().numpy()
             if random.random() < 0.95:
                 for granularity, magnitude in self.distortion_params:
-                    data_dict["coord"] = self.elastic_distortion(
-                        data_dict["coord"], granularity, magnitude
+                    coord = self.elastic_distortion(
+                        coord, granularity, magnitude
                     )
+            data_dict["coord"] = torch.tensor(coord, dtype=torch.float32, device=device)
         return data_dict
 
 
+# TODO: to be optimized
 @TRANSFORMS.register_module()
 class GridSample(object):
     def __init__(
@@ -806,70 +821,76 @@ class GridSample(object):
 
     def __call__(self, data_dict):
         assert "coord" in data_dict.keys()
-        scaled_coord = data_dict["coord"] / np.array(self.grid_size)
-        grid_coord = np.floor(scaled_coord).astype(int)
-        min_coord = grid_coord.min(0)
+        coord = data_dict["coord"]
+        device = coord.device
+        scaled_coord = coord / self.grid_size
+        grid_coord = torch.floor(scaled_coord).int()
+        min_coord = grid_coord.min(0)[0]
         grid_coord -= min_coord
-        scaled_coord -= min_coord
-        min_coord = min_coord * np.array(self.grid_size)
-        key = self.hash(grid_coord)
+        scaled_coord -= min_coord.float()
+        min_coord = min_coord * self.grid_size
+        key = self.hash(grid_coord.cpu().numpy())
         idx_sort = np.argsort(key)
         key_sort = key[idx_sort]
         _, inverse, count = np.unique(key_sort, return_inverse=True, return_counts=True)
+        inverse = torch.tensor(inverse, dtype=torch.long, device=device)
         if self.mode == "train":  # train mode
             idx_select = (
                 np.cumsum(np.insert(count, 0, 0)[0:-1])
                 + np.random.randint(0, count.max(), count.size) % count
             )
             idx_unique = idx_sort[idx_select]
+            idx_unique = torch.tensor(idx_unique, dtype=torch.long, device=device)
+            idx_sort = torch.tensor(idx_sort, dtype=torch.long, device=device)
             if "sampled_index" in data_dict:
                 # for ScanNet data efficient, we need to make sure labeled point is sampled.
-                idx_unique = np.unique(
-                    np.append(idx_unique, data_dict["sampled_index"])
+                idx_unique = torch.unique(
+                    torch.cat([idx_unique, data_dict["sampled_index"]])
                 )
-                mask = np.zeros_like(data_dict["segment"]).astype(bool)
+                mask = torch.zeros_like(data_dict["segment"]).bool()
                 mask[data_dict["sampled_index"]] = True
-                data_dict["sampled_index"] = np.where(mask[idx_unique])[0]
+                data_dict["sampled_index"] = torch.where(mask[idx_unique])[0]
             if self.return_inverse:
-                data_dict["inverse"] = np.zeros_like(inverse)
+                data_dict["inverse"] = torch.zeros_like(inverse)
                 data_dict["inverse"][idx_sort] = inverse
             if self.return_grid_coord:
                 data_dict["grid_coord"] = grid_coord[idx_unique]
             if self.return_min_coord:
-                data_dict["min_coord"] = min_coord.reshape([1, 3])
+                data_dict["min_coord"] = min_coord.view(1, 3)
             if self.return_displacement:
                 displacement = (
                     scaled_coord - grid_coord - 0.5
                 )  # [0, 1] -> [-0.5, 0.5] displacement to center
                 if self.project_displacement:
-                    displacement = np.sum(
-                        displacement * data_dict["normal"], axis=-1, keepdims=True
+                    displacement = torch.sum(
+                        displacement * data_dict["normal"], dim=-1, keepdim=True
                     )
                 data_dict["displacement"] = displacement[idx_unique]
             for key in self.keys:
                 data_dict[key] = data_dict[key][idx_unique]
             return data_dict
-
+        
         elif self.mode == "test":  # test mode
             data_part_list = []
             for i in range(count.max()):
                 idx_select = np.cumsum(np.insert(count, 0, 0)[0:-1]) + i % count
                 idx_part = idx_sort[idx_select]
+                idx_part = torch.tensor(idx_part, dtype=torch.long, device=device)
                 data_part = dict(index=idx_part)
                 if self.return_inverse:
-                    data_dict["inverse"] = np.zeros_like(inverse)
+                    data_dict["inverse"] = torch.zeros_like(inverse)
                     data_dict["inverse"][idx_sort] = inverse
                 if self.return_grid_coord:
                     data_part["grid_coord"] = grid_coord[idx_part]
                 if self.return_min_coord:
-                    data_part["min_coord"] = min_coord.reshape([1, 3])
+                    data_part["min_coord"] = min_coord.view(1, 3)
                 if self.return_displacement:
                     displacement = (
                         scaled_coord - grid_coord - 0.5
                     )  # [0, 1] -> [-0.5, 0.5] displacement to center
                     if self.project_displacement:
-                        displacement = np.sum(
-                            displacement * data_dict["normal"], axis=-1, keepdims=True
+                        displacement = torch.sum(
+                            displacement * data_dict["normal"], dim=-1, keepdim=True
                         )
                     data_dict["displacement"] = displacement[idx_part]
                 for key in data_dict.keys():
@@ -935,23 +956,24 @@ class SphereCrop(object):
         )
 
         assert "coord" in data_dict.keys()
+        coord = data_dict["coord"]
+        device = coord.device
         if self.mode == "all":
             # TODO: Optimize
             if "index" not in data_dict.keys():
-                data_dict["index"] = np.arange(data_dict["coord"].shape[0])
+                data_dict["index"] = torch.arange(coord.shape[0], device=device)
             data_part_list = []
             # coord_list, color_list, dist2_list, idx_list, offset_list = [], [], [], [], []
-            if data_dict["coord"].shape[0] > point_max:
-                coord_p, idx_uni = np.random.rand(
-                    data_dict["coord"].shape[0]
-                ) * 1e-3, np.array([])
+            if coord.shape[0] > point_max:
+                coord_p, idx_uni = torch.rand(
+                    coord.shape[0], device=device
+                ) * 1e-3, torch.tensor([], device=device, dtype=torch.long)
                 while idx_uni.size != data_dict["index"].shape[0]:
-                    init_idx = np.argmin(coord_p)
-                    dist2 = np.sum(
-                        np.power(data_dict["coord"] - data_dict["coord"][init_idx], 2),
-                        1,
+                    init_idx = torch.argmin(coord_p)
+                    dist2 = torch.sum(
+                        (coord - coord[init_idx]) ** 2, dim=1
                     )
-                    idx_crop = np.argsort(dist2)[:point_max]
+                    idx_crop = torch.argsort(dist2)[:point_max]
 
                     data_crop_dict = dict()
                     if "coord" in data_dict.keys():
@@ -972,32 +994,30 @@ class SphereCrop(object):
                     data_crop_dict["index"] = data_dict["index"][idx_crop]
                     data_part_list.append(data_crop_dict)
 
-                    delta = np.square(
-                        1 - data_crop_dict["weight"] / np.max(data_crop_dict["weight"])
-                    )
+                    delta = (1 - data_crop_dict["weight"] / torch.max(data_crop_dict["weight"])) ** 2
                     coord_p[idx_crop] += delta
-                    idx_uni = np.unique(
-                        np.concatenate((idx_uni, data_crop_dict["index"]))
+                    idx_uni = torch.unique(
+                        torch.cat((idx_uni, data_crop_dict["index"]))
                     )
             else:
                 data_crop_dict = data_dict.copy()
-                data_crop_dict["weight"] = np.zeros(data_dict["coord"].shape[0])
+                data_crop_dict["weight"] = torch.zeros(coord.shape[0], device=device)
                 data_crop_dict["index"] = data_dict["index"]
                 data_part_list.append(data_crop_dict)
             return data_part_list
         # mode is "random" or "center"
-        elif data_dict["coord"].shape[0] > point_max:
+        elif coord.shape[0] > point_max:
             if self.mode == "random":
-                center = data_dict["coord"][
-                    np.random.randint(data_dict["coord"].shape[0])
+                center = coord[
+                    torch.randint(coord.shape[0], (1,), device=device)
                 ]
             elif self.mode == "center":
-                center = data_dict["coord"][data_dict["coord"].shape[0] // 2]
+                center = coord[coord.shape[0] // 2]
             else:
                 raise NotImplementedError
-            idx_crop = np.argsort(np.sum(np.square(data_dict["coord"] - center), 1))[
-                :point_max
-            ]
+            idx_crop = torch.argsort(
+                torch.sum((coord - center) ** 2, dim=1)
+            )[:point_max]
             if "coord" in data_dict.keys():
                 data_dict["coord"] = data_dict["coord"][idx_crop]
             if "origin_coord" in data_dict.keys():
@@ -1023,8 +1043,9 @@ class SphereCrop(object):
 class ShufflePoint(object):
     def __call__(self, data_dict):
         assert "coord" in data_dict.keys()
-        shuffle_index = np.arange(data_dict["coord"].shape[0])
-        np.random.shuffle(shuffle_index)
+        coord = data_dict["coord"]
+        device = coord.device
+        shuffle_index = torch.randperm(coord.shape[0], device=device)
         if "coord" in data_dict.keys():
             data_dict["coord"] = data_dict["coord"][shuffle_index]
         if "grid_coord" in data_dict.keys():
@@ -1098,37 +1119,37 @@ class InstanceParser(object):
         coord = data_dict["coord"]
         segment = data_dict["segment"]
         instance = data_dict["instance"]
-        mask = ~np.in1d(segment, self.segment_ignore_index)
+        device = coord.device
+        mask = ~torch.isin(segment, coord.new_tensor(self.segment_ignore_index))
         # mapping ignored instance to ignore index
         instance[~mask] = self.instance_ignore_index
         # reorder left instance
-        unique, inverse = np.unique(instance[mask], return_inverse=True)
+        unique, inverse = torch.unique(instance[mask], return_inverse=True)
         instance_num = len(unique)
         instance[mask] = inverse
         # init instance information
-        centroid = np.ones((coord.shape[0], 3)) * self.instance_ignore_index
-        bbox = np.ones((instance_num, 8)) * self.instance_ignore_index
-        vacancy = [
-            index for index in self.segment_ignore_index if index >= 0
-        ]  # vacate class index
+        centroid = torch.ones((coord.shape[0], 3), device=device, dtype=coord.dtype) * self.instance_ignore_index
+        bbox = torch.ones((instance_num, 8), device=device, dtype=coord.dtype) * self.instance_ignore_index
+        vacancy = coord.new_tensor(
+            [index for index in self.segment_ignore_index if index >= 0]
+        ) # vacate class index
 
         for instance_id in range(instance_num):
             mask_ = instance == instance_id
             coord_ = coord[mask_]
-            bbox_min = coord_.min(0)
-            bbox_max = coord_.max(0)
+            bbox_min = coord_.min(0)[0]
+            bbox_max = coord_.max(0)[0]
             bbox_centroid = coord_.mean(0)
             bbox_center = (bbox_max + bbox_min) / 2
             bbox_size = bbox_max - bbox_min
-            bbox_theta = np.zeros(1, dtype=coord_.dtype)
-            bbox_class = np.array([segment[mask_][0]], dtype=coord_.dtype)
+            bbox_theta = torch.zeros(1, dtype=coord_.dtype, device=device)
+            bbox_class = torch.tensor([segment[mask_][0]], dtype=coord_.dtype, device=device)
             # shift class index to fill vacate class index caused by segment ignore index
-            bbox_class -= np.greater(bbox_class, vacancy).sum()
-
+            bbox_class -= torch.sum(bbox_class > vacancy)
             centroid[mask_] = bbox_centroid
-            bbox[instance_id] = np.concatenate(
+            bbox[instance_id] = torch.cat(
                 [bbox_center, bbox_size, bbox_theta, bbox_class]
-            )  # 3 + 3 + 1 + 1 = 8
+            )
         data_dict["instance"] = instance
         data_dict["instance_centroid"] = centroid
         data_dict["bbox"] = bbox

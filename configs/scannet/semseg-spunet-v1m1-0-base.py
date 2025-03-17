@@ -66,6 +66,7 @@ data = dict(
         split="train",
         data_root=data_root,
         transform=[
+            dict(type="ToTensor"),
             dict(type="CenterShift", apply_z=True),
             dict(
                 type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
@@ -95,7 +96,6 @@ data = dict(
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ShufflePoint"),
-            dict(type="ToTensor"),
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
@@ -109,6 +109,7 @@ data = dict(
         split="val",
         data_root=data_root,
         transform=[
+            dict(type="ToTensor"),
             dict(type="CenterShift", apply_z=True),
             dict(
                 type="GridSample",
@@ -120,7 +121,6 @@ data = dict(
             # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
-            dict(type="ToTensor"),
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
@@ -134,6 +134,7 @@ data = dict(
         split="val",
         data_root=data_root,
         transform=[
+            dict(type="ToTensor"),
             dict(type="CenterShift", apply_z=True),
             dict(type="NormalizeColor"),
         ],
@@ -150,7 +151,6 @@ data = dict(
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
-                dict(type="ToTensor"),
                 dict(
                     type="Collect",
                     keys=("coord", "grid_coord", "index"),

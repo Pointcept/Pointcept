@@ -72,6 +72,7 @@ data = dict(
         split="train",
         data_root=data_root,
         transform=[
+            dict(type="ToTensor"),
             dict(type="CenterShift", apply_z=True),
             dict(
                 type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.5
@@ -105,7 +106,6 @@ data = dict(
                 segment_ignore_index=segment_ignore_index,
                 instance_ignore_index=-1,
             ),
-            dict(type="ToTensor"),
             dict(
                 type="Collect",
                 keys=(
@@ -126,6 +126,7 @@ data = dict(
         split="val",
         data_root=data_root,
         transform=[
+            dict(type="ToTensor"),
             dict(type="CenterShift", apply_z=True),
             dict(
                 type="Copy",
@@ -151,7 +152,6 @@ data = dict(
                 segment_ignore_index=segment_ignore_index,
                 instance_ignore_index=-1,
             ),
-            dict(type="ToTensor"),
             dict(
                 type="Collect",
                 keys=(

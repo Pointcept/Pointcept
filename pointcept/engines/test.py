@@ -175,6 +175,8 @@ class SemSegTester(TesterBase):
                 if "origin_segment" in data_dict.keys():
                     segment = data_dict["origin_segment"]
             else:
+                if isinstance(segment, torch.Tensor):
+                    segment = segment.cpu().numpy()
                 pred = torch.zeros((segment.size, self.cfg.data.num_classes)).cuda()
                 for i in range(len(fragment_list)):
                     fragment_batch_size = 1
