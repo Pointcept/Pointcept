@@ -1,8 +1,25 @@
 import sys
 import torch.nn as nn
 import spconv.pytorch as spconv
+
+try:
+    import ocnn
+except ImportError:
+    ocnn = None
+
 from collections import OrderedDict
 from pointcept.models.utils.structure import Point
+from pointcept.engines.hooks import HookBase
+
+
+def is_ocnn_module(module):
+    ocnn_modules = (
+        ocnn.nn.OctreeConv,
+        ocnn.nn.OctreeDeconv,
+        ocnn.nn.OctreeGroupConv,
+        ocnn.nn.OctreeDWConv,
+    )
+    return isinstance(module, ocnn_modules)
 
 
 class PointModule(nn.Module):
@@ -67,6 +84,14 @@ class PointSequential(PointModule):
                     input.feat = input.sparse_conv_feat.features
                 else:
                     input = module(input)
+            elif is_ocnn_module(module):
+                if isinstance(input, Point):
+                    input.octree.features[-1] = module(
+                        input.feat[input.octree_order], input.octree, input.octree.depth
+                    )
+                    input.feat = input.octree.features[-1][input.octree_inverse]
+                else:
+                    input = module(input)
             # PyTorch module
             else:
                 if isinstance(input, Point):
@@ -81,3 +106,12 @@ class PointSequential(PointModule):
                 else:
                     input = module(input)
         return input
+
+
+class PointModel(PointModule, HookBase):
+    r"""PointModel
+    placeholder, PointModel can be customized as a Pointcept hook.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)

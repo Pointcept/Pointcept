@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import MinkowskiEngine as ME
 from MinkowskiEngine import SparseTensor
-from timm.models.layers import trunc_normal_
+from timm.layers import trunc_normal_
 
 from .mink_layers import MinkConvBNRelu, MinkResBlock
 from .swin3d_layers import GridDownsample, GridKNNDownsample, BasicLayer, Upsample

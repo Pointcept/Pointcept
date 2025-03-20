@@ -18,7 +18,7 @@ except ImportError:
 
     warnings.warn("Please follow `README.md` to install spconv2.`")
 
-from timm.models.layers import trunc_normal_
+from timm.layers import trunc_normal_
 from pointcept.models.builder import MODELS
 
 

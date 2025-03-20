@@ -32,10 +32,18 @@ def collate_fn(batch):
         batch[-1] = torch.cumsum(batch[-1], dim=0).int()
         return batch
     elif isinstance(batch[0], Mapping):
-        batch = {key: collate_fn([d[key] for d in batch]) for key in batch[0]}
-        for key in batch.keys():
-            if "offset" in key:
-                batch[key] = torch.cumsum(batch[key], dim=0)
+        batch = {
+            key: (
+                collate_fn([d[key] for d in batch])
+                if "offset" not in key
+                # offset -> bincount -> concat bincount-> concat offset
+                else torch.cumsum(
+                    collate_fn([d[key].diff(prepend=torch.tensor([0])) for d in batch]),
+                    dim=0,
+                )
+            )
+            for key in batch[0]
+        }
         return batch
     else:
         return default_collate(batch)
@@ -46,9 +54,19 @@ def point_collate_fn(batch, mix_prob=0):
         batch[0], Mapping
     )  # currently, only support input_dict, rather than input_list
     batch = collate_fn(batch)
-    if "offset" in batch.keys():
-        # Mix3d (https://arxiv.org/pdf/2110.02210.pdf)
-        if random.random() < mix_prob:
+    if random.random() < mix_prob:
+        if "instance" in batch.keys():
+            offset = batch["offset"]
+            start = 0
+            num_instance = 0
+            for i in range(len(offset)):
+                if i % 2 == 0:
+                    num_instance = max(batch["instance"][start : offset[i]])
+                if i % 2 != 0:
+                    mask = batch["instance"][start : offset[i]] != -1
+                    batch["instance"][start : offset[i]] += num_instance * mask
+                start = offset[i]
+        if "offset" in batch.keys():
             batch["offset"] = torch.cat(
                 [batch["offset"][1:-1:2], batch["offset"][-1].unsqueeze(0)], dim=0
             )

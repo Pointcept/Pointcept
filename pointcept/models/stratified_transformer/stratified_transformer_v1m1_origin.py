@@ -14,7 +14,7 @@ except ImportError:
     FastBatchNorm1d = None
 
 from torch_scatter import scatter_softmax
-from timm.models.layers import DropPath, trunc_normal_
+from timm.layers import DropPath, trunc_normal_
 from torch_geometric.nn.pool import voxel_grid
 
 try:

@@ -187,7 +187,7 @@ data = dict(
                 segment_ignore_index=segment_ignore_index,
                 instance_ignore_index=-1,
             ),
-            dict(type="Add", keys_dict={"condition": "S3DIS"}),
+            dict(type="Update", keys_dict={"condition": "S3DIS"}),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
@@ -235,7 +235,7 @@ data = dict(
                 segment_ignore_index=segment_ignore_index,
                 instance_ignore_index=-1,
             ),
-            dict(type="Add", keys_dict={"condition": "S3DIS"}),
+            dict(type="Update", keys_dict={"condition": "S3DIS"}),
             dict(type="ToTensor"),
             dict(
                 type="Collect",

@@ -6,7 +6,11 @@ Please cite our work if the code is helpful to you.
 """
 
 import os
-import open3d as o3d
+
+try:
+    import open3d as o3d
+except ImportError:
+    o3d = None
 import numpy as np
 import torch
 
@@ -16,6 +20,41 @@ def to_numpy(x):
         x = x.clone().detach().cpu().numpy()
     assert isinstance(x, np.ndarray)
     return x
+
+
+def get_point_cloud(coord, color=None, verbose=True):
+    if not isinstance(coord, list):
+        coord = [coord]
+        if color is not None:
+            color = [color]
+
+    pcd_list = []
+    for i in range(len(coord)):
+        coord_ = to_numpy(coord[i])
+        if color is not None:
+            color_ = to_numpy(color[i])
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(coord_)
+        pcd.colors = o3d.utility.Vector3dVector(
+            np.ones_like(coord_) if color is None else color_
+        )
+        pcd_list.append(pcd)
+    if verbose:
+        o3d.visualization.draw_geometries(pcd_list)
+    return pcd_list
+
+
+def get_line_set(coord, line, color=(1.0, 0.0, 0.0), verbose=True):
+    coord = to_numpy(coord)
+    line = to_numpy(line)
+    colors = np.array([color for _ in range(len(line))])
+    line_set = o3d.geometry.LineSet()
+    line_set.points = o3d.utility.Vector3dVector(coord)
+    line_set.lines = o3d.utility.Vector2iVector(line)
+    line_set.colors = o3d.utility.Vector3dVector(colors)
+    if verbose:
+        o3d.visualization.draw_geometries([line_set])
+    return line_set
 
 
 def save_point_cloud(coord, color=None, file_path="pc.ply", logger=None):

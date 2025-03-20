@@ -193,7 +193,7 @@ data = dict(
                 segment_ignore_index=segment_ignore_index,
                 instance_ignore_index=-1,
             ),
-            dict(type="Add", keys_dict={"condition": "ScanNet"}),
+            dict(type="Update", keys_dict={"condition": "ScanNet"}),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
@@ -241,7 +241,7 @@ data = dict(
                 segment_ignore_index=segment_ignore_index,
                 instance_ignore_index=-1,
             ),
-            dict(type="Add", keys_dict={"condition": "ScanNet"}),
+            dict(type="Update", keys_dict={"condition": "ScanNet"}),
             dict(type="ToTensor"),
             dict(
                 type="Collect",

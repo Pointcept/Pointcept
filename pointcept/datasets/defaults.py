@@ -7,8 +7,10 @@ Please cite our work if the code is helpful to you.
 
 import os
 import glob
+import json
+from re import split
+
 import numpy as np
-import torch
 from copy import deepcopy
 from torch.utils.data import Dataset
 from collections.abc import Sequence
@@ -66,25 +68,34 @@ class DefaultDataset(Dataset):
         self.data_list = self.get_data_list()
         logger = get_root_logger()
         logger.info(
-            "Totally {} x {} samples in {} set.".format(
-                len(self.data_list), self.loop, split
+            "Totally {} x {} samples in {} {} set.".format(
+                len(self.data_list), self.loop, os.path.basename(self.data_root), split
             )
         )
 
     def get_data_list(self):
         if isinstance(self.split, str):
-            data_list = glob.glob(os.path.join(self.data_root, self.split, "*"))
+            split_list = [self.split]
         elif isinstance(self.split, Sequence):
-            data_list = []
-            for split in self.split:
-                data_list += glob.glob(os.path.join(self.data_root, split, "*"))
+            split_list = self.split
         else:
             raise NotImplementedError
+
+        data_list = []
+        for split in split_list:
+            if os.path.isfile(os.path.join(self.data_root, split)):
+                with open(os.path.join(self.data_root, split)) as f:
+                    data_list += [
+                        os.path.join(self.data_root, data) for data in json.load(f)
+                    ]
+            else:
+                data_list += glob.glob(os.path.join(self.data_root, split, "*"))
         return data_list
 
     def get_data(self, idx):
         data_path = self.data_list[idx % len(self.data_list)]
         name = self.get_data_name(idx)
+        split = self.get_split_name(idx)
         if self.cache:
             cache_name = f"pointcept-{name}"
             return shared_dict(cache_name)
@@ -98,6 +109,7 @@ class DefaultDataset(Dataset):
                 continue
             data_dict[asset[:-4]] = np.load(os.path.join(data_path, asset))
         data_dict["name"] = name
+        data_dict["split"] = split
 
         if "coord" in data_dict.keys():
             data_dict["coord"] = data_dict["coord"].astype(np.float32)
@@ -125,6 +137,11 @@ class DefaultDataset(Dataset):
 
     def get_data_name(self, idx):
         return os.path.basename(self.data_list[idx % len(self.data_list)])
+
+    def get_split_name(self, idx):
+        return os.path.basename(
+            os.path.dirname(self.data_list[idx % len(self.data_list)])
+        )
 
     def prepare_train_data(self, idx):
         # load data

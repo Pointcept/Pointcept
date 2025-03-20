@@ -5,6 +5,7 @@ Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
+import numpy as np
 import torch.optim.lr_scheduler as lr_scheduler
 from .registry import Registry
 
@@ -20,14 +21,12 @@ class MultiStepLR(lr_scheduler.MultiStepLR):
         total_steps,
         gamma=0.1,
         last_epoch=-1,
-        verbose=False,
     ):
         super().__init__(
             optimizer=optimizer,
             milestones=[int(rate * total_steps) for rate in milestones],
             gamma=gamma,
             last_epoch=last_epoch,
-            verbose=verbose,
         )
 
 
@@ -42,7 +41,6 @@ class MultiStepWithWarmupLR(lr_scheduler.LambdaLR):
         warmup_rate=0.05,
         warmup_scale=1e-6,
         last_epoch=-1,
-        verbose=False,
     ):
         milestones = [rate * total_steps for rate in milestones]
 
@@ -65,41 +63,55 @@ class MultiStepWithWarmupLR(lr_scheduler.LambdaLR):
             optimizer=optimizer,
             lr_lambda=multi_step_with_warmup,
             last_epoch=last_epoch,
-            verbose=verbose,
         )
 
 
 @SCHEDULERS.register_module()
 class PolyLR(lr_scheduler.LambdaLR):
-    def __init__(self, optimizer, total_steps, power=0.9, last_epoch=-1, verbose=False):
+    def __init__(
+        self,
+        optimizer,
+        total_steps,
+        power=0.9,
+        last_epoch=-1,
+    ):
         super().__init__(
             optimizer=optimizer,
             lr_lambda=lambda s: (1 - s / (total_steps + 1)) ** power,
             last_epoch=last_epoch,
-            verbose=verbose,
         )
 
 
 @SCHEDULERS.register_module()
 class ExpLR(lr_scheduler.LambdaLR):
-    def __init__(self, optimizer, total_steps, gamma=0.9, last_epoch=-1, verbose=False):
+    def __init__(
+        self,
+        optimizer,
+        total_steps,
+        gamma=0.9,
+        last_epoch=-1,
+    ):
         super().__init__(
             optimizer=optimizer,
             lr_lambda=lambda s: gamma ** (s / total_steps),
             last_epoch=last_epoch,
-            verbose=verbose,
         )
 
 
 @SCHEDULERS.register_module()
 class CosineAnnealingLR(lr_scheduler.CosineAnnealingLR):
-    def __init__(self, optimizer, total_steps, eta_min=0, last_epoch=-1, verbose=False):
+    def __init__(
+        self,
+        optimizer,
+        total_steps,
+        eta_min=0,
+        last_epoch=-1,
+    ):
         super().__init__(
             optimizer=optimizer,
             T_max=total_steps,
             eta_min=eta_min,
             last_epoch=last_epoch,
-            verbose=verbose,
         )
 
 
@@ -123,7 +135,6 @@ class OneCycleLR(lr_scheduler.OneCycleLR):
         final_div_factor=1e4,
         three_phase=False,
         last_epoch=-1,
-        verbose=False,
     ):
         super().__init__(
             optimizer=optimizer,
@@ -138,8 +149,53 @@ class OneCycleLR(lr_scheduler.OneCycleLR):
             final_div_factor=final_div_factor,
             three_phase=three_phase,
             last_epoch=last_epoch,
-            verbose=verbose,
         )
+
+
+class CosineScheduler(object):
+    def __init__(
+        self,
+        base_value,
+        final_value,
+        total_iters,
+        start_value=0,
+        warmup_iters=0,
+        freeze_value=None,
+        freeze_iters=0,
+    ):
+        self.base_value = base_value
+        self.final_value = final_value
+        self.total_iters = total_iters
+
+        warmup_schedule = np.linspace(start_value, base_value, warmup_iters)
+
+        if freeze_value is None:
+            freeze_value = final_value
+        freeze_schedule = np.ones(freeze_iters) * freeze_value
+
+        iters = np.arange(total_iters - warmup_iters - freeze_iters)
+        schedule = final_value + 0.5 * (base_value - final_value) * (
+            1 + np.cos(np.pi * iters / len(iters))
+        )
+        self.schedule = np.concatenate((warmup_schedule, schedule, freeze_schedule))
+        self.iter = 0
+
+    def get(self, it):
+        if it >= self.total_iters:
+            return self.final_value
+        else:
+            return self.schedule[it]
+
+    def step(self):
+        value = self.get(self.iter)
+        self.iter += 1
+        return value
+
+    def reset(self):
+        self.iter = 0
+
+    def __getitem__(self, it):
+        return self.get(it)
 
 
 def build_scheduler(cfg, optimizer):

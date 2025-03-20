@@ -16,7 +16,7 @@ from torch_geometric.nn.pool import voxel_grid
 from torch_scatter import segment_csr
 
 import einops
-from timm.models.layers import DropPath
+from timm.layers import DropPath
 import pointops
 
 from pointcept.models.builder import MODELS

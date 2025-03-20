@@ -104,7 +104,6 @@ data = dict(
                 grid_size=0.05,
                 hash_type="fnv",
                 mode="train",
-                keys=("coord", "strength", "segment"),
                 return_grid_coord=True,
             ),
             # dict(type="SphereCrop", point_max=1000000, mode="random"),
@@ -130,7 +129,6 @@ data = dict(
                 grid_size=0.05,
                 hash_type="fnv",
                 mode="train",
-                keys=("coord", "strength", "segment"),
                 return_grid_coord=True,
             ),
             dict(type="ToTensor"),
@@ -158,7 +156,6 @@ data = dict(
                 hash_type="fnv",
                 mode="test",
                 return_grid_coord=True,
-                keys=("coord", "strength"),
             ),
             crop=None,
             post_transform=[

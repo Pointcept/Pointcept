@@ -57,6 +57,7 @@ class ScanNetDataset(DefaultDataset):
     def get_data(self, idx):
         data_path = self.data_list[idx % len(self.data_list)]
         name = self.get_data_name(idx)
+        split = self.get_split_name(idx)
         if self.cache:
             cache_name = f"pointcept-{name}"
             return shared_dict(cache_name)
@@ -70,6 +71,7 @@ class ScanNetDataset(DefaultDataset):
                 continue
             data_dict[asset[:-4]] = np.load(os.path.join(data_path, asset))
         data_dict["name"] = name
+        data_dict["split"] = split
         data_dict["coord"] = data_dict["coord"].astype(np.float32)
         data_dict["color"] = data_dict["color"].astype(np.float32)
         data_dict["normal"] = data_dict["normal"].astype(np.float32)

@@ -6,7 +6,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from timm.models.layers import DropPath, trunc_normal_
+from timm.layers import DropPath, trunc_normal_
 import MinkowskiEngine as ME
 from MinkowskiEngine import SparseTensor
 from Swin3D.sparse_dl.attn.attn_coff import (

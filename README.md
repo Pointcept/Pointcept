@@ -1,10 +1,10 @@
 <p align="center">
     <!-- pypi-strip -->
     <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Pointcept/Pointcept/main/docs/logo_dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/Pointcept/Pointcept/main/docs/logo.png">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/pointcept/assets/main/pointcept/logo_dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/pointcept/assets/main/pointcept/logo.png">
     <!-- /pypi-strip -->
-    <img alt="pointcept" src="https://raw.githubusercontent.com/Pointcept/Pointcept/main/docs/logo.png" width="400">
+    <img alt="pointcept" src="https://raw.githubusercontent.com/pointcept/assets/main/pointcept/logo.png" width="400">
     <!-- pypi-strip -->
     </picture><br>
     <!-- /pypi-strip -->
@@ -13,20 +13,29 @@
 [![Formatter](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml/badge.svg)](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml)
 
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
+- 🚀 **Sonata: Self-Supervised Learning of Reliable Point Representations**  
+*Xiaoyang Wu, Daniel DeTone, Duncan Frost, Tianwei Shen, Chris Xie, Nan Yang, Jakob Engel, Richard Newcombe, Hengshuang Zhao, Julian Straub*  
+IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2025  
+[ Pretrain ] [Sonata] - [ [Project](https://xywu.me/sonata/) ] [ [arXiv]() ] [ [Bib](https://xywu.me/research/sonata/bib.txt) ] [ [Demo](https://github.com/facebookresearch/sonata) ] [ [Weight](https://huggingface.co/facebook/sonata) ] &rarr; [here](#sonata)
+
+
 - **Point Transformer V3: Simpler, Faster, Stronger**  
 *Xiaoyang Wu, Li Jiang, Peng-Shuai Wang, Zhijian Liu, Xihui Liu, Yu Qiao, Wanli Ouyang, Tong He, Hengshuang Zhao*  
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2024 - Oral  
 [ Backbone ] [PTv3] - [ [arXiv](https://arxiv.org/abs/2312.10035) ] [ [Bib](https://xywu.me/research/ptv3/bib.txt) ] [ [Project](https://github.com/Pointcept/PointTransformerV3) ] &rarr; [here](https://github.com/Pointcept/PointTransformerV3)
+
 
 - **OA-CNNs: Omni-Adaptive Sparse CNNs for 3D Semantic Segmentation**  
 *Bohao Peng, Xiaoyang Wu, Li Jiang, Yukang Chen, Hengshuang Zhao, Zhuotao Tian, Jiaya Jia*  
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2024  
 [ Backbone ] [ OA-CNNs ] - [ [arXiv](https://arxiv.org/abs/2403.14418) ] [ [Bib](https://xywu.me/research/oacnns/bib.txt) ] &rarr; [here](#oa-cnns)
 
+
 - **Towards Large-scale 3D Representation Learning with Multi-dataset Point Prompt Training**  
 *Xiaoyang Wu, Zhuotao Tian, Xin Wen, Bohao Peng, Xihui Liu, Kaicheng Yu, Hengshuang Zhao*  
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2024  
 [ Pretrain ] [PPT] - [ [arXiv](https://arxiv.org/abs/2308.09718) ] [ [Bib](https://xywu.me/research/ppt/bib.txt) ] &rarr; [here](#point-prompt-training-ppt)
+
 
 - **Masked Scene Contrast: A Scalable Framework for Unsupervised 3D Representation Learning**  
 *Xiaoyang Wu, Xin Wen, Xihui Liu, Hengshuang Zhao*  
@@ -72,14 +81,16 @@ Pre-training:
 [PointContrast](https://github.com/facebookresearch/PointContrast) ([here](#pointcontrast)), 
 [Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts)),
 [Masked Scene Contrast](https://arxiv.org/abs/2303.14191) ([here](#masked-scene-contrast-msc)),
-[Point Prompt Training](https://arxiv.org/abs/2308.09718) ([here](#point-prompt-training-ppt));  
+[Point Prompt Training](https://arxiv.org/abs/2308.09718) ([here](#point-prompt-training-ppt)),
+[Sonata]() ([here](#sonata));  
 Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
 [ScanNet++](https://kaldir.vc.in.tum.de/scannetpp/) ([here](#scannet)),
 [S3DIS](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1) ([here](#s3dis)),
+[ArkitScene](https://github.com/apple/ARKitScenes) ([here](#arkitscenes)),
+[HM3D](https://github.com/facebookresearch/habitat-matterport3d-dataset/) ([here](#habitat---matterport-3d-hm3d)),
 [Matterport3D](https://niessner.github.io/Matterport/) ([here](#matterport3d)),
-[ArkitScene](https://github.com/apple/ARKitScenes),
 [Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)),
 [SemanticKITTI](http://www.semantic-kitti.org/) ([here](#semantickitti)),
 [nuScenes](https://www.nuscenes.org/nuscenes) ([here](#nuscenes)),
@@ -88,6 +99,7 @@ Datasets:
 
 
 ## Highlights
+- *Mar, 2025* 🚀: **Sonata** is accepted by CVPR 2025! We release the code with Pointcept v1.6.0. We release the pre-training **[code](#sonata)** along with Pointcept v1.6.0 and provide an easy-to-use pre-trained model for inference, tuning, and visualization in our project **[repository](https://github.com/facebookresearch/sonata)** hosted by Meta.
 - *May, 2024*: In v1.5.2, we redesigned the default structure for each dataset for better performance. Please **re-preprocess** datasets or **download** our preprocessed datasets from **[here](https://huggingface.co/Pointcept)**.
 - *Apr, 2024*: **PTv3** is selected as one of the 90 **Oral** papers (3.3% accepted papers, 0.78% submissions) by CVPR'24!
 - *Mar, 2024*: We release code for **OA-CNNs**, accepted by CVPR'24. Issue related to **OA-CNNs** can @Pbihao.
@@ -116,7 +128,6 @@ If you find _Pointcept_ useful to your research, please cite our work as encoura
 - [Data Preparation](#data-preparation)
 - [Quick Start](#quick-start)
 - [Model Zoo](#model-zoo)
-- [Citation](#citation)
 - [Acknowledgement](#acknowledgement)
 
 ## Installation
@@ -127,39 +138,53 @@ If you find _Pointcept_ useful to your research, please cite our work as encoura
 - PyTorch: 1.10.0 and above.
 
 ### Conda Environment
+- **Method 1**: Utilize conda `environment.yml` to create a new environment with one line code:
+  ```bash
+  # Create and activate conda environment named as 'pointcept-torch2.5.0-cu12.4'
+  # cuda: 12.4, pytorch: 2.5.0
 
-```bash
-conda create -n pointcept python=3.8 -y
-conda activate pointcept
-conda install ninja -y
-# Choose version you want here: https://pytorch.org/get-started/previous-versions/
-conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 -c pytorch -y
-conda install h5py pyyaml -c anaconda -y
-conda install sharedarray tensorboard tensorboardx yapf addict einops scipy plyfile termcolor timm -c conda-forge -y
-conda install pytorch-cluster pytorch-scatter pytorch-sparse -c pyg -y
-pip install torch-geometric
+  # run `unset CUDA_PATH` if you have installed cuda in your local environment
+  conda env create -f environment.yml --verbose
+  conda activate pointcept-torch2.5.0-cu12.4
+  ```
 
-# spconv (SparseUNet)
-# refer https://github.com/traveller59/spconv
-pip install spconv-cu113
+- **Method 2**: Manually create a conda environment:
+  ```bash
+  conda create -n pointcept python=3.10 -y
+  conda activate pointcept
+  
+  # (Optional) If no CUDA installed
+  conda install nvidia/label/cuda-12.4.1::cuda conda-forge::cudnn conda-forge::gcc=13.2 conda-forge::gxx=13.2 -y
+  
+  conda install ninja -y
+  # Choose version you want here: https://pytorch.org/get-started/previous-versions/
+  conda install pytorch==2.5.0 torchvision==0.13.1 torchaudio==0.20.0 pytorch-cuda=12.4 -c pytorch -y
+  conda install h5py pyyaml -c anaconda -y
+  conda install sharedarray tensorboard tensorboardx yapf addict einops scipy plyfile termcolor timm -c conda-forge -y
+  conda install pytorch-cluster pytorch-scatter pytorch-sparse -c pyg -y
+  pip install torch-geometric
 
-# PPT (clip)
-pip install ftfy regex tqdm
-pip install git+https://github.com/openai/CLIP.git
+  # spconv (SparseUNet)
+  # refer https://github.com/traveller59/spconv
+  pip install spconv-cu124
 
-# PTv1 & PTv2 or precise eval
-cd libs/pointops
-# usual
-python setup.py install
-# docker & multi GPU arch
-TORCH_CUDA_ARCH_LIST="ARCH LIST" python  setup.py install
-# e.g. 7.5: RTX 3000; 8.0: a100 More available in: https://developer.nvidia.com/cuda-gpus
-TORCH_CUDA_ARCH_LIST="7.5 8.0" python  setup.py install
-cd ../..
+  # PPT (clip)
+  pip install ftfy regex tqdm
+  pip install git+https://github.com/openai/CLIP.git
 
-# Open3D (visualization, optional)
-pip install open3d
-```
+  # PTv1 & PTv2 or precise eval
+  cd libs/pointops
+  # usual
+  python setup.py install
+  # docker & multi GPU arch
+  TORCH_CUDA_ARCH_LIST="ARCH LIST" python  setup.py install
+  # e.g. 7.5: RTX 3000; 8.0: a100 More available in: https://developer.nvidia.com/cuda-gpus
+  TORCH_CUDA_ARCH_LIST="7.5 8.0" python  setup.py install
+  cd ../..
+
+  # Open3D (visualization, optional)
+  pip install open3d
+  ```
 
 ## Data Preparation
 
@@ -251,31 +276,61 @@ The preprocessing supports semantic and instance segmentation for both `ScanNet2
   mkdir data
   ln -s ${PROCESSED_S3DIS_DIR} ${CODEBASE_DIR}/data/s3dis
   ```
-### Structured3D
 
-- Download Structured3D panorama related and perspective (full) related zip files by filling this [Google form](https://docs.google.com/forms/d/e/1FAIpQLSc0qtvh4vHSoZaW6UvlXYy79MbcGdZfICjh4_t4bYofQIVIdw/viewform?pli=1) (no need to unzip them).
-- Organize all downloaded zip file in one folder (`${STRUCT3D_DIR}`).
-- Run preprocessing code for Structured3D as follows:
+
+### ArkitScenes
+
+- Download ArkitScenes 3DOD split with the following commands:
   ```bash
-  # STRUCT3D_DIR: the directory of downloaded Structured3D dataset.
-  # PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
-  # NUM_WORKERS: Number for workers for preprocessing, default same as cpu count (might OOM).
-  export PYTHONPATH=./
-  python pointcept/datasets/preprocessing/structured3d/preprocess_structured3d.py --dataset_root ${STRUCT3D_DIR} --output_root ${PROCESSED_STRUCT3D_DIR} --num_workers ${NUM_WORKERS} --grid_size 0.01 --fuse_prsp --fuse_pano
+  # RAW_AS_DIR: the directory of downloaded Raw ArkitScenes dataset.
+  git clone https://github.com/apple/ARKitScenes.git
+  cd ARKitScenes
+  python download_data.py 3dod --download_dir $RAW_AS_DIR --video_id_csv threedod/3dod_train_val_splits.csv
   ```
-Following the instruction of [Swin3D](https://arxiv.org/abs/2304.06906), we keep 25 categories with frequencies of more than 0.001, out of the original 40 categories.
+- Run preprocessing code for ArkitScenes as follows:
+  ```bash
+  # RAW_AS_DIR: the directory of downloaded ArkitScenes dataset.
+  # PROCESSED_AS_DIR: the directory of processed ArkitScenes dataset (output dir).
+  # NUM_WORKERS: Number for workers for preprocessing, default same as cpu count (might OOM).
+  cd $POINTCEPT_DIR
+  export PYTHONPATH=./
+  python pointcept/datasets/preprocessing/arkitscenes/preprocess_arkitscenes_mesh.py --dataset_root $RAW_AS_DIR --output_root $PROCESSED_AS_DIR --num_workers $NUM_WORKERS
+  ```
 
-[//]: # (- &#40;Alternative&#41; Our preprocess data can also be downloaded [[here]&#40;&#41;], please agree the official license before download it.)
-
-- (Alternative) Our preprocess data can also be downloaded [[here](https://huggingface.co/datasets/Pointcept/structured3d-compressed
-)] (with perspective views and panorama view, 471.7G after unzipping), please agree the official license before download it.
+- (Alternative) Our preprocess data can also be downloaded [[here](https://huggingface.co/datasets/Pointcept/arkitscenes-compressed
+)] please read and agree the official [license](https://github.com/apple/ARKitScenes?tab=License-1-ov-file#readme) before download it. (Unzip with the following command:  
+ `find ./ -name '*.tar.gz' | xargs -n 1 -P 8 -I {} sh -c 'tar -xzvf {}'`)
 
 - Link processed dataset to codebase.
   ```bash
-  # PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
+  # PROCESSED_AR_DIR: the directory of processed ArkitScenes dataset (output dir).
   mkdir data
-  ln -s ${PROCESSED_STRUCT3D_DIR} ${CODEBASE_DIR}/data/structured3d
+  ln -s ${PROCESSED_AR_DIR} ${CODEBASE_DIR}/data/arkitscenes
   ```
+
+### Habitat - Matterport 3D (HM3D)
+
+- Download HM3D `hm3d-train-glb-v0.2.tar` and `hm3d-val-glb-v0.2.tar` with instuction [here](https://github.com/facebookresearch/habitat-sim/blob/main/DATASETS.md#habitat-matterport-3d-research-dataset-hm3d) and unzip them.
+- Run preprocessing code for HM3D as follows:
+  ```bash
+  # RAW_HM_DIR: the directory of downloaded HM3D dataset.
+  # PROCESSED_HM_DIR: the directory of processed HM3D dataset (output dir).
+  # NUM_WORKERS: Number for workers for preprocessing, default same as cpu count (might OOM).
+  export PYTHONPATH=./
+  python pointcept/datasets/preprocessing/hm3d/preprocess_hm3d.py --dataset_root $RAW_HM_DIR --output_root $PROCESSED_HM_DIR --density 0.02 --num_workers $NUM_WORKERS
+  ```
+
+- (Alternative) Our preprocess data can also be downloaded [[here](https://huggingface.co/datasets/Pointcept/hm3d-compressed
+)] please read and agree the official [license](https://matterport.com/legal/matterport-end-user-license-agreement-academic-use-model-data) before download it. (Unzip with the following command:  
+ `find ./ -name '*.tar.gz' | xargs -n 1 -P 4 -I {} sh -c 'tar -xzvf {}'`)
+
+- Link processed dataset to codebase.
+  ```bash
+  # PROCESSED_HM_DIR: the directory of processed HM3D dataset (output dir).
+  mkdir data
+  ln -s ${PROCESSED_HM_DIR} ${CODEBASE_DIR}/data/hm3d
+
+
 ### Matterport3D
 - Follow [this page](https://niessner.github.io/Matterport/#download) to request access to the dataset.
 - Download the "region_segmentation" type, which represents the division of a scene into individual rooms.
@@ -305,6 +360,34 @@ Following the instruction of [Swin3D](https://arxiv.org/abs/2304.06906), we keep
 
 Following the instruction of [OpenRooms](https://github.com/ViLab-UCSD/OpenRooms), we remapped Matterport3D's categories to ScanNet 20 semantic categories with the addition of a ceiling category.
 * (Alternative) Our preprocess data can also be downloaded [here](https://huggingface.co/datasets/Pointcept/matterport3d-compressed), please agree the official license before download it.
+
+
+### Structured3D
+
+- Download Structured3D panorama related and perspective (full) related zip files by filling this [Google form](https://docs.google.com/forms/d/e/1FAIpQLSc0qtvh4vHSoZaW6UvlXYy79MbcGdZfICjh4_t4bYofQIVIdw/viewform?pli=1) (no need to unzip them).
+- Organize all downloaded zip file in one folder (`${STRUCT3D_DIR}`).
+- Run preprocessing code for Structured3D as follows:
+  ```bash
+  # STRUCT3D_DIR: the directory of downloaded Structured3D dataset.
+  # PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
+  # NUM_WORKERS: Number for workers for preprocessing, default same as cpu count (might OOM).
+  export PYTHONPATH=./
+  python pointcept/datasets/preprocessing/structured3d/preprocess_structured3d.py --dataset_root ${STRUCT3D_DIR} --output_root ${PROCESSED_STRUCT3D_DIR} --num_workers ${NUM_WORKERS} --grid_size 0.01 --fuse_prsp --fuse_pano
+  ```
+Following the instruction of [Swin3D](https://arxiv.org/abs/2304.06906), we keep 25 categories with frequencies of more than 0.001, out of the original 40 categories.
+
+[//]: # (- &#40;Alternative&#41; Our preprocess data can also be downloaded [[here]&#40;&#41;], please agree the official license before download it.)
+
+- (Alternative) Our preprocess data can also be downloaded [[here](https://huggingface.co/datasets/Pointcept/structured3d-compressed
+)] (with perspective views and panorama view, 471.7G after unzipping), please agree the official license before download it. (Unzip with the following command:  
+ `find ./ -name '*.tar.gz' | xargs -n 1 -P 15 -I {} sh -c 'tar -xzvf {}'`)
+
+- Link processed dataset to codebase.
+  ```bash
+  # PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
+  mkdir data
+  ln -s ${PROCESSED_STRUCT3D_DIR} ${CODEBASE_DIR}/data/structured3d
+  ```
 
 ### SemanticKITTI
 - Download [SemanticKITTI](http://www.semantic-kitti.org/dataset.html#download) dataset.
@@ -488,10 +571,10 @@ A visual illustration of batch and offset is as follows:
 <p align="center">
     <!-- pypi-strip -->
     <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Pointcept/Pointcept/main/docs/offset_dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/Pointcept/Pointcept/main/docs/offset.png">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/pointcept/assets/main/pointcept/offset_dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/pointcept/assets/main/pointcept/offset.png">
     <!-- /pypi-strip -->
-    <img alt="pointcept" src="https://raw.githubusercontent.com/Pointcept/Pointcept/main/docs/offset.png" width="480">
+    <img alt="pointcept" src="https://raw.githubusercontent.com/pointcept/assets/main/pointcept/offset.png" width="480">
     <!-- pypi-strip -->
     </picture><br>
     <!-- /pypi-strip -->
@@ -826,6 +909,11 @@ sh scripts/train.sh -g 4 -d scannet -c insseg-pointgroup-v1m1-0-spunet-base -n i
 ```
 
 ### 3. Pre-training
+#### Sonata
+Follow the instruction [here](https://github.com/Pointcept/Pointcept/tree/main/pointcept/models/sonata).
+
+
+
 #### Masked Scene Contrast (MSC)
 1. Pre-training with the following example scripts:
 ```bash

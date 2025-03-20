@@ -140,7 +140,6 @@ data = dict(
                 grid_size=0.04,
                 hash_type="fnv",
                 mode="test",
-                keys=("coord", "color", "normal"),
                 return_grid_coord=True,
                 return_displacement=True,
             ),

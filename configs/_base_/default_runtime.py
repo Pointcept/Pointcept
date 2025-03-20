@@ -15,6 +15,7 @@ clip_grad = None  # disable with None, enable with a float
 
 sync_bn = False
 enable_amp = False
+amp_dtype = "float16"
 empty_cache = False
 empty_cache_per_epoch = False
 find_unused_parameters = False
@@ -25,6 +26,7 @@ param_dicts = None  # example: param_dicts = [dict(keyword="block", lr_scale=0.1
 # hook
 hooks = [
     dict(type="CheckpointLoader"),
+    dict(type="ModelHook"),
     dict(type="IterationTimer", warmup_iter=2),
     dict(type="InformationWriter"),
     dict(type="SemSegEvaluator"),

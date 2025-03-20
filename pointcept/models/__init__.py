@@ -1,5 +1,6 @@
 from .builder import build_model
 from .default import DefaultSegmentor, DefaultClassifier
+from .modules import PointModule, PointModel
 
 # Backbones
 from .sparse_unet import *
@@ -22,3 +23,4 @@ from .point_group import *
 # Pretraining
 from .masked_scene_contrast import *
 from .point_prompt_training import *
+from .sonata import *

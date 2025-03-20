@@ -6,9 +6,15 @@ try:
 except ImportError:
     ocnn = None
 from addict import Dict
+from typing import List
 
-from pointcept.models.utils.serialization import encode, decode
-from pointcept.models.utils import offset2batch, batch2offset
+from pointcept.models.utils.serialization import encode
+from pointcept.models.utils import (
+    offset2batch,
+    batch2offset,
+    offset2bincount,
+    bincount2offset,
+)
 
 
 class Point(Dict):
@@ -50,6 +56,7 @@ class Point(Dict):
 
         relay on ["grid_coord" or "coord" + "grid_size", "batch", "feat"]
         """
+        self["order"] = order
         assert "batch" in self.keys()
         if "grid_coord" not in self.keys():
             # if you don't want to operate GridSampling in data augmentation,
@@ -57,13 +64,14 @@ class Point(Dict):
             # dict(type="Copy", keys_dict={"grid_size": 0.01}),
             # (adjust `grid_size` to what your want)
             assert {"grid_size", "coord"}.issubset(self.keys())
+
             self["grid_coord"] = torch.div(
                 self.coord - self.coord.min(0)[0], self.grid_size, rounding_mode="trunc"
             ).int()
 
         if depth is None:
             # Adaptive measure the depth of serialization cube (length = 2 ^ depth)
-            depth = int(self.grid_coord.max()).bit_length()
+            depth = int(self.grid_coord.max() + 1).bit_length()
         self["serialized_depth"] = depth
         # Maximum bit length for serialization code is 63 (int64)
         assert depth * 3 + len(self.offset).bit_length() <= 63
@@ -139,7 +147,7 @@ class Point(Dict):
         self["sparse_shape"] = sparse_shape
         self["sparse_conv_feat"] = sparse_conv_feat
 
-    def octreetization(self, depth=None, full_depth=None):
+    def octreelization(self, depth=None, full_depth=None):
         """
         Point Cloud Octreelization
 
@@ -149,15 +157,24 @@ class Point(Dict):
         assert (
             ocnn is not None
         ), "Please follow https://github.com/octree-nn/ocnn-pytorch install ocnn."
-        assert {"grid_coord", "feat", "batch"}.issubset(self.keys())
+        assert {"feat", "batch"}.issubset(self.keys())
         # add 1 to make grid space support shift order
+        if "grid_coord" not in self.keys():
+            # if you don't want to operate GridSampling in data augmentation,
+            # please add the following augmentation into your pipline:
+            # dict(type="Copy", keys_dict={"grid_size": 0.01}),
+            # (adjust `grid_size` to what your want)
+            assert {"grid_size", "coord"}.issubset(self.keys())
+            self["grid_coord"] = torch.div(
+                self.coord - self.coord.min(0)[0], self.grid_size, rounding_mode="trunc"
+            ).int()
         if depth is None:
             if "depth" in self.keys():
                 depth = self.depth
             else:
                 depth = int(self.grid_coord.max() + 1).bit_length()
         if full_depth is None:
-            full_depth = 2
+            full_depth = 1
         self["depth"] = depth
         assert depth <= 16  # maximum in ocnn
 
@@ -177,4 +194,16 @@ class Point(Dict):
         )
         octree.build_octree(point)
         octree.construct_all_neigh()
+
+        query_pts = torch.cat([self.grid_coord, point.batch_id], dim=1).contiguous()
+        inverse = octree.search_xyzb(query_pts, depth, True)
+        assert torch.sum(inverse < 0) == 0  # all mapping should be valid
+        inverse_ = torch.unique(inverse)
+        order = torch.zeros_like(inverse_).scatter_(
+            dim=0,
+            index=inverse,
+            src=torch.arange(0, inverse.shape[0], device=inverse.device),
+        )
         self["octree"] = octree
+        self["octree_order"] = order
+        self["octree_inverse"] = inverse

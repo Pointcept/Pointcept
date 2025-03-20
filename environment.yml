@@ -1,0 +1,50 @@
+name: pointcept-torch2.5.0-cu12.4
+channels:
+  - pytorch
+  - nvidia/label/cuda-12.4.1
+  - nvidia
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - cuda
+  - conda-forge::cudnn
+  - gcc=13.2
+  - gxx=13.2
+  - pytorch=2.5.0
+  - torchvision=0.20.0
+  - torchaudio=2.5.0
+  - pytorch-cuda=12.4
+  - ninja
+  - google-sparsehash
+  - h5py
+  - pyyaml
+  - tensorboard
+  - tensorboardx
+  - yapf
+  - addict
+  - einops
+  - scipy
+  - plyfile
+  - termcolor
+  - timm
+  - ftfy
+  - regex
+  - tqdm
+  - matplotlib
+  - black
+  - open3d
+  - pip:
+    - --find-links https://data.pyg.org/whl/torch-2.5.0+cu124.html
+    - torch-cluster
+    - torch-scatter
+    - torch-sparse
+    - torch-geometric
+    - spconv-cu124
+    - git+https://github.com/octree-nn/ocnn-pytorch.git
+    - git+https://github.com/openai/CLIP.git
+    - git+https://github.com/Dao-AILab/flash-attention.git
+    - ./libs/pointops
+    - ./libs/pointgroup_ops

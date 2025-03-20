@@ -228,9 +228,9 @@ if __name__ == "__main__":
     label_mapping = pd.read_csv(
         config.dataset_root / "metadata" / "semantic_benchmark" / "map_benchmark.csv"
     )
-    label_mapping = filter_map_classes(
-        label_mapping, count_thresh=0, count_type="count", mapping_type="semantic"
-    )
+    # label_mapping = filter_map_classes(
+    #     label_mapping, count_thresh=0, count_type="count", mapping_type="semantic"
+    # )
     class2idx = {
         class_name: idx for (idx, class_name) in enumerate(segment_class_names)
     }

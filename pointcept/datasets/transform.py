@@ -1,7 +1,5 @@
 """
-3D Point Cloud Augmentation
-
-Inspirited by chrischoy/SpatioTemporalSegmentation
+3D point cloud augmentation
 
 Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
@@ -21,6 +19,33 @@ from collections.abc import Sequence, Mapping
 from pointcept.utils.registry import Registry
 
 TRANSFORMS = Registry("transforms")
+
+
+def index_operator(data_dict, index, duplicate=False):
+    # index selection operator for keys in "index_valid_keys"
+    # custom these keys by "Update" transform in config
+    if "index_valid_keys" not in data_dict:
+        data_dict["index_valid_keys"] = [
+            "coord",
+            "color",
+            "normal",
+            "strength",
+            "segment",
+            "instance",
+        ]
+    if not duplicate:
+        for key in data_dict["index_valid_keys"]:
+            if key in data_dict:
+                data_dict[key] = data_dict[key][index]
+        return data_dict
+    else:
+        data_dict_ = dict()
+        for key in data_dict.keys():
+            if key in data_dict["index_valid_keys"]:
+                data_dict_[key] = data_dict[key][index]
+            else:
+                data_dict_[key] = data_dict[key]
+        return data_dict_
 
 
 @TRANSFORMS.register_module()
@@ -69,6 +94,19 @@ class Copy(object):
 
 
 @TRANSFORMS.register_module()
+class Update(object):
+    def __init__(self, keys_dict=None):
+        if keys_dict is None:
+            keys_dict = dict()
+        self.keys_dict = keys_dict
+
+    def __call__(self, data_dict):
+        for key, value in self.keys_dict.items():
+            data_dict[key] = value
+        return data_dict
+
+
+@TRANSFORMS.register_module()
 class ToTensor(object):
     def __call__(self, data):
         if isinstance(data, torch.Tensor):
@@ -97,23 +135,10 @@ class ToTensor(object):
 
 
 @TRANSFORMS.register_module()
-class Add(object):
-    def __init__(self, keys_dict=None):
-        if keys_dict is None:
-            keys_dict = dict()
-        self.keys_dict = keys_dict
-
-    def __call__(self, data_dict):
-        for key, value in self.keys_dict.items():
-            data_dict[key] = value
-        return data_dict
-
-
-@TRANSFORMS.register_module()
 class NormalizeColor(object):
     def __call__(self, data_dict):
         if "color" in data_dict.keys():
-            data_dict["color"] = data_dict["color"] / 127.5 - 1
+            data_dict["color"] = data_dict["color"] / 255
         return data_dict
 
 
@@ -203,18 +228,7 @@ class RandomDropout(object):
                 mask = np.zeros_like(data_dict["segment"]).astype(bool)
                 mask[data_dict["sampled_index"]] = True
                 data_dict["sampled_index"] = np.where(mask[idx])[0]
-            if "coord" in data_dict.keys():
-                data_dict["coord"] = data_dict["coord"][idx]
-            if "color" in data_dict.keys():
-                data_dict["color"] = data_dict["color"][idx]
-            if "normal" in data_dict.keys():
-                data_dict["normal"] = data_dict["normal"][idx]
-            if "strength" in data_dict.keys():
-                data_dict["strength"] = data_dict["strength"][idx]
-            if "segment" in data_dict.keys():
-                data_dict["segment"] = data_dict["segment"][idx]
-            if "instance" in data_dict.keys():
-                data_dict["instance"] = data_dict["instance"][idx]
+            data_dict = index_operator(data_dict, idx)
         return data_dict
 
 
@@ -786,7 +800,6 @@ class GridSample(object):
         grid_size=0.05,
         hash_type="fnv",
         mode="train",
-        keys=("coord", "color", "normal", "segment"),
         return_inverse=False,
         return_grid_coord=False,
         return_min_coord=False,
@@ -797,7 +810,6 @@ class GridSample(object):
         self.hash = self.fnv_hash_vec if hash_type == "fnv" else self.ravel_hash_vec
         assert mode in ["train", "test"]
         self.mode = mode
-        self.keys = keys
         self.return_inverse = return_inverse
         self.return_grid_coord = return_grid_coord
         self.return_min_coord = return_min_coord
@@ -830,11 +842,13 @@ class GridSample(object):
                 mask = np.zeros_like(data_dict["segment"]).astype(bool)
                 mask[data_dict["sampled_index"]] = True
                 data_dict["sampled_index"] = np.where(mask[idx_unique])[0]
+            data_dict = index_operator(data_dict, idx_unique)
             if self.return_inverse:
                 data_dict["inverse"] = np.zeros_like(inverse)
                 data_dict["inverse"][idx_sort] = inverse
             if self.return_grid_coord:
                 data_dict["grid_coord"] = grid_coord[idx_unique]
+                data_dict["index_valid_keys"].append("grid_coord")
             if self.return_min_coord:
                 data_dict["min_coord"] = min_coord.reshape([1, 3])
             if self.return_displacement:
@@ -846,8 +860,7 @@ class GridSample(object):
                         displacement * data_dict["normal"], axis=-1, keepdims=True
                     )
                 data_dict["displacement"] = displacement[idx_unique]
-            for key in self.keys:
-                data_dict[key] = data_dict[key][idx_unique]
+                data_dict["index_valid_keys"].append("displacement")
             return data_dict
 
         elif self.mode == "test":  # test mode
@@ -855,12 +868,14 @@ class GridSample(object):
             for i in range(count.max()):
                 idx_select = np.cumsum(np.insert(count, 0, 0)[0:-1]) + i % count
                 idx_part = idx_sort[idx_select]
-                data_part = dict(index=idx_part)
+                data_part = index_operator(data_dict, idx_part, duplicate=True)
+                data_part["index"] = idx_part
                 if self.return_inverse:
-                    data_dict["inverse"] = np.zeros_like(inverse)
-                    data_dict["inverse"][idx_sort] = inverse
+                    data_part["inverse"] = np.zeros_like(inverse)
+                    data_part["inverse"][idx_sort] = inverse
                 if self.return_grid_coord:
                     data_part["grid_coord"] = grid_coord[idx_part]
+                    data_dict["index_valid_keys"].append("grid_coord")
                 if self.return_min_coord:
                     data_part["min_coord"] = min_coord.reshape([1, 3])
                 if self.return_displacement:
@@ -872,11 +887,7 @@ class GridSample(object):
                             displacement * data_dict["normal"], axis=-1, keepdims=True
                         )
                     data_dict["displacement"] = displacement[idx_part]
-                for key in data_dict.keys():
-                    if key in self.keys:
-                        data_part[key] = data_dict[key][idx_part]
-                    else:
-                        data_part[key] = data_dict[key]
+                    data_dict["index_valid_keys"].append("displacement")
                 data_part_list.append(data_part)
             return data_part_list
         else:
@@ -935,58 +946,7 @@ class SphereCrop(object):
         )
 
         assert "coord" in data_dict.keys()
-        if self.mode == "all":
-            # TODO: Optimize
-            if "index" not in data_dict.keys():
-                data_dict["index"] = np.arange(data_dict["coord"].shape[0])
-            data_part_list = []
-            # coord_list, color_list, dist2_list, idx_list, offset_list = [], [], [], [], []
-            if data_dict["coord"].shape[0] > point_max:
-                coord_p, idx_uni = np.random.rand(
-                    data_dict["coord"].shape[0]
-                ) * 1e-3, np.array([])
-                while idx_uni.size != data_dict["index"].shape[0]:
-                    init_idx = np.argmin(coord_p)
-                    dist2 = np.sum(
-                        np.power(data_dict["coord"] - data_dict["coord"][init_idx], 2),
-                        1,
-                    )
-                    idx_crop = np.argsort(dist2)[:point_max]
-
-                    data_crop_dict = dict()
-                    if "coord" in data_dict.keys():
-                        data_crop_dict["coord"] = data_dict["coord"][idx_crop]
-                    if "grid_coord" in data_dict.keys():
-                        data_crop_dict["grid_coord"] = data_dict["grid_coord"][idx_crop]
-                    if "normal" in data_dict.keys():
-                        data_crop_dict["normal"] = data_dict["normal"][idx_crop]
-                    if "color" in data_dict.keys():
-                        data_crop_dict["color"] = data_dict["color"][idx_crop]
-                    if "displacement" in data_dict.keys():
-                        data_crop_dict["displacement"] = data_dict["displacement"][
-                            idx_crop
-                        ]
-                    if "strength" in data_dict.keys():
-                        data_crop_dict["strength"] = data_dict["strength"][idx_crop]
-                    data_crop_dict["weight"] = dist2[idx_crop]
-                    data_crop_dict["index"] = data_dict["index"][idx_crop]
-                    data_part_list.append(data_crop_dict)
-
-                    delta = np.square(
-                        1 - data_crop_dict["weight"] / np.max(data_crop_dict["weight"])
-                    )
-                    coord_p[idx_crop] += delta
-                    idx_uni = np.unique(
-                        np.concatenate((idx_uni, data_crop_dict["index"]))
-                    )
-            else:
-                data_crop_dict = data_dict.copy()
-                data_crop_dict["weight"] = np.zeros(data_dict["coord"].shape[0])
-                data_crop_dict["index"] = data_dict["index"]
-                data_part_list.append(data_crop_dict)
-            return data_part_list
-        # mode is "random" or "center"
-        elif data_dict["coord"].shape[0] > point_max:
+        if data_dict["coord"].shape[0] > point_max:
             if self.mode == "random":
                 center = data_dict["coord"][
                     np.random.randint(data_dict["coord"].shape[0])
@@ -998,24 +958,7 @@ class SphereCrop(object):
             idx_crop = np.argsort(np.sum(np.square(data_dict["coord"] - center), 1))[
                 :point_max
             ]
-            if "coord" in data_dict.keys():
-                data_dict["coord"] = data_dict["coord"][idx_crop]
-            if "origin_coord" in data_dict.keys():
-                data_dict["origin_coord"] = data_dict["origin_coord"][idx_crop]
-            if "grid_coord" in data_dict.keys():
-                data_dict["grid_coord"] = data_dict["grid_coord"][idx_crop]
-            if "color" in data_dict.keys():
-                data_dict["color"] = data_dict["color"][idx_crop]
-            if "normal" in data_dict.keys():
-                data_dict["normal"] = data_dict["normal"][idx_crop]
-            if "segment" in data_dict.keys():
-                data_dict["segment"] = data_dict["segment"][idx_crop]
-            if "instance" in data_dict.keys():
-                data_dict["instance"] = data_dict["instance"][idx_crop]
-            if "displacement" in data_dict.keys():
-                data_dict["displacement"] = data_dict["displacement"][idx_crop]
-            if "strength" in data_dict.keys():
-                data_dict["strength"] = data_dict["strength"][idx_crop]
+            data_dict = index_operator(data_dict, idx_crop)
         return data_dict
 
 
@@ -1025,20 +968,7 @@ class ShufflePoint(object):
         assert "coord" in data_dict.keys()
         shuffle_index = np.arange(data_dict["coord"].shape[0])
         np.random.shuffle(shuffle_index)
-        if "coord" in data_dict.keys():
-            data_dict["coord"] = data_dict["coord"][shuffle_index]
-        if "grid_coord" in data_dict.keys():
-            data_dict["grid_coord"] = data_dict["grid_coord"][shuffle_index]
-        if "displacement" in data_dict.keys():
-            data_dict["displacement"] = data_dict["displacement"][shuffle_index]
-        if "color" in data_dict.keys():
-            data_dict["color"] = data_dict["color"][shuffle_index]
-        if "normal" in data_dict.keys():
-            data_dict["normal"] = data_dict["normal"][shuffle_index]
-        if "segment" in data_dict.keys():
-            data_dict["segment"] = data_dict["segment"][shuffle_index]
-        if "instance" in data_dict.keys():
-            data_dict["instance"] = data_dict["instance"][shuffle_index]
+        data_dict = index_operator(data_dict, shuffle_index)
         return data_dict
 
 
@@ -1048,18 +978,7 @@ class CropBoundary(object):
         assert "segment" in data_dict
         segment = data_dict["segment"].flatten()
         mask = (segment != 0) * (segment != 1)
-        if "coord" in data_dict.keys():
-            data_dict["coord"] = data_dict["coord"][mask]
-        if "grid_coord" in data_dict.keys():
-            data_dict["grid_coord"] = data_dict["grid_coord"][mask]
-        if "color" in data_dict.keys():
-            data_dict["color"] = data_dict["color"][mask]
-        if "normal" in data_dict.keys():
-            data_dict["normal"] = data_dict["normal"][mask]
-        if "segment" in data_dict.keys():
-            data_dict["segment"] = data_dict["segment"][mask]
-        if "instance" in data_dict.keys():
-            data_dict["instance"] = data_dict["instance"][mask]
+        data_dict = index_operator(data_dict, mask)
         return data_dict
 
 
@@ -1085,6 +1004,126 @@ class ContrastiveViewsGenerator(object):
             data_dict["view1_" + key] = value
         for key, value in view2_dict.items():
             data_dict["view2_" + key] = value
+        return data_dict
+
+
+@TRANSFORMS.register_module()
+class MultiViewGenerator(object):
+    def __init__(
+        self,
+        global_view_num=2,
+        global_view_scale=(0.4, 1.0),
+        local_view_num=4,
+        local_view_scale=(0.1, 0.4),
+        global_shared_transform=None,
+        global_transform=None,
+        local_transform=None,
+        max_size=65536,
+        center_height_scale=(0, 1),
+        shared_global_view=False,
+        view_keys=("coord", "origin_coord", "color", "normal"),
+    ):
+        self.global_view_num = global_view_num
+        self.global_view_scale = global_view_scale
+        self.local_view_num = local_view_num
+        self.local_view_scale = local_view_scale
+        self.global_shared_transform = Compose(global_shared_transform)
+        self.global_transform = Compose(global_transform)
+        self.local_transform = Compose(local_transform)
+        self.max_size = max_size
+        self.center_height_scale = center_height_scale
+        self.shared_global_view = shared_global_view
+        self.view_keys = view_keys
+        assert "coord" in view_keys
+
+    def get_view(self, point, center, scale):
+        coord = point["coord"]
+        max_size = min(self.max_size, coord.shape[0])
+        size = int(np.random.uniform(*scale) * max_size)
+        index = np.argsort(np.sum(np.square(coord - center), axis=-1))[:size]
+        view = dict(index=index)
+        for key in point.keys():
+            if key in self.view_keys:
+                view[key] = point[key][index]
+
+        if "index_valid_keys" in point.keys():
+            # inherit index_valid_keys from point
+            view["index_valid_keys"] = point["index_valid_keys"]
+        return view
+
+    def __call__(self, data_dict):
+        coord = data_dict["coord"]
+        point = self.global_shared_transform(copy.deepcopy(data_dict))
+        z_min = coord[:, 2].min()
+        z_max = coord[:, 2].max()
+        z_min_ = z_min + (z_max - z_min) * self.center_height_scale[0]
+        z_max_ = z_min + (z_max - z_min) * self.center_height_scale[1]
+        center_mask = np.logical_and(coord[:, 2] >= z_min_, coord[:, 2] <= z_max_)
+        # get major global view
+        major_center = coord[np.random.choice(np.where(center_mask)[0])]
+        major_view = self.get_view(point, major_center, self.global_view_scale)
+        major_coord = major_view["coord"]
+        # get global views: restrict the center of left global view within the major global view
+        if not self.shared_global_view:
+            global_views = [
+                self.get_view(
+                    point=point,
+                    center=major_coord[np.random.randint(major_coord.shape[0])],
+                    scale=self.global_view_scale,
+                )
+                for _ in range(self.global_view_num - 1)
+            ]
+        else:
+            global_views = [
+                {key: value.copy() for key, value in major_view.items()}
+                for _ in range(self.global_view_num - 1)
+            ]
+
+        global_views = [major_view] + global_views
+
+        # get local views: restrict the center of local view within the major global view
+        cover_mask = np.zeros_like(major_view["index"], dtype=bool)
+        local_views = []
+        for i in range(self.local_view_num):
+            if sum(~cover_mask) == 0:
+                # reset cover mask if all points are sampled
+                cover_mask[:] = False
+            local_view = self.get_view(
+                point=data_dict,
+                center=major_coord[np.random.choice(np.where(~cover_mask)[0])],
+                scale=self.local_view_scale,
+            )
+            local_views.append(local_view)
+            cover_mask[np.isin(major_view["index"], local_view["index"])] = True
+
+        # augmentation and concat
+        view_dict = {}
+        for global_view in global_views:
+            global_view.pop("index")
+            global_view = self.global_transform(global_view)
+            for key in self.view_keys:
+                if f"global_{key}" in view_dict.keys():
+                    view_dict[f"global_{key}"].append(global_view[key])
+                else:
+                    view_dict[f"global_{key}"] = [global_view[key]]
+        view_dict["global_offset"] = np.cumsum(
+            [data.shape[0] for data in view_dict["global_coord"]]
+        )
+        for local_view in local_views:
+            local_view.pop("index")
+            local_view = self.local_transform(local_view)
+            for key in self.view_keys:
+                if f"local_{key}" in view_dict.keys():
+                    view_dict[f"local_{key}"].append(local_view[key])
+                else:
+                    view_dict[f"local_{key}"] = [local_view[key]]
+        view_dict["local_offset"] = np.cumsum(
+            [data.shape[0] for data in view_dict["local_coord"]]
+        )
+        for key in view_dict.keys():
+            if "offset" not in key:
+                view_dict[key] = np.concatenate(view_dict[key], axis=0)
+        data_dict.update(view_dict)
         return data_dict
 
 

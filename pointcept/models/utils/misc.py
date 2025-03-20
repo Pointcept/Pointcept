@@ -6,16 +6,22 @@ Please cite our work if the code is helpful to you.
 """
 
 import torch
+from itertools import chain
 
 
-@torch.inference_mode()
+@torch.no_grad()
 def offset2bincount(offset):
     return torch.diff(
         offset, prepend=torch.tensor([0], device=offset.device, dtype=torch.long)
     )
 
 
-@torch.inference_mode()
+@torch.no_grad()
+def bincount2offset(bincount):
+    return torch.cumsum(bincount, dim=0)
+
+
+@torch.no_grad()
 def offset2batch(offset):
     bincount = offset2bincount(offset)
     return torch.arange(
@@ -23,7 +29,7 @@ def offset2batch(offset):
     ).repeat_interleave(bincount)
 
 
-@torch.inference_mode()
+@torch.no_grad()
 def batch2offset(batch):
     return torch.cumsum(batch.bincount(), dim=0).long()
 

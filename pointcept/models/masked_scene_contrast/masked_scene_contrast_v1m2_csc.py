@@ -13,7 +13,7 @@ import torch.nn as nn
 import torch.distributed as dist
 from torch_geometric.nn.pool import voxel_grid
 
-from timm.models.layers import trunc_normal_
+from timm.layers import trunc_normal_
 import pointops
 
 from pointcept.models.builder import MODELS, build_model
