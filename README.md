@@ -16,7 +16,7 @@
 - 🚀 **Sonata: Self-Supervised Learning of Reliable Point Representations**  
 *Xiaoyang Wu, Daniel DeTone, Duncan Frost, Tianwei Shen, Chris Xie, Nan Yang, Jakob Engel, Richard Newcombe, Hengshuang Zhao, Julian Straub*  
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2025  
-[ Pretrain ] [Sonata] - [ [Project](https://xywu.me/sonata/) ] [ [arXiv]() ] [ [Bib](https://xywu.me/research/sonata/bib.txt) ] [ [Demo](https://github.com/facebookresearch/sonata) ] [ [Weight](https://huggingface.co/facebook/sonata) ] &rarr; [here](#sonata)
+[ Pretrain ] [Sonata] - [ [Project](https://xywu.me/sonata/) ] [ [arXiv](https://arxiv.org/abs/2503.16429) ] [ [Bib](https://xywu.me/research/sonata/bib.txt) ] [ [Demo](https://github.com/facebookresearch/sonata) ] [ [Weight](https://huggingface.co/facebook/sonata) ] &rarr; [here](#sonata)
 
 
 - **Point Transformer V3: Simpler, Faster, Stronger**  

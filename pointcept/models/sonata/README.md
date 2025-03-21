@@ -3,7 +3,7 @@ This repo is the official training codebase of the paper **_Sonata: Self-Supervi
 
 *We recommend beginning with our inference [demo](https://github.com/facebookresearch/sonata) and it is also a tiny library for people who want to integrate pre-trained Sonata into their project. This section is designed for users interested in reproduce our pre-training.*
 
-[ **Pretrain** ] [ **Sonata** ] - [ [Homepage](https://xywu.me/sonata/) ] [ [Paper]() ] [ [Inference Demo](https://github.com/facebookresearch/sonata) ] [ [Bib](#citation) ]
+[ **Pretrain** ] [ **Sonata** ] - [ [Homepage](https://xywu.me/sonata/) ] [ [Paper](https://arxiv.org/abs/2503.16429) ] [ [Inference Demo](https://github.com/facebookresearch/sonata) ] [ [Bib](#citation) ]
 
 <div align='left'>
 <img src="https://raw.githubusercontent.com/pointcept/assets/main/sonata/teaser.png" alt="teaser" width="800" />
