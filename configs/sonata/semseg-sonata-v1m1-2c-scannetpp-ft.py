@@ -147,6 +147,15 @@ data = dict(
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(type="NormalizeColor"),
+            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
+            dict(
+                type="GridSample",
+                grid_size=0.01,
+                hash_type="fnv",
+                mode="train",
+                keys=("coord", "color", "normal", "segment"),
+                return_inverse=True,
+            ),
         ],
         test_mode=True,
         test_cfg=dict(
