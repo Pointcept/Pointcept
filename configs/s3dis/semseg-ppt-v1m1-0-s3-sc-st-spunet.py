@@ -359,7 +359,6 @@ data = dict(
                 hash_type="fnv",
                 mode="test",
                 return_grid_coord=True,
-                keys=("coord", "color", "normal"),
             ),
             crop=None,
             post_transform=[
