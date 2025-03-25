@@ -9,6 +9,12 @@ num_worker = 24
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
+# logging settings
+enable_wandb = True
+wandb_project_name = "pointcept"
+wandb_tags = ["PTv3"]
+use_step_logging = True
+log_every = 500
 
 # model settings
 model = dict(
