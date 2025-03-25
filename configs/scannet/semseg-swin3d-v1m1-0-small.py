@@ -163,7 +163,6 @@ data = dict(
                 mode="test",
                 return_grid_coord=True,
                 return_displacement=True,
-                keys=("coord", "color", "normal"),
             ),
             crop=None,
             post_transform=[

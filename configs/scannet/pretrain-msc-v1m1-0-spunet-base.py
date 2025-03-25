@@ -113,7 +113,6 @@ data = dict(
                         grid_size=0.02,
                         hash_type="fnv",
                         mode="train",
-                        keys=("origin_coord", "coord", "color", "normal"),
                         return_grid_coord=True,
                     ),
                     dict(type="SphereCrop", sample_rate=0.6, mode="random"),

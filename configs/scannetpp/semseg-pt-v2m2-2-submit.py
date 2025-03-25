@@ -120,7 +120,6 @@ data = dict(
                 grid_size=0.01,
                 hash_type="fnv",
                 mode="train",
-                keys=("coord", "color", "normal", "segment"),
                 return_inverse=True,
             ),
         ],

@@ -92,8 +92,7 @@ data = dict(
             #      grid_size=0.02,
             #      hash_type='fnv',
             #      mode='train',
-            #      return_grid_coord=True,
-            #      keys=("coord", "color", "normal", "segment", "instance")),
+            #      return_grid_coord=True,),
             # dict(type="SphereCrop", sample_rate=0.8, mode='random'),
             # dict(type="NormalizeColor"),
             dict(
@@ -137,7 +136,6 @@ data = dict(
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
-                keys=("coord", "color", "normal", "segment", "instance"),
             ),
             # dict(type="SphereCrop", point_max=1000000, mode='center'),
             dict(type="CenterShift", apply_z=False),
