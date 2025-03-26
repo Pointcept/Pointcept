@@ -146,9 +146,7 @@ class DefaultDataset(Dataset):
     def prepare_train_data(self, idx):
         # load data
         data_dict = self.get_data(idx)
-        name = data_dict["name"]
         data_dict = self.transform(data_dict)
-        data_dict["name"] = name
         return data_dict
 
     def prepare_test_data(self, idx):

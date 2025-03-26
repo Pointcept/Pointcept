@@ -90,3 +90,14 @@ class ScanNetPPTrainEvalSample(ScanNetPPDataset):
 
     def __len__(self):
         return self.nsamples
+
+
+@DATASETS.register_module()
+class ScanNetPPTestInstanceSegmentation(ScanNetPPDataset):
+    def prepare_train_data(self, idx):
+        # load data
+        data_dict = self.get_data(idx)
+        name = data_dict["name"]
+        data_dict = self.transform(data_dict)
+        data_dict["name"] = name
+        return data_dict

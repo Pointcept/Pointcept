@@ -317,7 +317,7 @@ data = dict(
         test_mode=False,
     ),
     test=dict(
-        type=dataset_type,
+        type="ScanNetPPTestInstanceSegmentation",
         split="val",
         data_root=data_root,
         transform=[
