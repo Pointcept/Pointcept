@@ -398,6 +398,14 @@ class EventStorage:
             raise KeyError("No history metric available for {}!".format(name))
         return ret
 
+    def includes(self, name):
+        """
+        Returns:
+            bool: if the history includes the metric
+        """
+        ret = self._history.get(name, None)
+        return ret is not None
+
     def histories(self):
         """
         Returns:
