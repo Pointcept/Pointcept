@@ -93,8 +93,10 @@ class ClsEvaluator(HookBase):
             self.trainer.writer.add_scalar("val/mAcc", m_acc, current_epoch)
             self.trainer.writer.add_scalar("val/allAcc", all_acc, current_epoch)
         self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
-        self.trainer.comm_info["current_metric_value"] = all_acc  # save for saver
-        self.trainer.comm_info["current_metric_name"] = "allAcc"  # save for saver
+        # save for saver
+        self.trainer.comm_info["current_metric_value"] = all_acc
+        # save for saver
+        self.trainer.comm_info["current_metric_name"] = "allAcc"
 
     def after_train(self):
         self.trainer.logger.info(
@@ -214,8 +216,10 @@ class SemSegEvaluator(HookBase):
                         }
                     )
         self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
-        self.trainer.comm_info["current_metric_value"] = m_iou  # save for saver
-        self.trainer.comm_info["current_metric_name"] = "mIoU"  # save for saver
+        # save for saver
+        self.trainer.comm_info["current_metric_value"] = m_iou
+        # save for saver
+        self.trainer.comm_info["current_metric_name"] = "mIoU"
 
     def after_train(self):
         self.trainer.logger.info(
@@ -297,7 +301,13 @@ class SemSegEvaluatorTrain(HookBase):
 
 @HOOKS.register_module()
 class InsSegEvaluator(HookBase):
-    def __init__(self, segment_ignore_index=(-1,), instance_ignore_index=-1):
+    def __init__(
+        self,
+        segment_ignore_index=(-1,),
+        instance_ignore_index=-1,
+        use_eval_train=False,
+        write_cls_ap=False,
+    ):
         self.segment_ignore_index = segment_ignore_index
         self.instance_ignore_index = instance_ignore_index
 
@@ -306,6 +316,8 @@ class InsSegEvaluator(HookBase):
         self.min_region_sizes = 100
         self.distance_threshes = float("inf")
         self.distance_confs = -float("inf")
+        self.use_eval_train = use_eval_train
+        self.write_cls_ap = write_cls_ap
 
     def before_train(self):
         self.valid_class_names = [
@@ -317,6 +329,8 @@ class InsSegEvaluator(HookBase):
     def after_epoch(self):
         if self.trainer.cfg.evaluate:
             self.eval()
+            if self.use_eval_train and self.trainer.train_eval_loader is not None:
+                self.eval_train()
 
     def associate_instances(self, pred, segment, instance):
         segment = segment.cpu().numpy()
@@ -655,6 +669,8 @@ class InsSegEvaluator(HookBase):
                 all_ap, all_ap_50, all_ap_25
             )
         )
+
+        current_epoch = self.trainer.epoch + 1
         for i, label_name in enumerate(self.valid_class_names):
             ap = ap_scores["classes"][label_name]["ap"]
             ap_50 = ap_scores["classes"][label_name]["ap50%"]
@@ -664,12 +680,132 @@ class InsSegEvaluator(HookBase):
                     idx=i, name=label_name, AP=ap, AP50=ap_50, AP25=ap_25
                 )
             )
-        current_epoch = self.trainer.epoch + 1
+            if self.write_cls_ap:
+                self.trainer.wandb.log({f"val_AP/cls_{i}-{label_name}": ap})
+                self.trainer.wandb.log({f"val_AP50/cls_{i}-{label_name}": ap_50})
+                self.trainer.wandb.log({f"val_AP25/cls_{i}-{label_name}": ap_25})
+                self.trainer.writer.add_scalar(
+                    "val_AP/cls_{i}-{label_name}", ap, current_epoch
+                )
+                self.trainer.writer.add_scalar(
+                    "val_AP/cls_{i}-{label_name}", ap_50, current_epoch
+                )
+                self.trainer.writer.add_scalar(
+                    "val_AP/cls_{i}-{label_name}", ap_25, current_epoch
+                )
+
         if self.trainer.writer is not None:
             self.trainer.writer.add_scalar("val/loss", loss_avg, current_epoch)
             self.trainer.writer.add_scalar("val/mAP", all_ap, current_epoch)
             self.trainer.writer.add_scalar("val/AP50", all_ap_50, current_epoch)
             self.trainer.writer.add_scalar("val/AP25", all_ap_25, current_epoch)
+
+            self.trainer.wandb.log({"val/loss": loss_avg})
+            self.trainer.wandb.log({"val/mAP": all_ap})
+            self.trainer.wandb.log({"val/AP50": all_ap_50})
+            self.trainer.wandb.log({"val/AP25": all_ap_25})
         self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
-        self.trainer.comm_info["current_metric_value"] = all_ap_50  # save for saver
-        self.trainer.comm_info["current_metric_name"] = "AP50"  # save for saver
+        # save for saver
+        self.trainer.comm_info["current_metric_value"] = all_ap_50
+        # save for saver
+        self.trainer.comm_info["current_metric_name"] = "AP50"
+
+    def eval_train(self):
+        self.trainer.logger.info(
+            ">>>>>>>>>>>>>>>> Start Train Evaluation >>>>>>>>>>>>>>>>"
+        )
+        self.trainer.model.eval()
+        scenes = []
+        for i, input_dict in enumerate(self.trainer.train_eval_loader):
+            assert (
+                len(input_dict["offset"]) == 1
+            )  # currently only support bs 1 for each GPU
+            for key in input_dict.keys():
+                if isinstance(input_dict[key], torch.Tensor):
+                    input_dict[key] = input_dict[key].cuda(non_blocking=True)
+            with torch.no_grad():
+                output_dict = self.trainer.model(input_dict)
+
+            loss = output_dict["loss"]
+
+            segment = input_dict["segment"]
+            instance = input_dict["instance"]
+            # map to origin
+            if "origin_coord" in input_dict.keys():
+                idx, _ = pointops.knn_query(
+                    1,
+                    input_dict["coord"].float(),
+                    input_dict["offset"].int(),
+                    input_dict["origin_coord"].float(),
+                    input_dict["origin_offset"].int(),
+                )
+                idx = idx.cpu().flatten().long()
+                output_dict["pred_masks"] = output_dict["pred_masks"][:, idx]
+                segment = input_dict["origin_segment"]
+                instance = input_dict["origin_instance"]
+
+            gt_instances, pred_instance = self.associate_instances(
+                output_dict, segment, instance
+            )
+            scenes.append(dict(gt=gt_instances, pred=pred_instance))
+
+            self.trainer.storage.put_scalar("val_loss", loss.item())
+            self.trainer.logger.info(
+                "trainEval: [{iter}/{max_iter}] "
+                "Loss {loss:.4f} ".format(
+                    iter=i + 1,
+                    max_iter=len(self.trainer.train_eval_loader),
+                    loss=loss.item(),
+                )
+            )
+
+        loss_avg = self.trainer.storage.history("val_loss").avg
+        comm.synchronize()
+        scenes_sync = comm.gather(scenes, dst=0)
+        scenes = [scene for scenes_ in scenes_sync for scene in scenes_]
+        ap_scores = self.evaluate_matches(scenes)
+        all_ap = ap_scores["all_ap"]
+        all_ap_50 = ap_scores["all_ap_50%"]
+        all_ap_25 = ap_scores["all_ap_25%"]
+        self.trainer.logger.info(
+            "trainEval result: mAP/AP50/AP25 {:.4f}/{:.4f}/{:.4f}.".format(
+                all_ap, all_ap_50, all_ap_25
+            )
+        )
+        current_epoch = self.trainer.epoch + 1
+        for i, label_name in enumerate(self.valid_class_names):
+            ap = ap_scores["classes"][label_name]["ap"]
+            ap_50 = ap_scores["classes"][label_name]["ap50%"]
+            ap_25 = ap_scores["classes"][label_name]["ap25%"]
+            self.trainer.logger.info(
+                "Class_{idx}-{name} Result: AP/AP50/AP25 {AP:.4f}/{AP50:.4f}/{AP25:.4f}".format(
+                    idx=i, name=label_name, AP=ap, AP50=ap_50, AP25=ap_25
+                )
+            )
+            if self.write_cls_ap:
+                self.trainer.wandb.log({f"val_AP/cls_{i}-{label_name}": ap})
+                self.trainer.wandb.log({f"trainEval_AP50/cls_{i}-{label_name}": ap_50})
+                self.trainer.wandb.log({f"trainEval_AP25/cls_{i}-{label_name}": ap_25})
+                self.trainer.writer.add_scalar(
+                    "trainEval_AP/cls_{i}-{label_name}", ap, current_epoch
+                )
+                self.trainer.writer.add_scalar(
+                    "trainEval_AP/cls_{i}-{label_name}", ap_50, current_epoch
+                )
+                self.trainer.writer.add_scalar(
+                    "trainEval_AP/cls_{i}-{label_name}", ap_25, current_epoch
+                )
+
+        if self.trainer.writer is not None:
+            self.trainer.writer.add_scalar("trainEval/loss", loss_avg, current_epoch)
+            self.trainer.writer.add_scalar("trainEval/mAP", all_ap, current_epoch)
+            self.trainer.writer.add_scalar("trainEval/AP50", all_ap_50, current_epoch)
+            self.trainer.writer.add_scalar("trainEval/AP25", all_ap_25, current_epoch)
+
+            self.trainer.wandb.log({"trainEval/loss": loss_avg})
+            self.trainer.wandb.log({"trainEval/mAP": all_ap})
+            self.trainer.wandb.log({"trainEval/AP50": all_ap_50})
+            self.trainer.wandb.log({"trainEval/AP25": all_ap_25})
+        self.trainer.logger.info(
+            "<<<<<<<<<<<<<<<<< End Train Evaluation <<<<<<<<<<<<<<<<<"
+        )

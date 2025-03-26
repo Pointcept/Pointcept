@@ -24,8 +24,9 @@ from pointcept.utils.comm import is_main_process, synchronize
 from pointcept.utils.cache import shared_dict
 from pointcept.utils.scheduler import CosineScheduler
 import pointcept.utils.comm as comm
-from pointcept.engines.test import TESTERS
+from pointcept.engines.test_registry import TESTERS
 from pointcept.utils.misc import intersection_and_union_gpu
+
 from .default import HookBase
 from .builder import HOOKS
 
