@@ -102,6 +102,27 @@ class InformationWriter(HookBase):
         )
         self.trainer.comm_info["iter_info"] += info
 
+    def record_forward_metrics(self, output_dict, input_dict):
+        if "seg_logits" not in output_dict.keys():
+            return
+        output = output_dict["seg_logits"]
+        pred = output.max(1)[1]
+        segment = input_dict["segment"]
+        intersection, union, target = intersection_and_union_gpu(
+            pred,
+            segment,
+            self.trainer.cfg.data.num_classes,
+            self.trainer.cfg.data.ignore_index,
+        )
+        intersection, union, target = (
+            intersection.cpu().numpy(),
+            union.cpu().numpy(),
+            target.cpu().numpy(),
+        )
+        self.trainer.storage.put_scalar("train_intersection", intersection)
+        self.trainer.storage.put_scalar("train_union", union)
+        self.trainer.storage.put_scalar("train_target", target)
+
     def after_step(self):
         if "model_output_dict" in self.trainer.comm_info.keys():
             model_output_dict = self.trainer.comm_info["model_output_dict"]
