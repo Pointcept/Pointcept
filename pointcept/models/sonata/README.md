@@ -44,6 +44,7 @@ sh scripts/train.sh -m 2 -g 8 -d sonata -c pretrain-sonata-v1m1-0-base -n pretra
 
 #### 4. Probing and Tuning
 After pre-training, you can probe or tune the model with the following script:
+(Our pre-trained model weight can be downloaded [here](https://huggingface.co/facebook/sonata/blob/main/pretrain-sonata-v1m1-0-base.pth))
 ```bash
 # Assume the pre-trained experiment is record in:
 # exp/sonata/pretrain-sonata-v1m1-0-base
