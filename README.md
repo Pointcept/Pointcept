@@ -484,7 +484,7 @@ https://huggingface.co/datasets/Pointcept/nuscenes-compressed)] (only processed 
   ```
 
 ### ModelNet
-- Download [modelnet40_normal_resampled.zip](https://shapenet.cs.stanford.edu/media/modelnet40_normal_resampled.zip) and unzip
+- Download [modelnet40_normal_resampled.zip](https://huggingface.co/datasets/Pointcept/modelnet40_normal_resampled-compressed) and unzip
 - Link dataset to the codebase.
   ```bash
   mkdir -p data
