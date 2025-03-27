@@ -13,13 +13,16 @@ from pointcept.engines.hooks import HookBase
 
 
 def is_ocnn_module(module):
-    ocnn_modules = (
-        ocnn.nn.OctreeConv,
-        ocnn.nn.OctreeDeconv,
-        ocnn.nn.OctreeGroupConv,
-        ocnn.nn.OctreeDWConv,
-    )
-    return isinstance(module, ocnn_modules)
+    if ocnn is not None:
+        ocnn_modules = (
+            ocnn.nn.OctreeConv,
+            ocnn.nn.OctreeDeconv,
+            ocnn.nn.OctreeGroupConv,
+            ocnn.nn.OctreeDWConv,
+        )
+        return isinstance(module, ocnn_modules)
+    else:
+        return False
 
 
 class PointModule(nn.Module):
