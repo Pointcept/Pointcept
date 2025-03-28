@@ -223,7 +223,7 @@ class CheckpointLoader(HookBase):
                     key = "module." + key  # xxx.xxx -> module.xxx.xxx
                 # Now all keys contain "module." no matter DDP or not.
                 if self.keywords in key:
-                    key = key.replace(self.keywords, self.replacement)
+                    key = key.replace(self.keywords, self.replacement, 1)
                 if comm.get_world_size() == 1:
                     key = key[7:]  # module.xxx.xxx -> xxx.xxx
                 weight[key] = value
