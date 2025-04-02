@@ -66,7 +66,7 @@ class TesterBase:
         )
         if os.path.isfile(self.cfg.weight):
             self.logger.info(f"Loading weight at: {self.cfg.weight}")
-            checkpoint = torch.load(self.cfg.weight)
+            checkpoint = torch.load(self.cfg.weight, weights_only=False)
             weight = OrderedDict()
             for key, value in checkpoint["state_dict"].items():
                 if key.startswith("module."):
@@ -164,6 +164,7 @@ class SemSegTester(TesterBase):
             fragment_list = data_dict.pop("fragment_list")
             segment = data_dict.pop("segment")
             data_name = data_dict.pop("name")
+            print(f"Rank {comm.get_rank()}, Data {data_name}")
             pred_save_path = os.path.join(save_path, "{}_pred.npy".format(data_name))
             if os.path.isfile(pred_save_path):
                 logger.info(
