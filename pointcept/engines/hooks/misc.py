@@ -297,8 +297,15 @@ class PreciseEvaluator(HookBase):
                 self.trainer.cfg.save_path, "model", "model_best.pth"
             )
             checkpoint = torch.load(best_path, weights_only=False)
-            state_dict = checkpoint["state_dict"]
-            tester.model.load_state_dict(state_dict, strict=True)
+            weight = OrderedDict()
+            for key, value in checkpoint["state_dict"].items():
+                if not key.startswith("module."):
+                    key = "module." + key  # xxx.xxx -> module.xxx.xxx
+                # Now all keys contain "module." no matter DDP or not.
+                if comm.get_world_size() == 1:
+                    key = key[7:]  # module.xxx.xxx -> xxx.xxx
+                weight[key] = value
+            tester.model.load_state_dict(weight, strict=True)
         tester.test()
 
 
