@@ -1,8 +1,7 @@
 """
-ScanNet++ dataset
-
-Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
-Please cite our work if the code is helpful to you.
+# This file includes code adapted from SGIFormer:
+# https://github.com/RayYoh/SGIFormer
+# Original author: Lei Yao (rayyohhust@gmail.com)
 """
 
 import os
@@ -12,26 +11,23 @@ import glob
 from pointcept.utils.cache import shared_dict
 
 from .builder import DATASETS
-from .defaults import DefaultDataset
+from pointcept.datasets.scannetpp import ScanNetPPDataset
+
+from configs._base_.dataset.scannetpp import CLASS_LABELS_PP, INST_LABELS_PP
 
 
 @DATASETS.register_module()
-class ScanNetPPDataset(DefaultDataset):
+class ScanNetPPSpDataset(ScanNetPPDataset):
+
     VALID_ASSETS = [
         "coord",
         "color",
         "normal",
         "segment",
         "instance",
+        "superpoint",
     ]
-
-    def __init__(
-        self,
-        multilabel=False,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self.multilabel = multilabel
+    class2id = np.array([CLASS_LABELS_PP.index(c) for c in INST_LABELS_PP])
 
     def get_data(self, idx):
         data_path = self.data_list[idx % len(self.data_list)]
@@ -59,16 +55,29 @@ class ScanNetPPDataset(DefaultDataset):
         if "normal" in data_dict.keys():
             data_dict["normal"] = data_dict["normal"].astype(np.float32)
 
+        if "superpoint" in data_dict.keys():
+            data_dict["superpoint"] = data_dict["superpoint"].astype(np.int32)
+
         if not self.multilabel:
             if "segment" in data_dict.keys():
-                data_dict["segment"] = data_dict["segment"][:, 0].astype(np.int32)
+                if "vtx" in self.split:
+                    data_dict["segment"] = (
+                        data_dict["segment"].reshape([-1]).astype(np.int32)
+                    )
+                else:
+                    data_dict["segment"] = data_dict["segment"][:, 0].astype(np.int32)
             else:
                 data_dict["segment"] = (
                     np.ones(data_dict["coord"].shape[0], dtype=np.int32) * -1
                 )
 
             if "instance" in data_dict.keys():
-                data_dict["instance"] = data_dict["instance"][:, 0].astype(np.int32)
+                if "vtx" in self.split:
+                    data_dict["instance"] = (
+                        data_dict["instance"].reshape([-1]).astype(np.int32)
+                    )
+                else:
+                    data_dict["instance"] = data_dict["instance"][:, 0].astype(np.int32)
             else:
                 data_dict["instance"] = (
                     np.ones(data_dict["coord"].shape[0], dtype=np.int32) * -1
@@ -77,23 +86,24 @@ class ScanNetPPDataset(DefaultDataset):
             raise NotImplementedError
         return data_dict
 
+    def prepare_test_data(self, idx):
+        # load data
+        data_dict = self.get_data(idx)
+        segment = data_dict["segment"]
+        instance = data_dict["instance"]
+        data_dict = self.transform(data_dict)
+        data_dict = self.test_voxelize(data_dict)
+        if self.test_crop:
+            data_dict = self.test_crop(data_dict)
+        data_dict = self.post_transform(data_dict)
+        data_dict = dict(
+            data_dict=data_dict,
+            segment=segment,
+            instance=instance,
+            name=self.get_data_name(idx),
+        )
+        return data_dict
 
-@DATASETS.register_module()
-class ScanNetPPTrainEvalSample(ScanNetPPDataset):
-    def __init__(
-        self,
-        nsamples=30,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self.nsamples = nsamples
-
-    def __len__(self):
-        return self.nsamples
-
-
-@DATASETS.register_module()
-class ScanNetPPTestInstanceSegmentation(ScanNetPPDataset):
     def prepare_train_data(self, idx):
         # load data
         data_dict = self.get_data(idx)
