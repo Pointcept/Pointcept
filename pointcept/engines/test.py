@@ -16,6 +16,8 @@ import torch.distributed as dist
 import torch.nn.functional as F
 import torch.utils.data
 
+from pointcept.models.sgiFormer.TesterEvaluator import SPInsEvaluator
+
 from .defaults import create_ddp_model
 import pointcept.utils.comm as comm
 from pointcept.datasets import build_dataset, collate_fn
@@ -891,19 +893,25 @@ class PartSegTester(TesterBase):
 
 @TESTERS.register_module()
 class InstanceSegTest(TesterBase):
+    # evalutor can currently be default or SP
     def __init__(self, cfg, **kwargs):
         super().__init__(cfg, **kwargs)
         self.segment_ignore_index = cfg.segment_ignore_index
         self.sseg_class_names = cfg.class_names
+        self.evaluator = cfg.get("tester_evaluator", "default")
 
     def test(self):
         assert self.test_loader.batch_size == 1
         logger = get_root_logger()
         logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
 
-        evaluator = InsSegEvaluator(
-            segment_ignore_index=self.segment_ignore_index,
-            class_names=self.sseg_class_names,
+        evaluator = (
+            InsSegEvaluator(
+                segment_ignore_index=self.segment_ignore_index,
+                class_names=self.sseg_class_names,
+            )
+            if self.evaluator == "default"
+            else SPInsEvaluator()
         )
 
         self.model.eval()
@@ -941,8 +949,6 @@ class InstanceSegTest(TesterBase):
         mask_dir = "predicted_masks"
         scores[scores < 0] = 0
         scores[scores > 1] = 1
-        # import pdb
-        # pdb.set_trace()
         root_dir = os.path.join(self.cfg.save_path, "result", "submit")
         mask_dir = os.path.join(root_dir, mask_dir)
         make_dirs(mask_dir)
@@ -1019,12 +1025,8 @@ class InsSegEvaluator:
         gt_instances = dict()
         for i in range(100):
             if i not in self.segment_ignore_index:
-                try:
-                    gt_instances[self.sseg_classnames[i]] = []
-                except:
-                    import pdb
+                gt_instances[self.sseg_classnames[i]] = []
 
-                    pdb.set_trace()
         instance_ids, idx, counts = np.unique(
             instance, return_index=True, return_counts=True
         )
