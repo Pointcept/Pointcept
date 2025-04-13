@@ -11,6 +11,7 @@ from .hm3d import HM3DDataset
 from .structure3d import Structured3DDataset
 from .aeo import AEODataset
 from .scannetpp_sp import ScanNetPPSpDataset
+from .scannetpp_sp_pc import ScanNetPPSPPCDataset, ScanNetPPSPPCDatasetTrainSample
 
 # outdoor scene
 from .semantic_kitti import SemanticKITTIDataset

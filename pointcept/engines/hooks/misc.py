@@ -99,7 +99,7 @@ class InformationWriter(HookBase):
         self.trainer.comm_info["iter_info"] += info
 
     def record_forward_metrics(self, output_dict, input_dict):
-        if "seg_logits" not in output_dict.keys():
+        if "seg_logits" not in output_dict.keys() or "segment" not in input_dict.keys():
             return
         output = output_dict["seg_logits"]
         pred = output.max(1)[1]
@@ -130,7 +130,13 @@ class InformationWriter(HookBase):
                 key for key in model_output_dict.keys() if "logits" not in key
             ]
             for key in self.model_output_keys:
-                self.trainer.storage.put_scalar(key, model_output_dict[key].item())
+                value = model_output_dict[key]
+                if torch.is_tensor(value):
+                    # If it's a tensor, get the item (scalar value)
+                    self.trainer.storage.put_scalar(key, value.item())
+                else:
+                    # If it's not a tensor, put the value as it is
+                    self.trainer.storage.put_scalar(key, value)
 
         for key in self.model_output_keys:
             self.trainer.comm_info["iter_info"] += "{key}: {value:.4f} ".format(

@@ -98,6 +98,9 @@ class TesterBase:
             test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
         else:
             test_sampler = None
+
+        collate_fn = getattr(test_dataset, "collate_fn", self.__class__.collate_fn)
+
         test_loader = torch.utils.data.DataLoader(
             test_dataset,
             batch_size=self.cfg.batch_size_test_per_gpu,
@@ -105,7 +108,7 @@ class TesterBase:
             num_workers=self.cfg.batch_size_test_per_gpu,
             pin_memory=True,
             sampler=test_sampler,
-            collate_fn=self.__class__.collate_fn,
+            collate_fn=collate_fn,
         )
         return test_loader
 
@@ -945,7 +948,8 @@ class InstanceSegTest(TesterBase):
         scores = model_output["pred_scores"]
         masks = model_output["pred_masks"]
         classes = model_output["pred_classes"]
-        scan_name = input_dict["name"]
+        name_value = input_dict["name"]
+        scan_name = name_value[0] if isinstance(name_value, list) else name_value
         mask_dir = "predicted_masks"
         scores[scores < 0] = 0
         scores[scores > 1] = 1

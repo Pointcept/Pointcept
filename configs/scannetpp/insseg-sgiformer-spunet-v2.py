@@ -492,4 +492,4 @@ hooks = [
 
 # Tester
 tester_evaluator = "SP"
-test = dict(type="InstanceSegTest", evaluator="SP", verbose=True)
+test = dict(type="InstanceSegTest", verbose=True)

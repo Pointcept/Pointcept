@@ -33,6 +33,8 @@ class SPInsEvaluator(HookBase):
         segment_ignore_index=(-1,),
         semantic_ignore_index=(-1,),
         instance_ignore_index=-1,
+        use_eval_train=False,
+        write_cls_ap=False,
         enable_write_results=False,
     ):
         self.segment_ignore_index = segment_ignore_index
@@ -45,6 +47,8 @@ class SPInsEvaluator(HookBase):
         self.distance_threshes = float("inf")
         self.distance_confs = -float("inf")
         self.enable_write_results = enable_write_results
+        self.use_eval_train = use_eval_train
+        self.write_cls_ap = write_cls_ap
 
     def before_train(self):
         self.valid_class_names = [
@@ -63,6 +67,8 @@ class SPInsEvaluator(HookBase):
     def after_epoch(self):
         torch.cuda.empty_cache()
         self.eval()
+        if self.use_eval_train and self.trainer.train_eval_loader is not None:
+            self.eval_train()
 
     def associate_instances(self, pred, segment, instance):
         segment = segment.cpu().numpy()
@@ -74,7 +80,9 @@ class SPInsEvaluator(HookBase):
             == pred["pred_scores"].shape[0]
             == pred["pred_masks"].shape[0]
         )
-        assert pred["pred_masks"].shape[1] == segment.shape[0] == instance.shape[0]
+        if pred["pred_masks"].size > 0:  # Empty predictions
+            assert pred["pred_masks"].shape[1] == segment.shape[0] == instance.shape[0]
+
         # get gt instances
         gt_instances = dict()
         for name in self.valid_class_names:
@@ -398,9 +406,10 @@ class SPInsEvaluator(HookBase):
             line += sep + "{:>10.3f}".format(prec_50) + sep
             line += sep + "{:>10.3f}".format(rec_50) + sep
             self.trainer.logger.info(line)
-            self.trainer.wandb.log({f"val_AP_cls/{i}-{label_name}": ap})
-            self.trainer.wandb.log({f"val_AP25_cls/{i}-{label_name}": ap_25})
-            self.trainer.wandb.log({f"val_AP50_cls/{i}-{label_name}": ap_50})
+            if self.write_cls_ap:
+                self.trainer.wandb.log({f"val_AP_cls/{i}-{label_name}": ap})
+                self.trainer.wandb.log({f"val_AP25_cls/{i}-{label_name}": ap_25})
+                self.trainer.wandb.log({f"val_AP50_cls/{i}-{label_name}": ap_50})
 
         self.trainer.logger.info("-" * lineLen)
         line = "{:<15}".format("average") + sep + col1
@@ -421,9 +430,9 @@ class SPInsEvaluator(HookBase):
         self.trainer.model.eval()
         scenes = []
         for i, input_dict in enumerate(self.trainer.val_loader):
-            assert (
-                len(input_dict["offset"]) == 1
-            )  # currently only support bs 1 for each GPU
+            key = "offset" if "offset" in input_dict else next(iter(input_dict))
+            # currently only support bs 1 for each GPU
+            assert len(input_dict[key]) == 1
             for key in input_dict.keys():
                 if isinstance(input_dict[key], torch.Tensor):
                     input_dict[key] = input_dict[key].cuda(non_blocking=True)
@@ -546,6 +555,130 @@ class SPInsEvaluator(HookBase):
         labels = [CLASS_LABELS_PP.index(c) for c in text]
 
         return np.array(labels)
+
+    def eval_train(self):
+        self.trainer.logger.info(
+            ">>>>>>>>>>>>>>>> Start Evaluation Train Eval >>>>>>>>>>>>>>>>"
+        )
+        self.trainer.model.eval()
+        scenes = []
+        for i, input_dict in enumerate(self.trainer.train_eval_loader):
+            # assert (
+            #     len(input_dict["offset"]) == 1
+            # )  # currently only support bs 1 for each GPU
+            for key in input_dict.keys():
+                if isinstance(input_dict[key], torch.Tensor):
+                    input_dict[key] = input_dict[key].cuda(non_blocking=True)
+            with torch.no_grad():
+                output_dict = self.trainer.model(input_dict)
+                torch.cuda.empty_cache()
+
+            loss = output_dict["loss"]
+
+            # map to origin
+            assert ("origin_segment" and "origin_instance") in input_dict.keys()
+            instance = process_instance(
+                input_dict["origin_instance"].clone(),
+                input_dict["origin_segment"].clone(),
+                self.segment_ignore_index,
+            )
+            segment = input_dict["origin_segment"]
+
+            gt_instances, pred_instance = self.associate_instances(
+                output_dict, segment, instance
+            )
+            scenes.append(dict(gt=gt_instances, pred=pred_instance))
+
+            self.trainer.storage.put_scalar("trainEval_loss", loss.item())
+            self.trainer.logger.info(
+                "Test: [{iter}/{max_iter}] "
+                "Loss {loss:.4f} ".format(
+                    iter=i + 1,
+                    max_iter=len(self.trainer.train_eval_loader),
+                    loss=loss.item(),
+                )
+            )
+            torch.cuda.empty_cache()
+
+        loss_avg = self.trainer.storage.history("trainEval_loss").avg
+        comm.synchronize()
+        scenes_sync = comm.gather(scenes, dst=0)
+        scenes = [scene for scenes_ in scenes_sync for scene in scenes_]
+        ap_scores = self.evaluate_matches(scenes)
+        self.print_results_train(ap_scores)
+        current_epoch = self.trainer.epoch + 1
+
+        if self.trainer.writer is not None:
+            self.trainer.writer.add_scalar("trainEval/loss", loss_avg, current_epoch)
+            self.trainer.writer.add_scalar(
+                "trainEval/mAP", ap_scores["all_ap"], current_epoch
+            )
+            self.trainer.writer.add_scalar(
+                "trainEval/AP50", ap_scores["all_ap_50%"], current_epoch
+            )
+            self.trainer.writer.add_scalar(
+                "trainEval/AP25", ap_scores["all_ap_25%"], current_epoch
+            )
+            self.trainer.writer.add_scalar(
+                "trainEval/Prec50", ap_scores["all_prec_50%"], current_epoch
+            )
+            self.trainer.writer.add_scalar(
+                "trainEval/Rec50", ap_scores["all_rec_50%"], current_epoch
+            )
+        self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
+
+    def print_results_train(self, ap_scores):
+        all_ap = ap_scores["all_ap"]
+        all_ap_50 = ap_scores["all_ap_50%"]
+        all_ap_25 = ap_scores["all_ap_25%"]
+        all_prec_50 = ap_scores["all_prec_50%"]
+        all_rec_50 = ap_scores["all_rec_50%"]
+        loss_avg = self.trainer.storage.history("trainEval_loss").avg
+
+        sep = ""
+        col1 = ":"
+        lineLen = 66
+        self.trainer.logger.info("#" * lineLen)
+        line = ""
+        line += "{:<15}".format("what") + sep + col1
+        line += "{:>10}".format("AP") + sep
+        line += "{:>10}".format("AP_50%") + sep
+        line += "{:>10}".format("AP_25%") + sep
+        line += "{:>10}".format("Prec_50%") + sep
+        line += "{:>10}".format("Rec_50%") + sep
+        self.trainer.logger.info(line)
+        self.trainer.logger.info("#" * lineLen)
+
+        for i, label_name in enumerate(self.valid_class_names):
+            ap = ap_scores["classes"][label_name]["ap"]
+            ap_50 = ap_scores["classes"][label_name]["ap50%"]
+            ap_25 = ap_scores["classes"][label_name]["ap25%"]
+            prec_50 = ap_scores["classes"][label_name]["prec50%"]
+            rec_50 = ap_scores["classes"][label_name]["rec50%"]
+            line = "{:<15}".format(label_name) + sep + col1
+            line += sep + "{:>10.3f}".format(ap) + sep
+            line += sep + "{:>10.3f}".format(ap_50) + sep
+            line += sep + "{:>10.3f}".format(ap_25) + sep
+            line += sep + "{:>10.3f}".format(prec_50) + sep
+            line += sep + "{:>10.3f}".format(rec_50) + sep
+            self.trainer.logger.info(line)
+            self.trainer.wandb.log({f"trainEval_AP_cls/{i}-{label_name}": ap})
+            self.trainer.wandb.log({f"trainEval_AP25_cls/{i}-{label_name}": ap_25})
+            self.trainer.wandb.log({f"trainEval_AP50_cls/{i}-{label_name}": ap_50})
+
+        self.trainer.logger.info("-" * lineLen)
+        line = "{:<15}".format("average") + sep + col1
+        line += "{:>10.3f}".format(all_ap) + sep
+        line += "{:>10.3f}".format(all_ap_50) + sep
+        line += "{:>10.3f}".format(all_ap_25) + sep
+        line += "{:>10.3f}".format(all_prec_50) + sep
+        line += "{:>10.3f}".format(all_rec_50) + sep
+        self.trainer.logger.info(line)
+        self.trainer.logger.info("#" * lineLen)
+        self.trainer.wandb.log({"trainEval/loss": loss_avg})
+        self.trainer.wandb.log({"trainEval/mAP": all_ap})
+        self.trainer.wandb.log({"trainEval/AP50": all_ap_50})
+        self.trainer.wandb.log({"trainEval/AP25": all_ap_25})
 
 
 @HOOKS.register_module()

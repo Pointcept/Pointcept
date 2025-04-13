@@ -306,7 +306,11 @@ class Trainer(TrainerBase):
             shuffle=(train_sampler is None),
             num_workers=self.cfg.num_worker_per_gpu,
             sampler=train_sampler,
-            collate_fn=partial(point_collate_fn, mix_prob=self.cfg.mix_prob),
+            collate_fn=(
+                train_data.collate_fn
+                if hasattr(train_data, "collate_fn")
+                else partial(point_collate_fn, mix_prob=self.cfg.mix_prob)
+            ),
             pin_memory=True,
             worker_init_fn=init_fn,
             drop_last=len(train_data) > self.cfg.batch_size,
@@ -329,7 +333,11 @@ class Trainer(TrainerBase):
                 num_workers=self.cfg.num_worker_per_gpu,
                 pin_memory=True,
                 sampler=val_sampler,
-                collate_fn=collate_fn,
+                collate_fn=(
+                    val_data.collate_fn
+                    if hasattr(val_data, "collate_fn")
+                    else collate_fn
+                ),
             )
         return val_loader
 
@@ -348,7 +356,11 @@ class Trainer(TrainerBase):
                 num_workers=self.cfg.num_worker_per_gpu,
                 pin_memory=True,
                 sampler=val_sampler,
-                collate_fn=collate_fn,
+                collate_fn=(
+                    val_data.collate_fn
+                    if hasattr(val_data, "collate_fn")
+                    else collate_fn
+                ),
             )
         return val_loader
 
