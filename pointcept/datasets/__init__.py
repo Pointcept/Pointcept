@@ -10,6 +10,7 @@ from .scannet_pair import ScanNetPairDataset
 from .hm3d import HM3DDataset
 from .structure3d import Structured3DDataset
 from .aeo import AEODataset
+from .scannetpp_sp import ScanNetPPSpDataset
 
 # outdoor scene
 from .semantic_kitti import SemanticKITTIDataset
