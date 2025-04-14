@@ -8,11 +8,13 @@ Please cite our work if the code is helpful to you.
 import os
 import sys
 import weakref
+import wandb
 import torch
 import torch.nn as nn
 import torch.utils.data
 from packaging import version
 from functools import partial
+from pathlib import Path
 
 if sys.version_info >= (3, 10):
     from collections.abc import Iterator
@@ -247,6 +249,16 @@ class Trainer(TrainerBase):
     def build_writer(self):
         writer = SummaryWriter(self.cfg.save_path) if comm.is_main_process() else None
         self.logger.info(f"Tensorboard writer logging dir: {self.cfg.save_path}")
+        if self.cfg.enable_wandb and comm.is_main_process():
+            tag, name = Path(self.cfg.save_path).parts[-2:]
+            wandb.init(
+                project=self.cfg.wandb_project,
+                name=f"{tag}/{name}",
+                tags=[tag],
+                dir=self.cfg.save_path,
+                settings=wandb.Settings(api_key=self.cfg.wandb_key),
+                config=self.cfg,
+            )
         return writer
 
     def build_train_loader(self):

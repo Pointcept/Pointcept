@@ -99,6 +99,7 @@ Datasets:
 
 
 ## Highlights
+- *Apr 2025* 🚀: We now support `wandb`, check the [Quick Start](#quick-start) training section for more information. (Thanks @Streakfull for his contribution!)
 - *Mar 2025* 🚀: **Sonata** is accepted by CVPR 2025 and selected as one of the **Highlight** presentations (3.0% submissions)! We release the code with Pointcept v1.6.0. We release the pre-training **[code](#sonata)** along with Pointcept v1.6.0 and provide an easy-to-use pre-trained model for inference, tuning, and visualization in our project **[repository](https://github.com/facebookresearch/sonata)** hosted by Meta.
 - *May 2024*: In v1.5.2, we redesigned the default structure for each dataset for better performance. Please **re-preprocess** datasets or **download** our preprocessed datasets from **[here](https://huggingface.co/Pointcept)**.
 - *Apr 2024*: **PTv3** is selected as one of the 90 **Oral** papers (3.3% accepted papers, 0.78% submissions) by CVPR'24!
@@ -160,7 +161,7 @@ If you find _Pointcept_ useful to your research, please cite our work as encoura
   # Choose version you want here: https://pytorch.org/get-started/previous-versions/
   conda install pytorch==2.5.0 torchvision==0.13.1 torchaudio==0.20.0 pytorch-cuda=12.4 -c pytorch -y
   conda install h5py pyyaml -c anaconda -y
-  conda install sharedarray tensorboard tensorboardx yapf addict einops scipy plyfile termcolor timm -c conda-forge -y
+  conda install sharedarray tensorboard tensorboardx wandb yapf addict einops scipy plyfile termcolor timm -c conda-forge -y
   conda install pytorch-cluster pytorch-scatter pytorch-sparse -c pyg -y
   pip install torch-geometric
 
@@ -238,7 +239,6 @@ The preprocessing supports semantic and instance segmentation for both `ScanNet2
   python pointcept/datasets/preprocessing/sampling_chunking_data.py --dataset_root ${PROCESSED_SCANNETPP_DIR} --grid_size 0.01 --chunk_range 6 6 --chunk_stride 3 3 --split train --num_workers ${NUM_WORKERS}
   python pointcept/datasets/preprocessing/sampling_chunking_data.py --dataset_root ${PROCESSED_SCANNETPP_DIR} --grid_size 0.01 --chunk_range 6 6 --chunk_stride 3 3 --split val --num_workers ${NUM_WORKERS}
   ```
-- (Alternative) Our preprocess data can be directly downloaded [[here](https://huggingface.co/datasets/Pointcept/scannetpp-compressed)], please agree the official license before download it.
 - Link processed dataset to codebase:
   ```bash
   # PROCESSED_SCANNETPP_DIR: the directory of the processed ScanNet dataset.
@@ -525,6 +525,11 @@ sh scripts/train.sh -p ${INTERPRETER_PATH} -g ${NUM_GPU} -d ${DATASET_NAME} -c $
 export PYTHONPATH=./
 python tools/train.py --config-file ${CONFIG_PATH} --num-gpus ${NUM_GPU} --options save_path=${SAVE_PATH} resume=True weight=${CHECKPOINT_PATH}
 ```
+**Weights and Biases.**
+Pointcept by default enables both `tensorboard` and `wandb`. There are some usage notes related to `wandb`:
+1. Disable by set `enable_wandb=False`;
+2. Sync with  `wandb` remote server by `wandb login` in the terminal or set `wandb_key=YOUR_WANDB_KEY` in config.
+3. The project name is "Pointcept" by default, custom it to your research project name by setting `wandb_project=YOUR_PROJECT_NAME` (e.g. Sonata-Dev, PointTransformerV3-Dev)
 
 ### Testing
 During training, model evaluation is performed on point clouds after grid sampling (voxelization), providing an initial assessment of model performance. However, to obtain precise evaluation results, testing is **essential**. The testing process involves subsampling a dense point cloud into a sequence of voxelized point clouds, ensuring comprehensive coverage of all points. These sub-results are then predicted and collected to form a complete prediction of the entire point cloud. This approach yields  higher evaluation results compared to simply mapping/interpolating the prediction. In addition, our testing code supports TTA (test time augmentation) testing, which further enhances the stability of evaluation performance.
