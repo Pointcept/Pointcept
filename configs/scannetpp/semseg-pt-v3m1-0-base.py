@@ -298,3 +298,14 @@ data = dict(
         ),
     ),
 )
+
+# hook
+hooks = [
+    dict(type="CheckpointLoader"),
+    dict(type="IterationTimer", warmup_iter=2),
+    dict(type="InformationWriter"),
+    dict(type="SemSegEvaluator", write_cls_iou=False),
+    dict(type="CheckpointSaver", save_freq=None),
+    dict(type="PreciseEvaluator", test_last=False),
+    dict(type="SemSegEvaluatorTrain", write_cls_iou=False),
+]
