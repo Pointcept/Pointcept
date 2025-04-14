@@ -7,6 +7,8 @@ Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
+import string
+import numpy as np
 import os
 import sys
 import argparse
@@ -106,6 +108,34 @@ def default_argument_parser(epilog=None):
     return parser
 
 
+def default_save_dir():
+    """
+    Generates a default save directory name based on the SLURM job environment or a random string.
+
+    Returns:
+        str: Generated directory name.
+    """
+    # Fetch SLURM environment variables
+    slurm_id = os.getenv("SLURM_JOB_ID")
+    slurm_name = os.getenv("SLURM_JOB_NAME")
+
+    # Generate a random string
+    random_str = "".join(
+        np.random.choice(list(string.ascii_uppercase + string.digits), size=5)
+    )
+
+    if slurm_name == "interactive":
+        # If in an interactive SLURM session, include 'interactive' in the name
+        return f"{slurm_id}_interactive_{random_str}"
+
+    if slurm_id:
+        # If a SLURM job is active, use the SLURM job ID as the name
+        return slurm_id
+
+    # If not running on SLURM, return a random string
+    return random_str
+
+
 def default_config_parser(file_path, options):
     # config name protocol: dataset_name/model_name-exp_name
     if os.path.isfile(file_path):
@@ -121,6 +151,9 @@ def default_config_parser(file_path, options):
         cfg.seed = get_random_seed()
 
     cfg.data.train.loop = cfg.epoch // cfg.eval_epoch
+    run_name = default_save_dir()
+    cfg.run_name = run_name
+    cfg.save_path = os.path.join(cfg.save_path, run_name)
 
     os.makedirs(os.path.join(cfg.save_path, "model"), exist_ok=True)
     if not cfg.resume:
