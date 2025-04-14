@@ -11,6 +11,9 @@ from .stratified_transformer import *
 from .spvcnn import *
 from .octformer import *
 from .oacnns import *
+from .sgiFormer import *
+from .spformer import *
+from .oneformer import *
 
 # from .swin3d import *
 
