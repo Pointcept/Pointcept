@@ -211,7 +211,7 @@ wandb_project_name = "pointcept"
 wandb_tags = ["spFormer"]
 enable_wandb = False
 use_step_logging = True
-log_every = 10
+log_every = 500
 save_freq = 5
 
 class_names = INST_LABELS_PP

@@ -16,11 +16,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_scatter import scatter_max, scatter_mean
 
-from .utils import cuda_cast, rle_encode
+from .utils import cuda_cast
 from .backbone import ResidualBlock, UBlock
 from .loss import Criterion
 from .query_decoder import QueryDecoder
-from ..builder import MODELS, build_model
+from ..builder import MODELS
 
 import numpy as np
 
@@ -90,16 +90,6 @@ class SPFormer(nn.Module):
             module.eval()
             for param in module.parameters():
                 param.requires_grad = False
-        # ckpt_path = "./eval/checkpoints/sstnet_pretrain.pth"
-        # state_dict = torch.load(ckpt_path)['model']
-        # missing_keys, unexpected_keys = self.load_state_dict(
-        #     state_dict, strict=False)
-
-        # # Output the results
-        # print(
-        #     f"Number of matched keys: {len(state_dict) - len(missing_keys) - len(unexpected_keys)}")
-        # print(f"Missing keys: {missing_keys}")
-        # print(f"Unexpected keys: {unexpected_keys}")
 
     def train(self, mode=True):
         super(SPFormer, self).train(mode)
@@ -243,8 +233,6 @@ class SPFormer(nn.Module):
             pred["scan_id"] = scan_ids[0]
             pred["label_id"] = cls_pred[i]
             pred["conf"] = score_pred[i]
-            # rle encode mask to save memory
-            # pred['pred_mask'] = rle_encode(mask_pred[i])
             pred["pred_mask"] = mask_pred[i]
             pred_instances.append(pred)
 
