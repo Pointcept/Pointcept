@@ -23,6 +23,7 @@ dependencies:
   - pyyaml
   - tensorboard
   - tensorboardx
+  - wandb
   - yapf
   - addict
   - einops

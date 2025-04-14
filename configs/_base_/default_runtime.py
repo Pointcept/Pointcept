@@ -20,6 +20,10 @@ empty_cache = False
 empty_cache_per_epoch = False
 find_unused_parameters = False
 
+enable_wandb = True
+wandb_project = "pointcept"  # custom your project name e.g. Sonata, PTv3
+wandb_key = None  # wandb token, default is None. If None, login with `wandb login` in your terminal
+
 mix_prob = 0
 param_dicts = None  # example: param_dicts = [dict(keyword="block", lr_scale=0.1)]
 

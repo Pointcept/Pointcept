@@ -14,4 +14,3 @@ outputs/
 */.DS_Store
 **/*.out
 Dockerfile
-wandb

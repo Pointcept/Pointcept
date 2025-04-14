@@ -8,18 +8,19 @@ Please cite our work if the code is helpful to you.
 import os
 import sys
 import weakref
+import wandb
 import torch
 import torch.nn as nn
 import torch.utils.data
 from packaging import version
 from functools import partial
+from pathlib import Path
 
 if sys.version_info >= (3, 10):
     from collections.abc import Iterator
 else:
     from collections import Iterator
 from tensorboardX import SummaryWriter
-import copy
 
 from .defaults import create_ddp_model, worker_init_fn
 from .hooks import HookBase, build_hooks
@@ -31,7 +32,6 @@ from pointcept.utils.optimizer import build_optimizer
 from pointcept.utils.scheduler import build_scheduler
 from pointcept.utils.events import EventStorage, ExceptionWriter
 from pointcept.utils.registry import Registry
-from pointcept.engines.utils.wandb import Wandb
 
 
 TRAINERS = Registry("trainers")
@@ -125,7 +125,6 @@ class TrainerBase:
 class Trainer(TrainerBase):
     def __init__(self, cfg):
         super(Trainer, self).__init__()
-        wandb_cfg = copy.deepcopy(cfg)
         self.epoch = 0
         self.start_epoch = 0
         self.max_epoch = cfg.eval_epoch
@@ -152,29 +151,6 @@ class Trainer(TrainerBase):
         self.scaler = self.build_scaler()
         self.logger.info("=> Building hooks ...")
         self.register_hooks(self.cfg.hooks)
-        self.init_wandb(cfg, wandb_cfg)
-        self.global_step = 0
-
-    def init_wandb(self, cfg, wandb_cfg):
-        wandb_project_name = cfg.get("wandb_project_name", "pointcept")
-        wandb_tags = cfg.get("wandb_tags", [])
-        self.enable_wandb = cfg.get("enable_wandb", False)
-        self.use_step_logging = cfg.get("use_step_logging", False)
-        self.log_every = cfg.get(
-            "log_every", 500
-        )  # Default log every 500 steps if enabled
-
-        self.wandb = Wandb(
-            self.enable_wandb,
-            wandb_project_name,
-            self.logger,
-            tags=wandb_tags,
-            cfg=wandb_cfg,
-            use_step_logging=self.use_step_logging,
-            print_every=self.log_every,
-        )
-
-        self.wandb.init()
 
     def train(self):
         with EventStorage() as self.storage, ExceptionWriter():
@@ -185,7 +161,6 @@ class Trainer(TrainerBase):
                 # => before epoch
                 if comm.get_world_size() > 1:
                     self.train_loader.sampler.set_epoch(self.epoch)
-                self.wandb.set_epoch(self.epoch)
                 self.model.train()
                 self.data_iterator = enumerate(self.train_loader)
                 self.before_epoch()
@@ -200,8 +175,6 @@ class Trainer(TrainerBase):
                     self.run_step()
                     # => after_step
                     self.after_step()
-                    self.global_step += 1
-                    self.wandb.set_global_step(self.global_step)
                 # => after epoch
                 self.after_epoch()
             # => after train
@@ -251,7 +224,6 @@ class Trainer(TrainerBase):
         if self.cfg.empty_cache:
             torch.cuda.empty_cache()
         self.comm_info["model_output_dict"] = output_dict
-        self.comm_info["model_input_dict"] = input_dict
 
     def after_epoch(self):
         for h in self.hooks:
@@ -277,6 +249,16 @@ class Trainer(TrainerBase):
     def build_writer(self):
         writer = SummaryWriter(self.cfg.save_path) if comm.is_main_process() else None
         self.logger.info(f"Tensorboard writer logging dir: {self.cfg.save_path}")
+        if self.cfg.enable_wandb and comm.is_main_process():
+            tag, name = Path(self.cfg.save_path).parts[-2:]
+            wandb.init(
+                project=self.cfg.wandb_project,
+                name=f"{tag}/{name}",
+                tags=[tag],
+                dir=self.cfg.save_path,
+                settings=wandb.Settings(api_key=self.cfg.wandb_key),
+                config=self.cfg,
+            )
         return writer
 
     def build_train_loader(self):

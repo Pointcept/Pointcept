@@ -11,6 +11,7 @@ import os
 import shutil
 import time
 import gc
+import wandb
 import torch
 import torch.utils.data
 from collections import OrderedDict
@@ -86,6 +87,10 @@ class InformationWriter(HookBase):
     def before_train(self):
         self.trainer.comm_info["iter_info"] = ""
         self.curr_iter = self.trainer.start_epoch * len(self.trainer.train_loader)
+        if self.trainer.writer is not None and self.trainer.cfg.enable_wandb:
+            wandb.define_metric("params/*", step_metric="Iter")
+            wandb.define_metric("train_batch/*", step_metric="Iter")
+            wandb.define_metric("train/*", step_metric="Epoch")
 
     def before_step(self):
         self.curr_iter += 1
@@ -114,16 +119,25 @@ class InformationWriter(HookBase):
         self.trainer.comm_info["iter_info"] = ""  # reset iter info
         if self.trainer.writer is not None:
             self.trainer.writer.add_scalar("params/lr", lr, self.curr_iter)
-            self.trainer.wandb.log({"params/lr": lr})
             for key in self.model_output_keys:
-                val = self.trainer.storage.history(key).val
                 self.trainer.writer.add_scalar(
                     "train_batch/" + key,
-                    val,
+                    self.trainer.storage.history(key).val,
                     self.curr_iter,
                 )
-                self.trainer.wandb.log({f"batch/{key}": val})
-                self.trainer.wandb.add_to_running_metrics(key, val)
+            if self.trainer.cfg.enable_wandb:
+
+                wandb.log(
+                    {"Iter": self.curr_iter, "params/lr": lr}, step=self.curr_iter
+                )
+                for key in self.model_output_keys:
+                    wandb.log(
+                        {
+                            "Iter": self.curr_iter,
+                            f"train_batch/{key}": self.trainer.storage.history(key).val,
+                        },
+                        step=wandb.run.step,
+                    )
 
     def after_epoch(self):
         epoch_info = "Train result: "
@@ -139,9 +153,17 @@ class InformationWriter(HookBase):
                     self.trainer.storage.history(key).avg,
                     self.trainer.epoch + 1,
                 )
-                self.trainer.wandb.log(
-                    {f"train/{key}": self.trainer.storage.history(key).val}
-                )
+
+            if self.trainer.cfg.enable_wandb:
+
+                for key in self.model_output_keys:
+                    wandb.log(
+                        {
+                            "Epoch": self.trainer.epoch + 1,
+                            f"train/{key}": self.trainer.storage.history(key).avg,
+                        },
+                        step=wandb.run.step,
+                    )
 
 
 @HOOKS.register_module()
