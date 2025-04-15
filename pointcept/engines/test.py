@@ -26,6 +26,7 @@ from pointcept.utils.misc import (
     intersection_and_union_gpu,
     make_dirs,
 )
+from pointcept.engines.hooks import HOOKS, HookBase
 
 
 TESTERS = Registry("testers")
@@ -884,3 +885,30 @@ class PartSegTester(TesterBase):
     @staticmethod
     def collate_fn(batch):
         return collate_fn(batch)
+
+
+@HOOKS.register_module()
+class PreciseEvaluator(HookBase):
+    def __init__(self, test_last=False):
+        self.test_last = test_last
+
+    def after_train(self):
+        self.trainer.logger.info(
+            ">>>>>>>>>>>>>>>> Start Precise Evaluation >>>>>>>>>>>>>>>>"
+        )
+        torch.cuda.empty_cache()
+        cfg = self.trainer.cfg
+        tester = TESTERS.build(
+            dict(type=cfg.test.type, cfg=cfg, model=self.trainer.model)
+        )
+        if self.test_last:
+            self.trainer.logger.info("=> Testing on model_last ...")
+        else:
+            self.trainer.logger.info("=> Testing on model_best ...")
+            best_path = os.path.join(
+                self.trainer.cfg.save_path, "model", "model_best.pth"
+            )
+            checkpoint = torch.load(best_path, weights_only=False)
+            state_dict = checkpoint["state_dict"]
+            tester.model.load_state_dict(state_dict, strict=True)
+        tester.test()
