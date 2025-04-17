@@ -145,8 +145,6 @@ class Trainer(TrainerBase):
         self.train_loader = self.build_train_loader()
         self.logger.info("=> Building val dataset & dataloader ...")
         self.val_loader = self.build_val_loader()
-        self.logger.info("=> Building train eval dataset & dataloader ...")
-        self.train_eval_loader = self.build_train_eval_loader()
         self.logger.info("=> Building optimize, scheduler, scaler(amp) ...")
         self.optimizer = self.build_optimizer()
         self.scheduler = self.build_scheduler()
@@ -300,25 +298,6 @@ class Trainer(TrainerBase):
         val_loader = None
         if self.cfg.evaluate:
             val_data = build_dataset(self.cfg.data.val)
-            if comm.get_world_size() > 1:
-                val_sampler = torch.utils.data.distributed.DistributedSampler(val_data)
-            else:
-                val_sampler = None
-            val_loader = torch.utils.data.DataLoader(
-                val_data,
-                batch_size=self.cfg.batch_size_val_per_gpu,
-                shuffle=False,
-                num_workers=self.cfg.num_worker_per_gpu,
-                pin_memory=True,
-                sampler=val_sampler,
-                collate_fn=collate_fn,
-            )
-        return val_loader
-
-    def build_train_eval_loader(self):
-        val_loader = None
-        if self.cfg.evaluate and "trainEval" in self.cfg.data:
-            val_data = build_dataset(self.cfg.data.trainEval)
             if comm.get_world_size() > 1:
                 val_sampler = torch.utils.data.distributed.DistributedSampler(val_data)
             else:

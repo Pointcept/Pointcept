@@ -21,7 +21,7 @@ import pointcept.utils.comm as comm
 from pointcept.datasets import build_dataset, collate_fn
 from pointcept.models import build_model
 from pointcept.utils.logger import get_root_logger
-from pointcept.engines.test_registry import TESTERS
+from pointcept.utils.registry import Registry
 from pointcept.utils.misc import (
     AverageMeter,
     intersection_and_union,
@@ -33,6 +33,9 @@ try:
     import pointops
 except:
     pointops = None
+
+
+TESTERS = Registry("testers")
 
 
 class TesterBase:
@@ -163,12 +166,11 @@ class SemSegTester(TesterBase):
         record = {}
         # fragment inference
         for idx, data_dict in enumerate(self.test_loader):
-            end = time.time()
+            start = time.time()
             data_dict = data_dict[0]  # current assume batch size is 1
             fragment_list = data_dict.pop("fragment_list")
             segment = data_dict.pop("segment")
             data_name = data_dict.pop("name")
-            print(f"Rank {comm.get_rank()}, Data {data_name}")
             pred_save_path = os.path.join(save_path, "{}_pred.npy".format(data_name))
             if os.path.isfile(pred_save_path):
                 logger.info(
@@ -288,7 +290,7 @@ class SemSegTester(TesterBase):
             m_iou = np.mean(intersection_meter.sum / (union_meter.sum + 1e-10))
             m_acc = np.mean(intersection_meter.sum / (target_meter.sum + 1e-10))
 
-            batch_time.update(time.time() - end)
+            batch_time.update(time.time() - start)
             logger.info(
                 "Test: {} [{}/{}]-{} "
                 "Batch {batch_time.val:.3f} ({batch_time.avg:.3f}) "
@@ -891,119 +893,143 @@ class PartSegTester(TesterBase):
 
 
 @TESTERS.register_module()
-class InstanceSegTest(TesterBase):
-    def __init__(self, cfg, **kwargs):
-        super().__init__(cfg, **kwargs)
-        self.segment_ignore_index = cfg.segment_ignore_index
-        self.sseg_class_names = cfg.class_names
-
-    def test(self):
-        assert self.test_loader.batch_size == 1
-        logger = get_root_logger()
-        logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
-
-        evaluator = InsSegEvaluator(
-            segment_ignore_index=self.segment_ignore_index,
-            class_names=self.sseg_class_names,
-        )
-
-        self.model.eval()
-
-        save_path = os.path.join(self.cfg.save_path, "result")
-        make_dirs(os.path.join(save_path, "submit"))
-        for idx, data_dict in enumerate(self.test_loader):
-            input_dict = data_dict
-            print("Evaluating scene: ", f" [{idx+1}/50]")
-
-            self.model.eval()
-            with torch.no_grad():
-                self.move_batch_to_device(input_dict)
-                model_output = self.model(input_dict)
-                all_ap, all_ap_50, all_ap_25, loss = evaluator.eval(
-                    model_output, input_dict
-                )
-
-                print("All AP: ", all_ap)
-                print("All AP 50: ", all_ap_50)
-                print("All AP 25: ", all_ap_25)
-                print("Loss:", loss)
-                self.write_results(model_output, input_dict)
-
-    def move_batch_to_device(self, input_dict):
-        for key in input_dict.keys():
-            if isinstance(input_dict[key], torch.Tensor):
-                input_dict[key] = input_dict[key].cuda(non_blocking=True)
-
-    def write_results(self, model_output, input_dict):
-        scores = model_output["pred_scores"]
-        masks = model_output["pred_masks"]
-        classes = model_output["pred_classes"]
-        scan_name = input_dict["name"]
-        mask_dir = "predicted_masks"
-        scores[scores < 0] = 0
-        scores[scores > 1] = 1
-        # import pdb
-        # pdb.set_trace()
-        root_dir = os.path.join(self.cfg.save_path, "result", "submit")
-        mask_dir = os.path.join(root_dir, mask_dir)
-        make_dirs(mask_dir)
-        result_file_path = os.path.join(root_dir, f"{scan_name}.txt")
-
-        def to_numpy(tensor):
-            return tensor.cpu().numpy() if isinstance(tensor, torch.Tensor) else tensor
-
-        with open(result_file_path, "w") as result_file:
-            for i, (score, mask, cls) in enumerate(
-                zip(to_numpy(scores), to_numpy(masks), to_numpy(classes))
-            ):
-                binary_mask = mask.astype(np.uint8)
-                rle = self.rle_encode(binary_mask)
-
-                mask_filename = f"{scan_name}_{i:03d}.json"
-                mask_file_path = os.path.join(mask_dir, mask_filename)
-                with open(mask_file_path, "w") as mask_file:
-                    json.dump(rle, mask_file)
-
-                # Write the instance's information to the results file
-                relative_path = os.path.join("predicted_masks", mask_filename)
-                result_file.write(f"{relative_path} {cls} {score:.3f}\n")
-        save_pred_dir = os.path.join(self.cfg.save_path, "result", scan_name)
-        os.makedirs(save_pred_dir, exist_ok=True)
-        np.save(os.path.join(save_pred_dir, "pred_scores.npy"), np.array(scores))
-        np.save(os.path.join(save_pred_dir, "pred_masks.npy"), np.array(masks))
-        np.save(os.path.join(save_pred_dir, "pred_classes.npy"), np.array(classes))
-
-    def rle_encode(self, mask):
-        length = mask.shape[0]
-        mask = np.concatenate([[0], mask, [0]])
-        runs = np.where(mask[1:] != mask[:-1])[0] + 1
-        runs[1::2] -= runs[::2]
-        counts = " ".join(str(x) for x in runs)
-        rle = dict(length=length, counts=counts)
-        return rle
-
-    @staticmethod
-    def collate_fn(batch):
-        # Only b.s 1
-        return batch[0]
-
-
-class InsSegEvaluator:
+class InsSegTester(TesterBase):
     def __init__(
-        self, segment_ignore_index=(-1,), instance_ignore_index=-1, class_names=[]
+        self,
+        segment_ignore_index,
+        instance_ignore_index,
+        **kwargs,
     ):
+        super().__init__(**kwargs)
         self.segment_ignore_index = segment_ignore_index
         self.instance_ignore_index = instance_ignore_index
-        self.sseg_classnames = class_names
         self.valid_class_names = [
-            self.sseg_classnames[i]
-            for i in range(len(self.sseg_classnames))
+            self.cfg.data.names[i]
+            for i in range(self.cfg.data.num_classes)
             if i not in self.segment_ignore_index
         ]
         self.overlaps = np.append(np.arange(0.5, 0.95, 0.05), 0.25)
         self.min_region_sizes = 100
         self.distance_threshes = float("inf")
         self.distance_confs = -float("inf")
+
+    def test(self):
+        assert self.test_loader.batch_size == 1
+        logger = get_root_logger()
+        logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
+
+        batch_time = AverageMeter()
+
+        self.model.eval()
+        scenes = []
+
+        for idx, data_dict in enumerate(self.test_loader):
+            start = time.time()
+            data_name = data_dict.pop("name")
+            for key in data_dict.keys():
+                if isinstance(data_dict[key], torch.Tensor):
+                    data_dict[key] = data_dict[key].cuda(non_blocking=True)
+            with torch.no_grad():
+                output_dict = self.model(data_dict)
+                segment = data_dict["origin_segment"]
+                instance = data_dict["origin_instance"]
+
+                if "origin_coord" in data_dict.keys():
+                    reverse, _ = pointops.knn_query(
+                        1,
+                        data_dict["coord"].float(),
+                        data_dict["offset"].int(),
+                        data_dict["origin_coord"].float(),
+                        data_dict["origin_offset"].int(),
+                    )
+                    reverse = reverse.cpu().flatten().long()
+                    output_dict["pred_masks"] = output_dict["pred_masks"][:, reverse]
+                    segment = data_dict["origin_segment"]
+                    instance = data_dict["origin_instance"]
+
+                gt_instances, pred_instance = self.associate_instances(
+                    output_dict, segment, instance
+                )
+
+            scenes.append(dict(gt=gt_instances, pred=pred_instance))
+            batch_time.update(time.time() - start)
+            logger.info(
+                "Test: {} [{}/{}] "
+                "Batch {batch_time.val:.3f} ({batch_time.avg:.3f}) ".format(
+                    data_name,
+                    idx + 1,
+                    len(self.test_loader),
+                    batch_time=batch_time,
+                )
+            )
+            if self.cfg.data.test.type == "ScanNetPPDataset":
+                self.write_scannetpp_results(
+                    output_dict["pred_scores"],
+                    output_dict["pred_masks"],
+                    output_dict["pred_classes"],
+                    data_name,
+                )
+
+        comm.synchronize()
+        scenes_sync = comm.gather(scenes, dst=0)
+        scenes = [scene for scenes_ in scenes_sync for scene in scenes_]
+        ap_scores = self.evaluate_matches(scenes)
+        all_ap = ap_scores["all_ap"]
+        all_ap_50 = ap_scores["all_ap_50%"]
+        all_ap_25 = ap_scores["all_ap_25%"]
+        logger.info(
+            "Val result: mAP/AP50/AP25 {:.4f}/{:.4f}/{:.4f}.".format(
+                all_ap, all_ap_50, all_ap_25
+            )
+        )
+        for i, label_name in enumerate(self.valid_class_names):
+            ap = ap_scores["classes"][label_name]["ap"]
+            ap_50 = ap_scores["classes"][label_name]["ap50%"]
+            ap_25 = ap_scores["classes"][label_name]["ap25%"]
+            logger.info(
+                "Class_{idx}-{name} Result: AP/AP50/AP25 {AP:.4f}/{AP50:.4f}/{AP25:.4f}".format(
+                    idx=i, name=label_name, AP=ap, AP50=ap_50, AP25=ap_25
+                )
+            )
+        logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
+
+    def write_scannetpp_results(
+        self,
+        pred_scores,
+        pred_masks,
+        pred_classes,
+        data_name,
+    ):
+        pred_scores[pred_scores < 0] = 0
+        pred_scores[pred_scores >= 0] = 1
+
+        save_dir = os.path.join(self.cfg.save_path, "result", "submit")
+        mask_dir = os.path.join(save_dir, "predicted_masks")
+        make_dirs(mask_dir)
+
+        result_path = os.path.join(save_dir, f"{data_name}.txt")
+        result_file = open(result_path, "w")
+        for i, (score, mask, cls) in enumerate(
+            zip(
+                pred_scores.cpu().numpy(),
+                pred_masks.cpu().numpy(),
+                pred_classes.cpu().numpy(),
+            )
+        ):
+            mask = mask.astype(np.uint8)
+            length = mask.shape[0]
+            mask = np.concatenate([[0], mask, [0]])
+            runs = np.where(mask[1:] != mask[:-1])[0] + 1
+            runs[1::2] -= runs[::2]
+            counts = " ".join(str(x) for x in runs)
+            rle = dict(length=length, counts=counts)
+
+            mask_path = os.path.join(mask_dir, f"{data_name}_{i:03d}.json")
+            relative_path = os.path.join("predicted_masks", f"{data_name}_{i:03d}.json")
+            with open(mask_path, "w") as mask_file:
+                json.dump(rle, mask_file, indent=2)
+            result_file.write(f"{relative_path} {cls} {score:.3f}\n")
+        result_file.close()
 
     def associate_instances(self, pred, segment, instance):
         segment = segment.cpu().numpy()
@@ -1018,14 +1044,9 @@ class InsSegEvaluator:
         assert pred["pred_masks"].shape[1] == segment.shape[0] == instance.shape[0]
         # get gt instances
         gt_instances = dict()
-        for i in range(100):
+        for i in range(self.cfg.data.num_classes):
             if i not in self.segment_ignore_index:
-                try:
-                    gt_instances[self.sseg_classnames[i]] = []
-                except:
-                    import pdb
-
-                    pdb.set_trace()
+                gt_instances[self.cfg.data.names[i]] = []
         instance_ids, idx, counts = np.unique(
             instance, return_index=True, return_counts=True
         )
@@ -1042,13 +1063,13 @@ class InsSegEvaluator:
             gt_inst["med_dist"] = -1.0
             gt_inst["vert_count"] = counts[i]
             gt_inst["matched_pred"] = []
-            gt_instances[self.sseg_classnames[segment_ids[i]]].append(gt_inst)
+            gt_instances[self.cfg.data.names[segment_ids[i]]].append(gt_inst)
 
         # get pred instances and associate with gt
         pred_instances = dict()
-        for i in range(100):
+        for i in range(self.cfg.data.num_classes):
             if i not in self.segment_ignore_index:
-                pred_instances[self.sseg_classnames[i]] = []
+                pred_instances[self.cfg.data.names[i]] = []
         instance_id = 0
         for i in range(len(pred["pred_classes"])):
             if pred["pred_classes"][i] in self.segment_ignore_index:
@@ -1065,8 +1086,7 @@ class InsSegEvaluator:
             )
             if pred_inst["vert_count"] < self.min_region_sizes:
                 continue  # skip if empty
-
-            segment_name = self.sseg_classnames[pred_inst["segment_id"]]
+            segment_name = self.cfg.data.names[pred_inst["segment_id"]]
             matched_gt = []
             for gt_idx, gt_inst in enumerate(gt_instances[segment_name]):
                 intersection = np.count_nonzero(
@@ -1290,31 +1310,7 @@ class InsSegEvaluator:
             )
         return ap_scores
 
-    def eval(self, output_dict, input_dict):
-        scenes = []
-        loss = output_dict["loss"]
-        segment = input_dict["segment"]
-        instance = input_dict["instance"]
-        if "origin_coord" in input_dict.keys():
-            idx, _ = pointops.knn_query(
-                1,
-                input_dict["coord"].float(),
-                input_dict["offset"].int(),
-                input_dict["origin_coord"].float(),
-                input_dict["origin_offset"].int(),
-            )
-            idx = idx.cpu().flatten().long()
-            output_dict["pred_masks"] = output_dict["pred_masks"][:, idx]
-
-            segment = input_dict["origin_segment"]
-            instance = input_dict["origin_instance"]
-
-        gt_instances, pred_instance = self.associate_instances(
-            output_dict, segment, instance
-        )
-        scenes.append(dict(gt=gt_instances, pred=pred_instance))
-        ap_scores = self.evaluate_matches(scenes)
-        all_ap = ap_scores["all_ap"]
-        all_ap_50 = ap_scores["all_ap_50%"]
-        all_ap_25 = ap_scores["all_ap_25%"]
-        return all_ap, all_ap_50, all_ap_25, loss
+    @staticmethod
+    def collate_fn(batch):
+        # Restrict to bs 1
+        return batch[0]

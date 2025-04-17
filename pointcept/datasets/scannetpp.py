@@ -76,28 +76,3 @@ class ScanNetPPDataset(DefaultDataset):
         else:
             raise NotImplementedError
         return data_dict
-
-
-@DATASETS.register_module()
-class ScanNetPPTrainEvalSample(ScanNetPPDataset):
-    def __init__(
-        self,
-        nsamples=30,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self.nsamples = nsamples
-
-    def __len__(self):
-        return self.nsamples
-
-
-@DATASETS.register_module()
-class ScanNetPPTestInstanceSegmentation(ScanNetPPDataset):
-    def prepare_train_data(self, idx):
-        # load data
-        data_dict = self.get_data(idx)
-        name = data_dict["name"]
-        data_dict = self.transform(data_dict)
-        data_dict["name"] = name
-        return data_dict

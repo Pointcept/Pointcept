@@ -1,4 +1,7 @@
-_base_ = ["../_base_/default_runtime.py"]
+_base_ = [
+    "../_base_/default_runtime.py",
+    "../_base_/dataset/scannetpp.py",
+]
 
 # misc custom setting
 batch_size = 12  # bs: total bs in all gpus
@@ -8,30 +11,8 @@ empty_cache = False
 enable_amp = True
 evaluate = True
 
-class_names = [
-    "wall",
-    "floor",
-    "cabinet",
-    "bed",
-    "chair",
-    "sofa",
-    "table",
-    "door",
-    "window",
-    "bookshelf",
-    "picture",
-    "counter",
-    "desk",
-    "curtain",
-    "refridgerator",
-    "shower curtain",
-    "toilet",
-    "sink",
-    "bathtub",
-    "otherfurniture",
-]
-num_classes = 20
-segment_ignore_index = (-1, 0, 1)
+num_classes = 100
+segment_ignore_index = (-1, 0, 1, 2, 16, 19, 20, 24, 26, 33, 36, 48, 53, 63, 64, 73, 74)
 
 # model settings
 model = dict(
@@ -102,18 +83,16 @@ scheduler = dict(
 )
 param_dicts = [dict(keyword="block", lr=0.0006)]
 
-
 # dataset settings
-dataset_type = "ScanNetDataset"
-data_root = "data/scannet"
+dataset_type = "ScanNetPPDataset"
+data_root = "data/scannetpp"
 
 data = dict(
-    num_classes=num_classes,
+    num_classes=100,
     ignore_index=-1,
-    names=class_names,
     train=dict(
         type=dataset_type,
-        split="train",
+        split="train_grid1mm_chunk6x6_stride3x3",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
@@ -141,7 +120,7 @@ data = dict(
                 mode="train",
                 return_grid_coord=True,
             ),
-            dict(type="SphereCrop", sample_rate=0.8, mode="random"),
+            dict(type="SphereCrop", point_max=204800, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(
@@ -186,7 +165,6 @@ data = dict(
                 mode="train",
                 return_grid_coord=True,
             ),
-            # dict(type="SphereCrop", point_max=1000000, mode='center'),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(
