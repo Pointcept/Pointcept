@@ -25,7 +25,6 @@ from pointcept.utils.comm import is_main_process, synchronize
 from pointcept.utils.cache import shared_dict
 from pointcept.utils.scheduler import CosineScheduler
 import pointcept.utils.comm as comm
-from pointcept.engines.test import TESTERS
 
 from .default import HookBase
 from .builder import HOOKS
@@ -281,6 +280,8 @@ class PreciseEvaluator(HookBase):
         self.test_last = test_last
 
     def after_train(self):
+        from pointcept.engines.test import TESTERS
+
         self.trainer.logger.info(
             ">>>>>>>>>>>>>>>> Start Precise Evaluation >>>>>>>>>>>>>>>>"
         )
