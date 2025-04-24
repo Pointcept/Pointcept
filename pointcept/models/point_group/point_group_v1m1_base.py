@@ -59,8 +59,6 @@ class PointGroup(nn.Module):
 
     def forward(self, data_dict):
         coord = data_dict["coord"]
-        segment = data_dict["segment"]
-        instance = data_dict["instance"]
         instance_centroid = data_dict["instance_centroid"]
         offset = data_dict["offset"]
 
@@ -69,29 +67,36 @@ class PointGroup(nn.Module):
         logit_pred = self.seg_head(feat)
 
         # compute loss
-        seg_loss = self.ce_criteria(logit_pred, segment)
+        if "segment" in data_dict.keys() and "instance" in data_dict.keys():
+            segment = data_dict["segment"]
+            instance = data_dict["instance"]
+            seg_loss = self.ce_criteria(logit_pred, segment)
 
-        mask = (instance != self.instance_ignore_index).float()
-        bias_gt = instance_centroid - coord
-        bias_dist = torch.sum(torch.abs(bias_pred - bias_gt), dim=-1)
-        bias_l1_loss = torch.sum(bias_dist * mask) / (torch.sum(mask) + 1e-8)
+            mask = (instance != self.instance_ignore_index).float()
+            bias_gt = instance_centroid - coord
+            bias_dist = torch.sum(torch.abs(bias_pred - bias_gt), dim=-1)
+            bias_l1_loss = torch.sum(bias_dist * mask) / (torch.sum(mask) + 1e-8)
 
-        bias_pred_norm = bias_pred / (
-            torch.norm(bias_pred, p=2, dim=1, keepdim=True) + 1e-8
-        )
-        bias_gt_norm = bias_gt / (torch.norm(bias_gt, p=2, dim=1, keepdim=True) + 1e-8)
-        cosine_similarity = -(bias_pred_norm * bias_gt_norm).sum(-1)
-        bias_cosine_loss = torch.sum(cosine_similarity * mask) / (
-            torch.sum(mask) + 1e-8
-        )
+            bias_pred_norm = bias_pred / (
+                torch.norm(bias_pred, p=2, dim=1, keepdim=True) + 1e-8
+            )
+            bias_gt_norm = bias_gt / (
+                torch.norm(bias_gt, p=2, dim=1, keepdim=True) + 1e-8
+            )
+            cosine_similarity = -(bias_pred_norm * bias_gt_norm).sum(-1)
+            bias_cosine_loss = torch.sum(cosine_similarity * mask) / (
+                torch.sum(mask) + 1e-8
+            )
 
-        loss = seg_loss + bias_l1_loss + bias_cosine_loss
-        return_dict = dict(
-            loss=loss,
-            seg_loss=seg_loss,
-            bias_l1_loss=bias_l1_loss,
-            bias_cosine_loss=bias_cosine_loss,
-        )
+            loss = seg_loss + bias_l1_loss + bias_cosine_loss
+            return_dict = dict(
+                loss=loss,
+                seg_loss=seg_loss,
+                bias_l1_loss=bias_l1_loss,
+                bias_cosine_loss=bias_cosine_loss,
+            )
+        else:
+            return_dict = dict()
 
         if not self.training:
             center_pred = coord + bias_pred
