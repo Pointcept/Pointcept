@@ -218,12 +218,14 @@ data = dict(
         data_root="data/scannet",
         transform=[
             dict(type="CenterShift", apply_z=True),
+            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             dict(
                 type="GridSample",
                 grid_size=0.02,
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
+                return_inverse=True,
             ),
             # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
@@ -232,7 +234,14 @@ data = dict(
             dict(type="Update", keys_dict={"condition": "ScanNet"}),
             dict(
                 type="Collect",
-                keys=("coord", "grid_coord", "segment", "condition"),
+                keys=(
+                    "coord",
+                    "grid_coord",
+                    "segment",
+                    "origin_segment",
+                    "condition",
+                    "inverse",
+                ),
                 feat_keys=("color", "normal"),
             ),
         ],

@@ -129,15 +129,9 @@ class SemSegEvaluator(HookBase):
             loss = output_dict["loss"]
             pred = output.max(1)[1]
             segment = input_dict["segment"]
-            if "origin_coord" in input_dict.keys():
-                idx, _ = pointops.knn_query(
-                    1,
-                    input_dict["coord"].float(),
-                    input_dict["offset"].int(),
-                    input_dict["origin_coord"].float(),
-                    input_dict["origin_offset"].int(),
-                )
-                pred = pred[idx.flatten().long()]
+            if "inverse" in input_dict.keys():
+                assert "origin_segment" in input_dict.keys()
+                pred = pred[input_dict["inverse"]]
                 segment = input_dict["origin_segment"]
             intersection, union, target = intersection_and_union_gpu(
                 pred,

@@ -149,6 +149,7 @@ data = dict(
         split="validation",
         data_root=data_root,
         transform=[
+            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             dict(type="PointClip", point_cloud_range=(-75.2, -75.2, -4, 75.2, 75.2, 2)),
             dict(
                 type="GridSample",
@@ -156,11 +157,12 @@ data = dict(
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
+                return_inverse=True,
             ),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=("coord", "grid_coord", "segment"),
+                keys=("coord", "grid_coord", "segment", "origin_segment", "inverse"),
                 feat_keys=("coord", "strength"),
             ),
         ],
