@@ -1,0 +1,31 @@
+class_names = [
+    "wall",
+    "floor",
+    "cabinet",
+    "bed",
+    "chair",
+    "sofa",
+    "table",
+    "door",
+    "window",
+    "picture",
+    "desk",
+    "shelves",
+    "curtain",
+    "dresser",
+    "pillow",
+    "mirror",
+    "ceiling",
+    "refrigerator",
+    "television",
+    "nightstand",
+    "sink",
+    "lamp",
+    "otherstructure",
+    "otherfurniture",
+    "otherprop",
+]
+
+data = dict(
+    names=class_names,
+)

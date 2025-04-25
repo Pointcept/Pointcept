@@ -1,8 +1,11 @@
+from configs._base_.dataset.scannet200 import class_names as SCANNET200_CLASS_NAMES
+from configs._base_.dataset.scannetpp import class_names as SCANNETPP_CLASS_NAMES
 from configs._base_.dataset.structured3d import class_names as STRUCTURED3D_CLASS_NAMES
-from configs._base_.dataset.scannet import class_names as SCANNET_CLASS_NAMES
-from configs._base_.dataset.s3dis import class_names as S3DIS_CLASS_NAMES
 
-_base_ = ["../_base_/default_runtime.py"]
+_base_ = [
+    "../_base_/default_runtime.py",
+    "../_base_/dataset/scannetpp.py",
+]
 
 # misc custom setting
 batch_size = 24  # bs: total bs in all gpus
@@ -11,7 +14,6 @@ mix_prob = 0.8
 clip_grad = 3.0
 empty_cache = False
 enable_amp = True
-
 find_unused_parameters = True
 
 # trainer
@@ -58,14 +60,16 @@ model = dict(
     ],
     freeze_backbone=False,
     backbone_out_channels=64,
-    conditions=("Structured3D", "ScanNet", "S3DIS"),
+    conditions=("ScanNet200", "ScanNet++", "Structured3D"),
     template="[x]",
     clip_model="ViT-B/16",
-    class_names=[
+    # fmt: off
+    class_names = [
+        SCANNET200_CLASS_NAMES,
+        SCANNETPP_CLASS_NAMES,
         STRUCTURED3D_CLASS_NAMES,
-        SCANNET_CLASS_NAMES,
-        S3DIS_CLASS_NAMES,
     ],
+    # fmt: on
     backbone_mode=False,
 )
 
@@ -84,30 +88,8 @@ param_dicts = [dict(keyword="block", lr=0.0002)]
 
 # dataset settings
 data = dict(
-    num_classes=20,
+    num_classes=100,
     ignore_index=-1,
-    names=[
-        "wall",
-        "floor",
-        "cabinet",
-        "bed",
-        "chair",
-        "sofa",
-        "table",
-        "door",
-        "window",
-        "bookshelf",
-        "picture",
-        "counter",
-        "desk",
-        "curtain",
-        "refridgerator",
-        "shower curtain",
-        "toilet",
-        "sink",
-        "bathtub",
-        "otherfurniture",
-    ],
     train=dict(
         type="ConcatDataset",
         datasets=[
@@ -169,10 +151,10 @@ data = dict(
                 test_mode=False,
                 loop=2,  # sampling weight
             ),
-            # ScanNet
+            # ScanNet200
             dict(
-                type="ScanNetDataset",
-                split="train",
+                type="ScanNet200Dataset",
+                split=["train", "val"],
                 data_root="data/scannet",
                 transform=[
                     dict(type="CenterShift", apply_z=True),
@@ -215,7 +197,7 @@ data = dict(
                     dict(type="CenterShift", apply_z=False),
                     dict(type="NormalizeColor"),
                     dict(type="ShufflePoint"),
-                    dict(type="Update", keys_dict={"condition": "ScanNet"}),
+                    dict(type="Update", keys_dict={"condition": "ScanNet200"}),
                     dict(type="ToTensor"),
                     dict(
                         type="Collect",
@@ -268,7 +250,7 @@ data = dict(
             #             mode="train",
             #             return_grid_coord=True,
             #         ),
-            #         dict(type="SphereCrop", scale=0.6, mode="random"),
+            #         dict(type="SphereCrop", sample_rate=0.6, mode="random"),
             #         dict(type="SphereCrop", point_max=204800, mode="random"),
             #         dict(type="CenterShift", apply_z=False),
             #         dict(type="NormalizeColor"),
@@ -284,12 +266,68 @@ data = dict(
             #     test_mode=False,
             #     loop=1,  # sampling weight
             # ),
+            dict(
+                type="ScanNetPPDataset",
+                split="train_grid1mm_chunk6x6_stride3x3",
+                data_root="data/scannetpp",
+                transform=[
+                    dict(type="CenterShift", apply_z=True),
+                    dict(
+                        type="RandomDropout",
+                        dropout_ratio=0.2,
+                        dropout_application_ratio=0.2,
+                    ),
+                    # dict(type="RandomRotateTargetAngle", angle=(1/2, 1, 3/2), center=[0, 0, 0], axis="z", p=0.75),
+                    dict(
+                        type="RandomRotate",
+                        angle=[-1, 1],
+                        axis="z",
+                        center=[0, 0, 0],
+                        p=0.5,
+                    ),
+                    dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.5),
+                    dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="y", p=0.5),
+                    dict(type="RandomScale", scale=[0.9, 1.1]),
+                    # dict(type="RandomShift", shift=[0.2, 0.2, 0.2]),
+                    dict(type="RandomFlip", p=0.5),
+                    dict(type="RandomJitter", sigma=0.005, clip=0.02),
+                    dict(
+                        type="ElasticDistortion",
+                        distortion_params=[[0.2, 0.4], [0.8, 1.6]],
+                    ),
+                    dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
+                    dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
+                    dict(type="ChromaticJitter", p=0.95, std=0.05),
+                    # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
+                    # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
+                    dict(
+                        type="GridSample",
+                        grid_size=0.02,
+                        hash_type="fnv",
+                        mode="train",
+                        return_grid_coord=True,
+                    ),
+                    dict(type="SphereCrop", point_max=204800, mode="random"),
+                    dict(type="CenterShift", apply_z=False),
+                    dict(type="NormalizeColor"),
+                    # dict(type="ShufflePoint"),
+                    dict(type="Update", keys_dict={"condition": "ScanNet++"}),
+                    dict(type="ToTensor"),
+                    dict(
+                        type="Collect",
+                        keys=("coord", "grid_coord", "segment", "condition"),
+                        feat_keys=("coord", "color", "normal"),
+                    ),
+                ],
+                test_mode=False,
+                loop=1,  # sampling weight
+            ),
         ],
     ),
     val=dict(
-        type="ScanNetDataset",
+        type="ScanNetPPDataset",
         split="val",
-        data_root="data/scannet",
+        data_root="data/scannetpp",
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(
@@ -301,23 +339,31 @@ data = dict(
             ),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
-            dict(type="Update", keys_dict={"condition": "ScanNet"}),
             dict(type="ToTensor"),
+            dict(type="Update", keys_dict={"condition": "ScanNet++"}),
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment", "condition"),
-                feat_keys=("coord", "color", "normal"),
+                feat_keys=("color", "normal"),
             ),
         ],
         test_mode=False,
     ),
     test=dict(
-        type="ScanNetDataset",
+        type="ScanNetPPDataset",
         split="val",
-        data_root="data/scannet",
+        data_root="data/scannetpp",
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(type="NormalizeColor"),
+            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
+            dict(
+                type="GridSample",
+                grid_size=0.01,
+                hash_type="fnv",
+                mode="train",
+                return_inverse=True,
+            ),
         ],
         test_mode=True,
         test_cfg=dict(
@@ -331,12 +377,12 @@ data = dict(
             crop=None,
             post_transform=[
                 dict(type="CenterShift", apply_z=False),
-                dict(type="Update", keys_dict={"condition": "ScanNet"}),
+                dict(type="Update", keys_dict={"condition": "ScanNet++"}),
                 dict(type="ToTensor"),
                 dict(
                     type="Collect",
                     keys=("coord", "grid_coord", "index", "condition"),
-                    feat_keys=("coord", "color", "normal"),
+                    feat_keys=("color", "normal"),
                 ),
             ],
             aug_transform=[
