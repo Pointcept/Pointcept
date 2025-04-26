@@ -14,7 +14,7 @@ class Subtraction(Function):
         assert input1.is_contiguous() and input2.is_contiguous()
         n, c = input1.shape
         nsample = idx.shape[-1]
-        output = torch.cuda.FloatTensor(n, nsample, c).zero_()
+        output = torch.zeros((n, nsample, c), dtype=torch.float, device=input1.device)
         subtraction_forward_cuda(n, nsample, c, input1, input2, idx, output)
         ctx.save_for_backward(idx)
         return output
@@ -27,8 +27,9 @@ class Subtraction(Function):
         """
         (idx,) = ctx.saved_tensors
         n, nsample, c = grad_output.shape
-        grad_input1 = torch.cuda.FloatTensor(n, c).zero_()
-        grad_input2 = torch.cuda.FloatTensor(n, c).zero_()
+        grad_input1 = torch.zeros((n, c), dtype=torch.float, device=idx.device)
+        grad_input2 = torch.zeros((n, c), dtype=torch.float, device=idx.device)
+
         subtraction_backward_cuda(
             n, nsample, c, idx, grad_output, grad_input1, grad_input2
         )

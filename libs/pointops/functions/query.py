@@ -16,8 +16,8 @@ class KNNQuery(Function):
             new_offset = offset
         assert xyz.is_contiguous() and new_xyz.is_contiguous()
         m = new_xyz.shape[0]
-        idx = torch.cuda.IntTensor(m, nsample).zero_()
-        dist2 = torch.cuda.FloatTensor(m, nsample).zero_()
+        idx = torch.zeros((m, nsample), dtype=torch.int, device=xyz.device)
+        dist2 = torch.zeros((m, nsample), dtype=torch.float, device=xyz.device)
         knn_query_cuda(
             m, nsample, xyz, new_xyz, offset.int(), new_offset.int(), idx, dist2
         )
@@ -52,8 +52,8 @@ class RandomBallQuery(Function):
                 torch.randperm(e_k - s_k, dtype=torch.int32, device=offset.device) + s_k
             )
         order = torch.cat(order, dim=0)
-        idx = torch.cuda.IntTensor(m, nsample).zero_()
-        dist2 = torch.cuda.FloatTensor(m, nsample).zero_()
+        idx = torch.zeros((m, nsample), dtype=torch.int, device=xyz.device)
+        dist2 = torch.zeros((m, nsample), dtype=torch.float, device=xyz.device)
         random_ball_query_cuda(
             m,
             nsample,
@@ -91,8 +91,8 @@ class BallQuery(Function):
         assert min_radius < max_radius
 
         m = new_xyz.shape[0]
-        idx = torch.cuda.IntTensor(m, nsample).zero_()
-        dist2 = torch.cuda.FloatTensor(m, nsample).zero_()
+        idx = torch.zeros((m, nsample), dtype=torch.int, device=xyz.device)
+        dist2 = torch.zeros((m, nsample), dtype=torch.float, device=xyz.device)
         ball_query_cuda(
             m,
             nsample,

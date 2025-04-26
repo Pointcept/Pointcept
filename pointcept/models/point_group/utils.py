@@ -24,8 +24,8 @@ class BallQueryBatchP(Function):
         assert batch_offsets.is_contiguous() and batch_offsets.is_cuda
 
         while True:
-            idx = torch.cuda.IntTensor(n * meanActive).zero_()
-            start_len = torch.cuda.IntTensor(n, 2).zero_()
+            idx = torch.zeros(n * meanActive, dtype=torch.int, device=coords.device)
+            start_len = torch.zeros((n, 2), dtype=torch.int, device=coords.device)
             nActive = pointgroup_ops.ballquery_batch_p(
                 coords, batch_idxs, batch_offsets, idx, start_len, n, meanActive, radius
             )

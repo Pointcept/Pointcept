@@ -30,7 +30,7 @@ class AttentionRelationStep(Function):
 
         _, g, c = query.shape
         m = index_target.shape[0]
-        output = torch.cuda.FloatTensor(m, g).zero_()
+        output = torch.zeros((m, g), dtype=torch.float, device=query.device)
         attention_relation_step_forward_cuda(
             m, g, c, query, key, weight, index_target.int(), index_refer.int(), output
         )
@@ -42,9 +42,9 @@ class AttentionRelationStep(Function):
         query, key, weight, index_target, index_refer = ctx.saved_tensors
         n, g, c = query.shape
         m = index_target.shape[0]
-        grad_query = torch.cuda.FloatTensor(n, g, c).zero_()
-        grad_key = torch.cuda.FloatTensor(n, g, c).zero_()
-        grad_weight = torch.cuda.FloatTensor(c).zero_()
+        grad_query = torch.zeros((n, g, c), dtype=torch.float, device=query.device)
+        grad_key = torch.zeros((n, g, c), dtype=torch.float, device=query.device)
+        grad_weight = torch.zeros(c, dtype=torch.float, device=query.device)
         attention_relation_step_backward_cuda(
             m,
             g,
@@ -83,7 +83,7 @@ class AttentionFusionStep(Function):
 
         n, g, c = value.shape
         m = index_refer.shape[0]
-        output = torch.cuda.FloatTensor(n, g, c).zero_()
+        output = torch.zeros((n, g, c), dtype=torch.float, device=weight.device)
         attention_fusion_step_forward_cuda(
             m, g, c, weight, value, index_target.int(), index_refer.int(), output
         )
@@ -99,8 +99,8 @@ class AttentionFusionStep(Function):
         weight, value, index_target, index_refer = ctx.saved_tensors
         n, g, c = value.shape
         m = index_target.shape[0]
-        grad_weight = torch.cuda.FloatTensor(m, g).zero_()
-        grad_value = torch.cuda.FloatTensor(n, g, c).zero_()
+        grad_weight = torch.zeros((m, g), dtype=torch.float, device=weight.device)
+        grad_value = torch.zeros((n, g, c), dtype=torch.float, device=weight.device)
         attention_fusion_step_backward_cuda(
             m,
             g,

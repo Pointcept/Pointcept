@@ -18,7 +18,7 @@ class Aggregation(Function):
         )
         n, nsample, c = position.shape
         w_c = weight.shape[-1]
-        output = torch.cuda.FloatTensor(n, c).zero_()
+        output = torch.zeros((n, c), dtype=torch.float, device=input.device)
         aggregation_forward_cuda(
             n, nsample, c, w_c, input, position, weight, idx, output
         )
@@ -34,9 +34,13 @@ class Aggregation(Function):
         input, position, weight, idx = ctx.saved_tensors
         n, nsample, c = position.shape
         w_c = weight.shape[-1]
-        grad_input = torch.cuda.FloatTensor(n, c).zero_()
-        grad_position = torch.cuda.FloatTensor(n, nsample, c).zero_()
-        grad_weight = torch.cuda.FloatTensor(n, nsample, w_c).zero_()
+        grad_input = torch.zeros((n, c), dtype=torch.float, device=input.device)
+        grad_position = torch.zeros(
+            (n, nsample, c), dtype=torch.float, device=input.device
+        )
+        grad_weight = torch.zeros(
+            (n, nsample, w_c), dtype=torch.float, device=input.device
+        )
         aggregation_backward_cuda(
             n,
             nsample,
