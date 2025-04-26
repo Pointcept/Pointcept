@@ -80,7 +80,7 @@ def parse_scene(
         instance["label_orig"] = label
         # remap label
         instance["label"] = label_mapping.get(label, None)
-        instance["label_index"] = class2idx.get(label, ignore_index)
+        instance["label_index"] = class2idx.get(instance["label"], ignore_index)
 
         if instance["label_index"] == ignore_index:
             continue
@@ -118,8 +118,7 @@ def parse_scene(
     np.save(save_path / "instance.npy", instance_gt)
 
 
-def filter_map_classes(mapping, count_thresh, count_type, mapping_type):
-    mapping = mapping[mapping[count_type] >= count_thresh]
+def filter_map_classes(mapping, mapping_type):
     if mapping_type == "semantic":
         map_key = "semantic_map_to"
     elif mapping_type == "instance":
@@ -228,9 +227,7 @@ if __name__ == "__main__":
     label_mapping = pd.read_csv(
         config.dataset_root / "metadata" / "semantic_benchmark" / "map_benchmark.csv"
     )
-    # label_mapping = filter_map_classes(
-    #     label_mapping, count_thresh=0, count_type="count", mapping_type="semantic"
-    # )
+    label_mapping = filter_map_classes(label_mapping, mapping_type="semantic")
     class2idx = {
         class_name: idx for (idx, class_name) in enumerate(segment_class_names)
     }
