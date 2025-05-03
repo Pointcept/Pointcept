@@ -14,6 +14,7 @@ mix_prob = 0.8
 clip_grad = 3.0
 empty_cache = False
 enable_amp = True
+evaluate = False
 
 # trainer
 train = dict(
@@ -394,7 +395,10 @@ data = dict(
             # ),
             dict(
                 type="ScanNetPPDataset",
-                split="train_grid1mm_chunk6x6_stride3x3",
+                split=[
+                    "train_grid1mm_chunk6x6_stride3x3",
+                    "val_grid1mm_chunk6x6_stride3x3",
+                ],
                 data_root="data/scannetpp",
                 transform=[
                     dict(type="CenterShift", apply_z=True),
@@ -450,43 +454,9 @@ data = dict(
             ),
         ],
     ),
-    val=dict(
-        type="ScanNetPPDataset",
-        split="val",
-        data_root="data/scannetpp",
-        transform=[
-            dict(type="CenterShift", apply_z=True),
-            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
-            dict(
-                type="GridSample",
-                grid_size=0.02,
-                hash_type="fnv",
-                mode="train",
-                return_grid_coord=True,
-                return_inverse=True,
-            ),
-            dict(type="CenterShift", apply_z=False),
-            dict(type="NormalizeColor"),
-            dict(type="Update", keys_dict={"condition": "ScanNet++"}),
-            dict(type="ToTensor"),
-            dict(
-                type="Collect",
-                keys=(
-                    "coord",
-                    "grid_coord",
-                    "segment",
-                    "origin_segment",
-                    "condition",
-                    "inverse",
-                ),
-                feat_keys=("coord", "color", "normal"),
-            ),
-        ],
-        test_mode=False,
-    ),
     test=dict(
         type="ScanNetPPDataset",
-        split="val",
+        split="test",
         data_root="data/scannetpp",
         transform=[
             dict(type="CenterShift", apply_z=True),
@@ -655,5 +625,5 @@ hooks = [
     dict(type="InformationWriter"),
     dict(type="SemSegEvaluator"),
     dict(type="CheckpointSaver", save_freq=None),
-    dict(type="PreciseEvaluator", test_last=False),
+    dict(type="PreciseEvaluator", test_last=True),
 ]

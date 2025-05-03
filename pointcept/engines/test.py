@@ -48,7 +48,8 @@ class TesterBase:
         self.logger.info("=> Loading config ...")
         self.cfg = cfg
         self.verbose = verbose
-        if self.verbose:
+        if self.verbose and model is None:
+            # if model is not none, trigger tester with trainer, no need to print config
             self.logger.info(f"Save path: {cfg.save_path}")
             self.logger.info(f"Config:\n{cfg.pretty_text}")
         if model is None:
