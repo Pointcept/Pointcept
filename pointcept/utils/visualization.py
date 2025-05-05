@@ -36,7 +36,7 @@ def get_point_cloud(coord, color=None, verbose=True):
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(coord_)
         pcd.colors = o3d.utility.Vector3dVector(
-            np.ones_like(coord_) if color is None else color_
+            np.zeros_like(coord_) if color is None else color_
         )
         pcd_list.append(pcd)
     if verbose:

@@ -29,6 +29,7 @@ def index_operator(data_dict, index, duplicate=False):
             "coord",
             "color",
             "normal",
+            "superpoint",
             "strength",
             "segment",
             "instance",
