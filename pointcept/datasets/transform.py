@@ -851,7 +851,8 @@ class GridSample(object):
                 data_dict["inverse"][idx_sort] = inverse
             if self.return_grid_coord:
                 data_dict["grid_coord"] = grid_coord[idx_unique]
-                data_dict["index_valid_keys"].append("grid_coord")
+                if "grid_coord" in data_part["index_valid_keys"]:
+                    data_part["index_valid_keys"].append("grid_coord")
             if self.return_min_coord:
                 data_dict["min_coord"] = min_coord.reshape([1, 3])
             if self.return_displacement:
@@ -863,7 +864,8 @@ class GridSample(object):
                         displacement * data_dict["normal"], axis=-1, keepdims=True
                     )
                 data_dict["displacement"] = displacement[idx_unique]
-                data_dict["index_valid_keys"].append("displacement")
+                if "displacement" in data_part["index_valid_keys"]:
+                    data_part["index_valid_keys"].append("displacement")
             return data_dict
 
         elif self.mode == "test":  # test mode
@@ -878,7 +880,8 @@ class GridSample(object):
                     data_part["inverse"][idx_sort] = inverse
                 if self.return_grid_coord:
                     data_part["grid_coord"] = grid_coord[idx_part]
-                    data_part["index_valid_keys"].append("grid_coord")
+                    if "grid_coord" in data_part["index_valid_keys"]:
+                        data_part["index_valid_keys"].append("grid_coord")
                 if self.return_min_coord:
                     data_part["min_coord"] = min_coord.reshape([1, 3])
                 if self.return_displacement:
@@ -889,8 +892,9 @@ class GridSample(object):
                         displacement = np.sum(
                             displacement * data_dict["normal"], axis=-1, keepdims=True
                         )
-                    data_dict["displacement"] = displacement[idx_part]
-                    data_dict["index_valid_keys"].append("displacement")
+                    data_part["displacement"] = displacement[idx_part]
+                    if "displacement" in data_part["index_valid_keys"]:
+                        data_part["index_valid_keys"].append("displacement")
                 data_part_list.append(data_part)
             return data_part_list
         else:
