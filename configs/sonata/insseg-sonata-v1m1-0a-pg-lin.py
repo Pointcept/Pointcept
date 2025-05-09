@@ -68,8 +68,8 @@ model = dict(
     segment_ignore_index=segment_ignore_index,
     instance_ignore_index=-1,
     cluster_thresh=1.5,
-    cluster_closed_points=300,
-    cluster_propose_points=100,
+    cluster_closed_points=600,
+    cluster_propose_points=200,
     cluster_min_points=50,
     criteria=[
         dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1),
