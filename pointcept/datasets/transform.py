@@ -44,6 +44,8 @@ def index_operator(data_dict, index, duplicate=False):
         for key in data_dict.keys():
             if key in data_dict["index_valid_keys"]:
                 data_dict_[key] = data_dict[key][index]
+            elif key == "index_valid_keys":
+                data_dict_[key] = copy.copy(data_dict[key])
             else:
                 data_dict_[key] = data_dict[key]
         return data_dict_
@@ -876,7 +878,7 @@ class GridSample(object):
                     data_part["inverse"][idx_sort] = inverse
                 if self.return_grid_coord:
                     data_part["grid_coord"] = grid_coord[idx_part]
-                    data_dict["index_valid_keys"].append("grid_coord")
+                    data_part["index_valid_keys"].append("grid_coord")
                 if self.return_min_coord:
                     data_part["min_coord"] = min_coord.reshape([1, 3])
                 if self.return_displacement:
