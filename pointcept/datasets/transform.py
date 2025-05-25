@@ -822,6 +822,7 @@ class GridSample(object):
     def __call__(self, data_dict):
         assert "coord" in data_dict.keys()
         scaled_coord = data_dict["coord"] / np.array(self.grid_size)
+        displacement_normal = data_dict["normal"] if "normal" in data_dict else None
         grid_coord = np.floor(scaled_coord).astype(int)
         min_coord = grid_coord.min(0)
         grid_coord -= min_coord
@@ -861,7 +862,7 @@ class GridSample(object):
                 )  # [0, 1] -> [-0.5, 0.5] displacement to center
                 if self.project_displacement:
                     displacement = np.sum(
-                        displacement * data_dict["normal"], axis=-1, keepdims=True
+                        displacement * displacement_normal, axis=-1, keepdims=True
                     )
                 data_dict["displacement"] = displacement[idx_unique]
                 if "displacement" not in data_dict["index_valid_keys"]:
@@ -890,7 +891,7 @@ class GridSample(object):
                     )  # [0, 1] -> [-0.5, 0.5] displacement to center
                     if self.project_displacement:
                         displacement = np.sum(
-                            displacement * data_dict["normal"], axis=-1, keepdims=True
+                            displacement * displacement_normal, axis=-1, keepdims=True
                         )
                     data_part["displacement"] = displacement[idx_part]
                     if "displacement" not in data_part["index_valid_keys"]:
