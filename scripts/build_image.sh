@@ -1,6 +1,6 @@
-TORCH_VERSION=2.0.1
-CUDA_VERSION=11.7
-CUDNN_VERSION=8
+TORCH_VERSION=2.5.0
+CUDA_VERSION=12.4
+CUDNN_VERSION=9
 
 ARGS=`getopt -o t:c: -l torch:,cuda:,cudnn: -n "$0" -- "$@"`
 [ $? != 0 ] && exit 1
@@ -31,7 +31,7 @@ done
 
 CUDA_VERSION_NO_DOT=`echo ${CUDA_VERSION} | tr -d "."`
 BASE_TORCH_TAG=${TORCH_VERSION}-cuda${CUDA_VERSION}-cudnn${CUDNN_VERSION}-devel
-IMG_TAG=pointcept/pointcept:pytorch${BASE_TORCH_TAG}
+IMG_TAG=pointcept/pointcept:v1.6.0-pytorch${BASE_TORCH_TAG}
 
 echo "TORCH VERSION: ${TORCH_VERSION}"
 echo "CUDA VERSION: ${CUDA_VERSION}"
@@ -54,30 +54,30 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 	&& export DEBIAN_FRONTEND=dialog
 
 # Install Pointcept environment
-RUN conda install h5py pyyaml -c anaconda -y
-RUN conda install sharedarray tensorboard tensorboardx yapf addict einops scipy plyfile termcolor timm -c conda-forge -y
-RUN conda install pytorch-cluster pytorch-scatter pytorch-sparse -c pyg -y
+RUN conda install h5py pyyaml tensorboard tensorboardx wandb yapf addict einops scipy plyfile termcolor matplotlib black open3d -c conda-forge -y
 
 RUN pip install --upgrade pip
+RUN pip install timm
 RUN pip install torch-geometric
+RUN pip install torch_scatter torch_sparse torch_cluster -f https://data.pyg.org/whl/torch-${TORCH_VERSION}+cu${CUDA_VERSION_NO_DOT}.html
 RUN pip install spconv-cu${CUDA_VERSION_NO_DOT}
-RUN pip install open3d
+RUN pip install git+https://github.com/octree-nn/ocnn-pytorch.git
+RUN pip install ftfy regex tqdm
+RUN pip install git+https://github.com/openai/CLIP.git
 
-# Build MinkowskiEngine
-RUN git clone https://github.com/NVIDIA/MinkowskiEngine.git
-WORKDIR /workspace/MinkowskiEngine
-RUN TORCH_CUDA_ARCH_LIST="5.2 6.0 6.1 7.0+PTX 8.0" python setup.py install --blas=openblas --force_cuda
-WORKDIR /workspace
+# Build swin3d
+RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install -U git+https://github.com/microsoft/Swin3D.git -v
+
+# Build FlashAttention2
+RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install git+https://github.com/Dao-AILab/flash-attention.git
 
 # Build pointops
 RUN git clone https://github.com/Pointcept/Pointcept.git
-RUN TORCH_CUDA_ARCH_LIST="5.2 6.0 6.1 7.0+PTX 8.0" pip install Pointcept/libs/pointops -v
+RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install Pointcept/libs/pointops -v
 
 # Build pointgroup_ops
-RUN TORCH_CUDA_ARCH_LIST="5.2 6.0 6.1 7.0+PTX 8.0" pip install Pointcept/libs/pointgroup_ops -v
+RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install Pointcept/libs/pointgroup_ops -v
 
-# Build swin3d
-RUN TORCH_CUDA_ARCH_LIST="6.0 6.1 7.0+PTX 8.0" pip install -U git+https://github.com/microsoft/Swin3D.git -v
 EOM
 
 docker build . -f ./Dockerfile -t $IMG_TAG
