@@ -202,7 +202,9 @@ class Trainer(TrainerBase):
             enabled=self.cfg.enable_amp, dtype=AMP_DTYPE[self.cfg.amp_dtype]
         ):
             output_dict = self.model(input_dict)
-            loss = output_dict["loss"] / self.cfg.gradient_accumulation_steps  # scale loss
+            loss = (
+                output_dict["loss"] / self.cfg.gradient_accumulation_steps
+            )  # scale loss
 
         # Backward pass
         if self.cfg.enable_amp:
