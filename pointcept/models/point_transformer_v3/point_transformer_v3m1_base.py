@@ -279,7 +279,8 @@ class Block(PointModule):
                 channels,
                 channels,
                 kernel_size=3,
-                bias=True,
+                # bias=True,
+                bias=False, # for cpu inference
                 indice_key=cpe_indice_key,
             ),
             nn.Linear(channels, channels),
