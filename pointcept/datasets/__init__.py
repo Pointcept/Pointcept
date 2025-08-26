@@ -16,6 +16,9 @@ from .semantic_kitti import SemanticKITTIDataset
 from .nuscenes import NuScenesDataset
 from .waymo import WaymoDataset
 
+# railway scene
+from .sncf_mls import SNCFMLSDataset
+
 # object
 from .modelnet import ModelNetDataset
 from .shapenet_part import ShapeNetPartDataset
