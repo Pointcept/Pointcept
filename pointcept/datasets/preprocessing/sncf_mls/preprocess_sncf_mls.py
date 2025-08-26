@@ -1,3 +1,27 @@
+# ------------------------------------------------------------------------------
+# SNCF MLS Dataset Preprocessing
+#
+# This script provides preprocessing utilities for the SNCF MLS dataset.
+#
+# Dataset License:
+#   The SNCF MLS dataset is licensed under the Open Database License (ODbL).
+#   You are free to use, share, and adapt the data as long as you:
+#     - Attribute the source (SNCF, via the official open data platform),
+#     - Share any public modifications to the database under ODbL,
+#     - Keep the data open if redistributed.
+#
+# IMPORTANT:
+#   - The dataset itself is NOT included in this repository.
+#   - To access the dataset:
+#       • Raw point cloud data: 
+#         https://ressources.data.sncf.com/explore/dataset/nuage-points-3d
+#       • Annotated point cloud data (via data request form): 
+#         https://github.com/akharroubi/Rail3D
+#
+# By using this script, you agree to comply with the ODbL terms when accessing
+# and using the SNCF MLS dataset.
+# ------------------------------------------------------------------------------
+
 import os
 import numpy as np
 import open3d as o3d
