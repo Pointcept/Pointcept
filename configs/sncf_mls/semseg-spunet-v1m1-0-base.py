@@ -20,8 +20,8 @@ model = dict(
 )
 
 # scheduler settings
-epoch = 150
-eval_epoch = 150
+epoch = 50
+eval_epoch = 50
 optimizer = dict(type="AdamW", lr=0.002, weight_decay=0.005)
 scheduler = dict(
     type="OneCycleLR",
@@ -33,7 +33,7 @@ scheduler = dict(
 )
 
 # dataset settings
-dataset_type = "SNCFMLSDataset"
+dataset_type = "DefaultDataset"
 data_root = "data/sncf_mls"
 ignore_index = -1
 names = [
@@ -58,7 +58,8 @@ data = dict(
         transform=[
             # dict(type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2),
             # dict(type="RandomRotateTargetAngle", angle=(1/2, 1, 3/2), center=[0, 0, 0], axis="z", p=0.75),
-            dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.5),
+            dict(type="RandomRotate", angle=[-1, 1],
+                 axis="z", center=[0, 0, 0], p=0.5),
             # dict(type="RandomRotate", angle=[-1/6, 1/6], axis="x", p=0.5),
             # dict(type="RandomRotate", angle=[-1/6, 1/6], axis="y", p=0.5),
             dict(type="PointClip", point_cloud_range=(-35.2, -35.2, -4, 35.2, 35.2, 2)),
@@ -104,7 +105,8 @@ data = dict(
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=("coord", "grid_coord", "segment", "origin_segment", "inverse"),
+                keys=("coord", "grid_coord", "segment",
+                      "origin_segment", "inverse"),
                 feat_keys=("coord",),
             ),
         ],

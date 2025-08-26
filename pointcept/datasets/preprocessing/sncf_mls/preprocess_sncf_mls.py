@@ -1,12 +1,12 @@
 import os
 import numpy as np
 import open3d as o3d
-from pathlib import Path
-import pickle
-from tqdm import tqdm
+import argparse
 import laspy
+from pathlib import Path
+from tqdm import tqdm
 
-# dataset split
+# Dataset split
 SPLITS = {
     "train": [
         "sncf_01.ply", "sncf_02.ply", "sncf_03.ply", "sncf_05.ply",
@@ -21,7 +21,7 @@ SPLITS = {
 def demean_points(points):
     mean_xyz = points[:, :3].mean(axis=0)
     points[:, :3] -= mean_xyz
-    return points, mean_xyz
+    return points
 
 
 def split_into_tiles(points, tile_size=15, overlap=2.0):
@@ -40,7 +40,7 @@ def split_into_tiles(points, tile_size=15, overlap=2.0):
                 (points[:, 1] >= y0) & (points[:, 1] < y1)
             )
             tile_points = points[mask]
-            if len(tile_points) > 1000:  # skip empty/sparse tiles
+            if len(tile_points) > 1000:  # Skip empty/sparse tiles
                 tiles.append((tile_points, (x0, y0, x1, y1)))
     return tiles
 
@@ -49,26 +49,25 @@ def save_tiles_and_infos(ply_file, split, output_root, tile_size=15, overlap=2.0
     pcd = o3d.t.io.read_point_cloud(ply_file)
     points = pcd.point['positions'].numpy()
 
-    # Try to read labels (classification) if available
+    # Extract labels
     if hasattr(pcd, "point") and "scalar_Classification" in pcd.point:
         labels = np.asarray(
             pcd.point["scalar_Classification"].numpy(), dtype=np.int32)
     else:
         raise ValueError(f"{ply_file} has no classification labels!")
 
-    # demean
-    points, offset = demean_points(points)
+    # TODO: Parse scalar_Intensity
 
-    # split tiles
+    # Demean
+    points = demean_points(points)
+
+    # Split tiles
     tiles = split_into_tiles(points, tile_size, overlap)
 
     fname = Path(ply_file).stem
-    out_dir = Path(output_root) / split / fname
-    out_dir_las = Path(output_root) / split / fname / "las"
+    out_dir = Path(output_root) / split
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_dir_las.mkdir(parents=True, exist_ok=True)
 
-    infos = []
     for i, (tile_points, bounds) in enumerate(tiles):
         mask = (
             (points[:, 0] >= bounds[0]) & (points[:, 0] < bounds[2]) &
@@ -76,22 +75,26 @@ def save_tiles_and_infos(ply_file, split, output_root, tile_size=15, overlap=2.0
         )
         tile_labels = labels[mask]
 
-        # Shift labels from 1-8 → 0-7
+        # Shift labels from 1-8 to 0-7
         tile_labels = tile_labels - 1
 
-        tile_path = out_dir / f"{fname}_tile_{i:05d}.npz"
-        np.savez_compressed(
-            tile_path,
-            points=tile_points.astype(np.float32),
-            labels=tile_labels.astype(np.int64)
-        )
+        # Save data
+        tile_path = out_dir / f"{fname}_tile_{i:05d}"
 
-        # ---- Save LAZ (for visualization)
-        laz_path = out_dir_las / f"{fname}_tile_{i:05d}.las"
+        data_dict = dict(
+            coord=tile_points.astype(np.float32),
+            segment=tile_labels.astype(np.int16),
+        )
+        os.makedirs(tile_path, exist_ok=True)
+
+        for key, arr in data_dict.items():
+            np.save(os.path.join(tile_path, f"{key}.npy"), arr)
+
+        # Save LAS (for visualization)
+        laz_path = tile_path / f"{fname}_tile_{i:05d}.las"
         header = laspy.LasHeader(point_format=3, version="1.2")
         las = laspy.LasData(header)
 
-        # laspy requires scaled integer coords, but we can just store as float64 with scale=0.001
         las.x = tile_points[:, 0]
         las.y = tile_points[:, 1]
         las.z = tile_points[:, 2]
@@ -99,42 +102,44 @@ def save_tiles_and_infos(ply_file, split, output_root, tile_size=15, overlap=2.0
 
         las.write(str(laz_path))
 
-        infos.append({
-            "path": str(tile_path.relative_to(output_root)),
-            "origin_file": fname,
-            "tile_bounds": bounds,
-            "offset": offset.tolist()
-        })
-    return infos
-
-
-def process_dataset(dataset_root, output_root, splits=SPLITS, tile_size=15, overlap=2.0):
-    all_infos = {}
-    for split, files in splits.items():
-        infos_split = []
-        print(f"Processing {split} set with {len(files)} files...")
-        for ply_name in tqdm(files):
-            ply_path = Path(dataset_root) / ply_name
-            infos = save_tiles_and_infos(
-                ply_file=ply_path,
-                split=split,
-                output_root=output_root,
-                tile_size=tile_size,
-                overlap=overlap
-            )
-            infos_split.extend(infos)
-        # save pickle
-        pkl_path = Path(output_root) / f"infos_{split}.pkl"
-        with open(pkl_path, "wb") as f:
-            pickle.dump(infos_split, f)
-        all_infos[split] = infos_split
-        print(f"Saved {len(infos_split)} tiles into {pkl_path}")
-    return all_infos
-
 
 if __name__ == "__main__":
-    dataset_root = "data/sncf_mls"           # folder containing sncf_*.ply
-    output_root = "data/sncf_mls/pointcept_dataset_tiles"  # where npz + pickles go
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--dataset_root",
+        required=True,
+        help="Path to the ScanNet dataset containing scene folders.",
+    )
+    parser.add_argument(
+        "--output_root",
+        required=True,
+        help="Output path where train/val folders will be located.",
+    )
+    parser.add_argument(
+        "--tile_size",
+        type=float,
+        default=30.0,
+        help="Size of each tile (in meters). Default: 30.0",
+    )
+    parser.add_argument(
+        "--overlap",
+        type=float,
+        default=5.0,
+        help="Overlap between tiles (in meters). Default: 5.0",
+    )
 
-    os.makedirs(output_root, exist_ok=True)
-    process_dataset(dataset_root, output_root, tile_size=15, overlap=2.0)
+    config = parser.parse_args()
+
+    # Create output directories and process each split
+    for split, files in SPLITS.items():
+        print(f"Processing {split} set with {len(files)} files...")
+        os.makedirs(os.path.join(config.output_root, split), exist_ok=True)
+        for ply_name in tqdm(files):
+            ply_path = Path(config.dataset_root) / ply_name
+            save_tiles_and_infos(
+                ply_file=ply_path,
+                split=split,
+                output_root=config.output_root,
+                tile_size=config.tile_size,
+                overlap=config.overlap
+            )
