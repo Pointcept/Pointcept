@@ -500,6 +500,54 @@ https://huggingface.co/datasets/Pointcept/nuscenes-compressed)] (only processed 
   ln -s ${MODELNET_DIR} ${CODEBASE_DIR}/data/modelnet40_normal_resampled
   ```
 
+### SNCF MLS (Rail3D)
+- Request and download the dataset via the official [Rail3D Data Request Form](https://github.com/akharroubi/Rail3D)
+- Extract and place the .ply files into the following structure:
+  ```bash
+  data/sncf_mls
+  ├── sncf_01.ply
+  ├── sncf_02.ply
+  ├── sncf_03.ply
+  ├── sncf_04.ply
+  ├── sncf_05.ply
+  ├── sncf_06.ply
+  ├── sncf_07.ply
+  ├── sncf_08.ply
+  ├── sncf_09.ply
+  ├── sncf_10.ply
+  ├── sncf_11.ply
+  ├── sncf_12.ply
+  ├── sncf_13.ply
+  ├── sncf_14.ply
+  ├── sncf_15.ply
+  ├── sncf_16.ply
+  ```
+- Run preprocessing code to tile the large `.ply` files into manageable chunks:
+  ```bash
+  # dataset_root: the directory of raw SNCF MLS .ply files
+  # output_root: the directory to store the processed dataset
+  # tile_size: tile size in meters
+  # overlap: overlap size in meters
+  python pointcept/datasets/preprocessing/sncf_mls/preprocess_sncf_mls.py \
+      --dataset_root data/sncf_mls \
+      --output_root data/sncf_mls \
+      --tile_size 15 \
+      --overlap 2
+  ```
+- The dataset splits (train/val/test) are defined inside the preprocessing script.
+- After preprocessing, the dataset will be organized as follows:
+  ```bash
+  sncf_mls
+  ├── raw
+  │   ├── sncf_01.ply
+  │   ├── ...
+  │   └── sncf_16.ply
+  ├── tiles
+  │   ├── train
+  │   ├── val
+  │   └── test
+  ```
+
 ## Quick Start
 
 ### Training
@@ -632,6 +680,9 @@ sh scripts/train.sh -g 4 -d scannet -c semseg-spunet-v1m1-2-efficient-lr20 -n se
 
 # Profile model run time
 sh scripts/train.sh -g 4 -d scannet -c semseg-spunet-v1m1-0-enable-profiler -n semseg-spunet-v1m1-0-enable-profiler
+
+# Rail3D French MLS (SNCF Dataset)
+sh scripts/train.sh -d sncf_mls -c semseg-spunet-v1m1-0-base -n semseg-spunet-v1m1-0-base
 ```
 
 - **MinkowskiEngine**
