@@ -524,6 +524,8 @@ https://huggingface.co/datasets/Pointcept/nuscenes-compressed)] (only processed 
   ```
 - Run preprocessing code to tile the large `.ply` files into manageable chunks:
   ```bash
+  # Install requirements
+  pip install open3d laspy
   # dataset_root: the directory of raw SNCF MLS .ply files
   # output_root: the directory to store the processed dataset
   # tile_size: tile size in meters
