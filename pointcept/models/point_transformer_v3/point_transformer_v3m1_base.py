@@ -206,7 +206,7 @@ class SerializedAttention(PointModule):
             feat = (attn @ v).transpose(1, 2).reshape(-1, C)
         else:
             feat = flash_attn.flash_attn_varlen_qkvpacked_func(
-                qkv.half().reshape(-1, 3, H, C // H),
+                qkv.to(torch.bfloat16).reshape(-1, 3, H, C // H),
                 cu_seqlens,
                 max_seqlen=self.patch_size,
                 dropout_p=self.attn_drop if self.training else 0,
