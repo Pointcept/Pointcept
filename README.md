@@ -759,6 +759,9 @@ sh scripts/train.sh -g 4 -d nuscenes -c semseg-pt-v3m1-0-base -n semseg-pt-v3m1-
 # Scratched Waymo
 sh scripts/train.sh -g 4 -d waymo -c semseg-pt-v3m1-0-base -n semseg-pt-v3m1-0-base
 
+# Scratched Rail3D French MLS (SNCF Dataset)
+sh scripts/train.sh -d sncf_mls -c semseg-pt-v3m1-0-base -n semseg-pt-v3m1-0-base
+
 # More configs and exp records for PTv3 will be available soon.
 ```
 
