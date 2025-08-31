@@ -13,9 +13,9 @@
 # IMPORTANT:
 #   - The dataset itself is NOT included in this repository.
 #   - To access the dataset:
-#       • Raw point cloud data: 
+#       • Raw point cloud data:
 #         https://ressources.data.sncf.com/explore/dataset/nuage-points-3d
-#       • Annotated point cloud data (via data request form): 
+#       • Annotated point cloud data (via data request form):
 #         https://github.com/akharroubi/Rail3D
 #
 # By using this script, you agree to comply with the ODbL terms when accessing
@@ -80,7 +80,13 @@ def save_tiles_and_infos(ply_file, split, output_root, tile_size=15, overlap=2.0
     else:
         raise ValueError(f"{ply_file} has no classification labels!")
 
-    # TODO: Parse scalar_Intensity
+    # Extract scalar_Intensity
+    if hasattr(pcd, "point") and "scalar_Intensity" in pcd.point:
+        intensities = np.asarray(
+            pcd.point["scalar_Intensity"].numpy(), dtype=np.uint8)
+        intensities = intensities.reshape(-1, 1)
+    else:
+        intensities = np.zeros((points.shape[0], 1), dtype=np.uint8)
 
     # Demean
     points = demean_points(points)
@@ -98,6 +104,7 @@ def save_tiles_and_infos(ply_file, split, output_root, tile_size=15, overlap=2.0
             (points[:, 1] >= bounds[1]) & (points[:, 1] < bounds[3])
         )
         tile_labels = labels[mask]
+        tile_intensities = intensities[mask]
 
         # Shift labels from 1-8 to 0-7
         tile_labels = tile_labels - 1
@@ -108,6 +115,7 @@ def save_tiles_and_infos(ply_file, split, output_root, tile_size=15, overlap=2.0
         data_dict = dict(
             coord=tile_points.astype(np.float32),
             segment=tile_labels.astype(np.int16),
+            strength=tile_intensities.astype(np.uint8)
         )
         os.makedirs(tile_path, exist_ok=True)
 
@@ -122,6 +130,7 @@ def save_tiles_and_infos(ply_file, split, output_root, tile_size=15, overlap=2.0
         las.x = tile_points[:, 0]
         las.y = tile_points[:, 1]
         las.z = tile_points[:, 2]
+        las.intensity = tile_intensities.astype(np.uint8).reshape(-1)
         las.classification = tile_labels.astype(np.uint8).reshape(-1)
 
         las.write(str(laz_path))
