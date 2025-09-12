@@ -93,6 +93,17 @@ class ClsEvaluator(HookBase):
             self.trainer.writer.add_scalar("val/mIoU", m_iou, current_epoch)
             self.trainer.writer.add_scalar("val/mAcc", m_acc, current_epoch)
             self.trainer.writer.add_scalar("val/allAcc", all_acc, current_epoch)
+            if self.trainer.cfg.enable_wandb:
+                wandb.log(
+                    {
+                        "Epoch": current_epoch,
+                        "val/loss": loss_avg,
+                        "val/mIoU": m_iou,
+                        "val/mAcc": m_acc,
+                        "val/allAcc": all_acc,
+                    },
+                    step=wandb.run.step,
+                )
         self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
         self.trainer.comm_info["current_metric_value"] = all_acc  # save for saver
         self.trainer.comm_info["current_metric_name"] = "allAcc"  # save for saver
