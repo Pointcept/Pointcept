@@ -922,7 +922,7 @@ class InsSegTester(TesterBase):
         batch_time = AverageMeter()
 
         self.model.eval()
-        scenes = []
+        scenes = {}
 
         for idx, data_dict in enumerate(self.test_loader):
             start = time.time()
@@ -932,8 +932,8 @@ class InsSegTester(TesterBase):
                     data_dict[key] = data_dict[key].cuda(non_blocking=True)
             with torch.no_grad():
                 output_dict = self.model(data_dict)
-                segment = data_dict["origin_segment"]
-                instance = data_dict["origin_instance"]
+                segment = data_dict["segment"]
+                instance = data_dict["instance"]
 
                 if "origin_coord" in data_dict.keys():
                     reverse, _ = pointops.knn_query(
@@ -952,7 +952,7 @@ class InsSegTester(TesterBase):
                     output_dict, segment, instance
                 )
 
-            scenes.append(dict(gt=gt_instances, pred=pred_instance))
+            scenes[data_name] = dict(gt=gt_instances, pred=pred_instance)
             batch_time.update(time.time() - start)
             logger.info(
                 "Test: {} [{}/{}] "
@@ -973,26 +973,33 @@ class InsSegTester(TesterBase):
 
         comm.synchronize()
         scenes_sync = comm.gather(scenes, dst=0)
-        scenes = [scene for scenes_ in scenes_sync for scene in scenes_]
-        ap_scores = self.evaluate_matches(scenes)
-        all_ap = ap_scores["all_ap"]
-        all_ap_50 = ap_scores["all_ap_50%"]
-        all_ap_25 = ap_scores["all_ap_25%"]
-        logger.info(
-            "Val result: mAP/AP50/AP25 {:.4f}/{:.4f}/{:.4f}.".format(
-                all_ap, all_ap_50, all_ap_25
-            )
-        )
-        for i, label_name in enumerate(self.valid_class_names):
-            ap = ap_scores["classes"][label_name]["ap"]
-            ap_50 = ap_scores["classes"][label_name]["ap50%"]
-            ap_25 = ap_scores["classes"][label_name]["ap25%"]
+
+        if comm.is_main_process():
+            scenes = {}
+            for _ in range(len(scenes_sync)):
+                r = scenes_sync.pop()
+                scenes.update(r)
+                del r
+            scenes = list(scenes.values())
+            ap_scores = self.evaluate_matches(scenes)
+            all_ap = ap_scores["all_ap"]
+            all_ap_50 = ap_scores["all_ap_50%"]
+            all_ap_25 = ap_scores["all_ap_25%"]
             logger.info(
-                "Class_{idx}-{name} Result: AP/AP50/AP25 {AP:.4f}/{AP50:.4f}/{AP25:.4f}".format(
-                    idx=i, name=label_name, AP=ap, AP50=ap_50, AP25=ap_25
+                "Val result: mAP/AP50/AP25 {:.4f}/{:.4f}/{:.4f}.".format(
+                    all_ap, all_ap_50, all_ap_25
                 )
             )
-        logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
+            for i, label_name in enumerate(self.valid_class_names):
+                ap = ap_scores["classes"][label_name]["ap"]
+                ap_50 = ap_scores["classes"][label_name]["ap50%"]
+                ap_25 = ap_scores["classes"][label_name]["ap25%"]
+                logger.info(
+                    "Class_{idx}-{name} Result: AP/AP50/AP25 {AP:.4f}/{AP50:.4f}/{AP25:.4f}".format(
+                        idx=i, name=label_name, AP=ap, AP50=ap_50, AP25=ap_25
+                    )
+                )
+            logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
 
     def write_scannetpp_results(
         self,

@@ -13,7 +13,11 @@
 [![Formatter](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml/badge.svg)](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml)
 
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
-- 🚀 **Sonata: Self-Supervised Learning of Reliable Point Representations**  
+- 🚀 **Concerto: Joint 2D-3D Self-Supervised Learning Emerges Spatial Representations**  
+*Yujia Zhang, Xiaoyang Wu, Yixing Lao, Chengyao Wang, Zhuotao Tian, Naiyan Wang, Hengshuang Zhao*   
+[ Pretrain ] [Concerto] - [ [Weight](https://huggingface.co/Pointcept/Concerto) ] &rarr; [here](#concerto)
+
+- **Sonata: Self-Supervised Learning of Reliable Point Representations**  
 *Xiaoyang Wu, Daniel DeTone, Duncan Frost, Tianwei Shen, Chris Xie, Nan Yang, Jakob Engel, Richard Newcombe, Hengshuang Zhao, Julian Straub*  
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2025 - Highlight  
 [ Pretrain ] [Sonata] - [ [Project](https://xywu.me/sonata/) ] [ [arXiv](https://arxiv.org/abs/2503.16429) ] [ [Bib](https://xywu.me/research/sonata/bib.txt) ] [ [Demo](https://github.com/facebookresearch/sonata) ] [ [Weight](https://huggingface.co/facebook/sonata) ] &rarr; [here](#sonata)
@@ -911,10 +915,11 @@ sh scripts/train.sh -g 4 -d scannet -c insseg-pointgroup-v1m1-0-spunet-base -n i
 ```
 
 ### 3. Pre-training
+#### Concerto
+Follow the instruction [here](https://github.com/Pointcept/Pointcept/tree/main/pointcept/models/concerto).
+
 #### Sonata
 Follow the instruction [here](https://github.com/Pointcept/Pointcept/tree/main/pointcept/models/sonata).
-
-
 
 #### Masked Scene Contrast (MSC)
 1. Pre-training with the following example scripts:

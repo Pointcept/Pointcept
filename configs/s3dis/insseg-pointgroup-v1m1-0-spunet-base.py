@@ -156,6 +156,7 @@ data = dict(
                     "origin_instance",
                     "instance_centroid",
                     "bbox",
+                    "name",
                 ),
                 feat_keys=("color", "normal"),
                 offset_keys_dict=dict(offset="coord", origin_offset="origin_coord"),

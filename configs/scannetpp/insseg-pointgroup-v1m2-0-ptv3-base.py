@@ -42,7 +42,7 @@ model = dict(
         enable_flash=True,
         upcast_attention=False,
         upcast_softmax=False,
-        cls_mode=False,
+        enc_mode=False,
         pdnorm_bn=False,
         pdnorm_ln=False,
         pdnorm_decouple=True,
@@ -88,7 +88,7 @@ dataset_type = "ScanNetPPDataset"
 data_root = "data/scannetpp"
 
 data = dict(
-    num_classes=100,
+    num_classes=num_classes,
     ignore_index=-1,
     train=dict(
         type=dataset_type,
@@ -185,6 +185,7 @@ data = dict(
                     "origin_instance",
                     "instance_centroid",
                     "bbox",
+                    "name",
                 ),
                 feat_keys=("color", "normal"),
                 offset_keys_dict=dict(offset="coord", origin_offset="origin_coord"),

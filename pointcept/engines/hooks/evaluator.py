@@ -548,11 +548,12 @@ class InsSegEvaluator(HookBase):
     def eval(self):
         self.trainer.logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
         self.trainer.model.eval()
-        scenes = []
+        scenes = {}
         for i, input_dict in enumerate(self.trainer.val_loader):
             assert (
                 len(input_dict["offset"]) == 1
             )  # currently only support bs 1 for each GPU
+            data_name = input_dict.pop("name")[0]
             for key in input_dict.keys():
                 if isinstance(input_dict[key], torch.Tensor):
                     input_dict[key] = input_dict[key].cuda(non_blocking=True)
@@ -580,7 +581,7 @@ class InsSegEvaluator(HookBase):
             gt_instances, pred_instance = self.associate_instances(
                 output_dict, segment, instance
             )
-            scenes.append(dict(gt=gt_instances, pred=pred_instance))
+            scenes[data_name] = dict(gt=gt_instances, pred=pred_instance)
 
             self.trainer.storage.put_scalar("val_loss", loss.item())
             self.trainer.logger.info(
@@ -593,42 +594,51 @@ class InsSegEvaluator(HookBase):
         loss_avg = self.trainer.storage.history("val_loss").avg
         comm.synchronize()
         scenes_sync = comm.gather(scenes, dst=0)
-        scenes = [scene for scenes_ in scenes_sync for scene in scenes_]
-        ap_scores = self.evaluate_matches(scenes)
-        all_ap = ap_scores["all_ap"]
-        all_ap_50 = ap_scores["all_ap_50%"]
-        all_ap_25 = ap_scores["all_ap_25%"]
-        self.trainer.logger.info(
-            "Val result: mAP/AP50/AP25 {:.4f}/{:.4f}/{:.4f}.".format(
-                all_ap, all_ap_50, all_ap_25
-            )
-        )
-        for i, label_name in enumerate(self.valid_class_names):
-            ap = ap_scores["classes"][label_name]["ap"]
-            ap_50 = ap_scores["classes"][label_name]["ap50%"]
-            ap_25 = ap_scores["classes"][label_name]["ap25%"]
+
+        if comm.is_main_process():
+            scenes = {}
+            for _ in range(len(scenes_sync)):
+                r = scenes_sync.pop()
+                scenes.update(r)
+                del r
+            scenes = list(scenes.values())
+            ap_scores = self.evaluate_matches(scenes)
+            all_ap = ap_scores["all_ap"]
+            all_ap_50 = ap_scores["all_ap_50%"]
+            all_ap_25 = ap_scores["all_ap_25%"]
             self.trainer.logger.info(
-                "Class_{idx}-{name} Result: AP/AP50/AP25 {AP:.4f}/{AP50:.4f}/{AP25:.4f}".format(
-                    idx=i, name=label_name, AP=ap, AP50=ap_50, AP25=ap_25
+                "Val result: mAP/AP50/AP25 {:.4f}/{:.4f}/{:.4f}.".format(
+                    all_ap, all_ap_50, all_ap_25
                 )
             )
-        current_epoch = self.trainer.epoch + 1
-        if self.trainer.writer is not None:
-            self.trainer.writer.add_scalar("val/loss", loss_avg, current_epoch)
-            self.trainer.writer.add_scalar("val/mAP", all_ap, current_epoch)
-            self.trainer.writer.add_scalar("val/AP50", all_ap_50, current_epoch)
-            self.trainer.writer.add_scalar("val/AP25", all_ap_25, current_epoch)
-            if self.trainer.cfg.enable_wandb:
-                wandb.log(
-                    {
-                        "Epoch": current_epoch,
-                        "val/loss": loss_avg,
-                        "val/mAP": all_ap,
-                        "val/AP50": all_ap_50,
-                        "val/AP25": all_ap_25,
-                    },
-                    step=wandb.run.step,
+            for i, label_name in enumerate(self.valid_class_names):
+                ap = ap_scores["classes"][label_name]["ap"]
+                ap_50 = ap_scores["classes"][label_name]["ap50%"]
+                ap_25 = ap_scores["classes"][label_name]["ap25%"]
+                self.trainer.logger.info(
+                    "Class_{idx}-{name} Result: AP/AP50/AP25 {AP:.4f}/{AP50:.4f}/{AP25:.4f}".format(
+                        idx=i, name=label_name, AP=ap, AP50=ap_50, AP25=ap_25
+                    )
                 )
-        self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
-        self.trainer.comm_info["current_metric_value"] = all_ap_50  # save for saver
-        self.trainer.comm_info["current_metric_name"] = "AP50"  # save for saver
+            current_epoch = self.trainer.epoch + 1
+            if self.trainer.writer is not None:
+                self.trainer.writer.add_scalar("val/loss", loss_avg, current_epoch)
+                self.trainer.writer.add_scalar("val/mAP", all_ap, current_epoch)
+                self.trainer.writer.add_scalar("val/AP50", all_ap_50, current_epoch)
+                self.trainer.writer.add_scalar("val/AP25", all_ap_25, current_epoch)
+                if self.trainer.cfg.enable_wandb:
+                    wandb.log(
+                        {
+                            "Epoch": current_epoch,
+                            "val/loss": loss_avg,
+                            "val/mAP": all_ap,
+                            "val/AP50": all_ap_50,
+                            "val/AP25": all_ap_25,
+                        },
+                        step=wandb.run.step,
+                    )
+            self.trainer.logger.info(
+                "<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<"
+            )
+            self.trainer.comm_info["current_metric_value"] = all_ap_50  # save for saver
+            self.trainer.comm_info["current_metric_name"] = "AP50"  # save for saver
