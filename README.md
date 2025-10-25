@@ -15,7 +15,9 @@
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
 - 🚀 **Concerto: Joint 2D-3D Self-Supervised Learning Emerges Spatial Representations**  
 *Yujia Zhang, Xiaoyang Wu, Yixing Lao, Chengyao Wang, Zhuotao Tian, Naiyan Wang, Hengshuang Zhao*   
-[ Pretrain ] [Concerto] - [ [Weight](https://huggingface.co/Pointcept/Concerto) ] &rarr; [here](#concerto)
+Conference on Neural Information Processing Systems (**NeurIPS**) 2025  
+[ Pretrain ] [Concerto] - [ [Project](https://pointcept.github.io/Concerto/) ] [ [Bib](https://xywu.me/research/concerto/bib.txt) ] [ [HF Demo](https://huggingface.co/spaces/Pointcept/Concerto) ] [ [Inference](https://github.com/Pointcept/Concerto) ] [ [Weight](https://huggingface.co/Pointcept/Concerto) ] &rarr; [here](#concerto)
+
 
 - **Sonata: Self-Supervised Learning of Reliable Point Representations**  
 *Xiaoyang Wu, Daniel DeTone, Duncan Frost, Tianwei Shen, Chris Xie, Nan Yang, Jakob Engel, Richard Newcombe, Hengshuang Zhao, Julian Straub*  
@@ -86,7 +88,8 @@ Pre-training:
 [Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts)),
 [Masked Scene Contrast](https://arxiv.org/abs/2303.14191) ([here](#masked-scene-contrast-msc)),
 [Point Prompt Training](https://arxiv.org/abs/2308.09718) ([here](#point-prompt-training-ppt)),
-[Sonata]() ([here](#sonata));  
+[Sonata](https://arxiv.org/abs/2503.16429) ([here](#sonata)),
+[Concerto]() ([here](#concerto));  
 Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
