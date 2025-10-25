@@ -1,7 +1,7 @@
 """
 3D point cloud augmentation
 
-Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
+Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com), Yujia Zhang (yujia.zhang.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
@@ -13,9 +13,9 @@ import scipy.interpolate
 import scipy.stats
 import numpy as np
 import torch
+from torchvision import transforms
 import copy
 from collections.abc import Sequence, Mapping
-
 from pointcept.utils.registry import Registry
 
 TRANSFORMS = Registry("transforms")
@@ -942,7 +942,7 @@ class SphereCrop(object):
     def __init__(self, point_max=80000, sample_rate=None, mode="random"):
         self.point_max = point_max
         self.sample_rate = sample_rate
-        assert mode in ["random", "center", "all"]
+        assert mode in ["random", "center", "all", "given"]
         self.mode = mode
 
     def __call__(self, data_dict):
@@ -960,6 +960,20 @@ class SphereCrop(object):
                 ]
             elif self.mode == "center":
                 center = data_dict["coord"][data_dict["coord"].shape[0] // 2]
+            elif self.mode == "given":
+                given_index = data_dict["correspondence"].reshape(
+                    data_dict["correspondence"].shape[0], -1
+                )
+                given_index = np.all(
+                    given_index != np.ones_like(given_index[0]) * -1, axis=1
+                )
+                given_coord = data_dict["coord"][given_index]
+                if given_coord.shape[0] == 0:
+                    center = data_dict["coord"][
+                        np.random.randint(data_dict["coord"].shape[0])
+                    ]
+                else:
+                    center = np.mean(given_coord, axis=0)
             else:
                 raise NotImplementedError
             idx_crop = np.argsort(np.sum(np.square(data_dict["coord"] - center), 1))[
@@ -1026,9 +1040,12 @@ class MultiViewGenerator(object):
         global_transform=None,
         local_transform=None,
         max_size=65536,
+        enc2d_max_size=102400,
+        enc2d_scale=(0.8, 1),
         center_height_scale=(0, 1),
         shared_global_view=False,
-        view_keys=("coord", "origin_coord", "color", "normal"),
+        view_keys=("coord", "origin_coord", "color", "normal", "correspondence"),
+        static_view_keys=("name", "img_num"),
     ):
         self.global_view_num = global_view_num
         self.global_view_scale = global_view_scale
@@ -1038,25 +1055,54 @@ class MultiViewGenerator(object):
         self.global_transform = Compose(global_transform)
         self.local_transform = Compose(local_transform)
         self.max_size = max_size
+        self.enc2d_max_size = enc2d_max_size
+        self.enc2d_scale = enc2d_scale
         self.center_height_scale = center_height_scale
         self.shared_global_view = shared_global_view
         self.view_keys = view_keys
+        self.static_view_keys = static_view_keys
         assert "coord" in view_keys
 
-    def get_view(self, point, center, scale):
+    def get_view(self, point, center, scale, if_enc2d=False):
         coord = point["coord"]
         max_size = min(self.max_size, coord.shape[0])
-        size = int(np.random.uniform(*scale) * max_size)
+        enc2d_max_size = min(self.enc2d_max_size, coord.shape[0])
+        size = 0
+        for _ in range(10):
+            if if_enc2d:
+                size = enc2d_max_size
+            else:
+                size = int(np.random.uniform(*scale) * max_size)
+            if size > 0:
+                break
+        if size == 0:
+            size = max(10, scale[-1] * max_size)
+        assert size > 0
         index = np.argsort(np.sum(np.square(coord - center), axis=-1))[:size]
         view = dict(index=index)
         for key in point.keys():
             if key in self.view_keys:
                 view[key] = point[key][index]
-
+            if key in self.static_view_keys:
+                view[key] = point[key]
         if "index_valid_keys" in point.keys():
             # inherit index_valid_keys from point
             view["index_valid_keys"] = point["index_valid_keys"]
         return view
+
+    @staticmethod
+    def match_point_image(major_view, data_dict):
+        major_correspondence = major_view["correspondence"].transpose(1, 0, 2)
+        correspondence = data_dict["correspondence"].transpose(1, 0, 2)
+        is_all_neg1 = np.any(major_correspondence != np.array([-1, -1]), axis=(1, 2))
+        indices = np.where(is_all_neg1)[0]
+        img_dict = {
+            "images": data_dict["images"][indices],
+            "img_num": indices.shape[0],
+            "major_correspondence": major_correspondence[indices].transpose(1, 0, 2),
+            "correspondence": correspondence[indices].transpose(1, 0, 2),
+        }
+        return img_dict
 
     def __call__(self, data_dict):
         coord = data_dict["coord"]
@@ -1065,11 +1111,36 @@ class MultiViewGenerator(object):
         z_max = coord[:, 2].max()
         z_min_ = z_min + (z_max - z_min) * self.center_height_scale[0]
         z_max_ = z_min + (z_max - z_min) * self.center_height_scale[1]
-        center_mask = np.logical_and(coord[:, 2] >= z_min_, coord[:, 2] <= z_max_)
-        # get major global view
-        major_center = coord[np.random.choice(np.where(center_mask)[0])]
-        major_view = self.get_view(point, major_center, self.global_view_scale)
+        if "correspondence" not in data_dict.keys():
+            center_mask = np.logical_and(coord[:, 2] >= z_min_, coord[:, 2] <= z_max_)
+            major_center = coord[np.random.choice(np.where(center_mask)[0])]
+            major_view = self.get_view(point, major_center, self.global_view_scale)
+        else:
+            given_index = data_dict["correspondence"].reshape(
+                data_dict["correspondence"].shape[0], -1
+            )
+            given_index = np.all(
+                given_index != np.ones_like(given_index[0]) * -1, axis=1
+            )
+            given_coord = data_dict["coord"][given_index]
+            if given_coord.shape[0] == 0:
+                center_mask = np.logical_and(
+                    coord[:, 2] >= z_min_, coord[:, 2] <= z_max_
+                )
+                major_center = coord[np.random.choice(np.where(center_mask)[0])]
+            else:
+                major_center = np.mean(given_coord, axis=0)
+            major_view = self.get_view(
+                point, major_center, self.global_view_scale, if_enc2d=True
+            )
+            img_dict = self.match_point_image(major_view, data_dict)
+            major_view["correspondence"] = img_dict["major_correspondence"]
+            data_dict["correspondence"] = img_dict["correspondence"]
+            point["correspondence"] = img_dict["correspondence"]
+            data_dict["img_num"] = img_dict["img_num"]
+            data_dict["images"] = img_dict["images"]
         major_coord = major_view["coord"]
+
         # get global views: restrict the center of left global view within the major global view
         if not self.shared_global_view:
             global_views = [
@@ -1127,9 +1198,13 @@ class MultiViewGenerator(object):
         view_dict["local_offset"] = np.cumsum(
             [data.shape[0] for data in view_dict["local_coord"]]
         )
+
         for key in view_dict.keys():
             if "offset" not in key:
-                view_dict[key] = np.concatenate(view_dict[key], axis=0)
+                if key in self.static_view_keys:
+                    view_dict[key] = view_dict[key]
+                else:
+                    view_dict[key] = np.concatenate(view_dict[key], axis=0)
         data_dict.update(view_dict)
         return data_dict
 
@@ -1192,3 +1267,191 @@ class Compose(object):
         for t in self.transforms:
             data_dict = t(data_dict)
         return data_dict
+
+
+@TRANSFORMS.register_module()
+class ImgToTensor(object):
+    def __init__(self):
+        self.totensor = transforms.ToTensor()
+
+    def __call__(self, img):
+        return self.totensor(img)
+
+
+@TRANSFORMS.register_module()
+class ImgGaussianBlur(object):
+    """
+    Apply Gaussian Blur to the PIL image.
+    """
+
+    def __init__(
+        self, *, p: float = 0.5, radius_min: float = 0.1, radius_max: float = 2.0
+    ):
+        # NOTE: torchvision is applying 1 - probability to return the original image
+        self.p = p
+        self.transform = transforms.GaussianBlur(
+            kernel_size=9, sigma=(radius_min, radius_max)
+        )
+        super().__init__()
+
+    def __call__(self, img):
+        if np.random.rand() < self.p:
+            img = self.transform(img)
+        return img
+
+
+@TRANSFORMS.register_module()
+class ImgChromaticJitter(object):
+    def __init__(self, p=0.95, std=0.005):
+        self.p = p
+        self.std = std
+
+    def __call__(self, img):
+        if np.random.rand() < self.p:
+            noise = torch.rand(3)
+            noise *= self.std
+            noise = noise[:, None, None].expand_as(img)
+            img += noise
+            img = torch.clip(img, 0, 1)
+        return img
+
+
+@TRANSFORMS.register_module()
+class ImgPixelContrast(object):
+    def __init__(self, threshold, p=0.2):
+        super().__init__()
+        self.p = p
+        self.threshold = threshold
+
+    def __call__(self, img):
+        if np.random.rand() < self.p:
+            n, h, w = img.shape[0], img.shape[2], img.shape[3]
+            num_pixels = int(self.threshold * h * w * n)
+            indices = torch.randint(0, n * h * w, (num_pixels,))
+            img = img.permute(0, 2, 3, 1).reshape(-1, 3)
+            img[indices, :] = 255.0 - img[indices, :]
+            img = img.reshape(n, h, w, 3).permute(0, 3, 1, 2)
+        return img
+
+
+IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
+IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
+
+
+@TRANSFORMS.register_module()
+class Imgnormalize(object):
+    def __init__(self, mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD):
+        super().__init__()
+        self.normalize = transforms.Normalize(mean=mean, std=std)
+
+    def __call__(self, img):
+        return self.normalize(img)
+
+
+@TRANSFORMS.register_module()
+class ImgRandomHorizontalFlip(object):
+    def __init__(self, p=0.5):
+        super().__init__()
+        self.p = p
+        self.imgrandomhorizontalflip = transforms.RandomHorizontalFlip(p=p)
+
+    def __call__(self, img):
+        return self.imgrandomhorizontalflip(img)
+
+
+@TRANSFORMS.register_module()
+class ImgRandomResizedCrop(object):
+    def __init__(self, size, scale, interpolation):
+        super().__init__()
+        self.imgrandomresizedcrop = transforms.RandomResizedCrop(
+            size=size, scale=scale, interpolation=interpolation
+        )
+
+    def __call__(self, img):
+        return self.imgrandomresizedcrop(img)
+
+
+@TRANSFORMS.register_module()
+class ImgRandomColorJitter(object):
+    def __init__(self, brightness=0.4, contrast=0.4, saturation=0.2, hue=0.1, p=0.8):
+        colorjitter = transforms.ColorJitter(
+            brightness=brightness, contrast=contrast, saturation=saturation, hue=hue
+        )
+        super().__init__()
+        self.p = p
+        self.colorjitter = colorjitter
+
+    def __call__(self, img):
+        return self.colorjitter(img)
+
+
+@TRANSFORMS.register_module()
+class ImgRandomGrayscale(object):
+    def __init__(self, p=0.1):
+        super().__init__()
+        self.p = p
+        self.imgrandomgrayscale = transforms.RandomGrayscale(p=p)
+
+    def __call__(self, img):
+        return self.imgrandomgrayscale(img)
+
+
+@TRANSFORMS.register_module()
+class ImgRandomSolarize(object):
+    def __init__(self, threshold, p=0.1):
+        super().__init__()
+        self.p = p
+        self.imgrandomsolarize = transforms.RandomSolarize(threshold=threshold, p=p)
+
+    def __call__(self, img):
+        return self.imgrandomsolarize(img)
+
+
+@TRANSFORMS.register_module()
+class ImgAugmentation(object):
+    def __init__(
+        self,
+        imgtransforms,
+        crop_h=518,
+        crop_w=518,
+        patch_h=37,
+        patch_w=37,
+        patch_size=14,
+    ):
+        self.transforms = []
+        self.transforms_cfg = imgtransforms
+        for t_cfg in self.transforms_cfg:
+            self.transforms.append(TRANSFORMS.build(t_cfg))
+        self.crop_h = crop_h
+        self.crop_w = crop_w
+        self.patch_h = patch_h
+        self.patch_w = patch_w
+        self.patch_size = patch_size
+        self.crop_start = [
+            random.randint(0, patch_h * patch_size - crop_h),
+            random.randint(0, patch_w * patch_size - crop_w),
+        ]
+
+    def __call__(self, point):
+        point["images"] = transforms.functional.crop(
+            point["images"],
+            top=self.crop_start[0],
+            left=self.crop_start[1],
+            height=self.crop_h,
+            width=self.crop_w,
+        )
+        for id, t in enumerate(self.transforms):
+            point["images"] = t(point["images"])
+        correspondence = point["correspondence"]
+        correspondence_shape = correspondence.shape
+        correspondence = correspondence.reshape(-1, 2)
+        mask = (
+            (self.crop_start[0] <= correspondence[:, 0])
+            & (correspondence[:, 0] < self.crop_start[0] + self.crop_h)
+            & (self.crop_start[1] <= correspondence[:, 1])
+            & (correspondence[:, 1] < self.crop_start[1] + self.crop_w)
+        )
+        correspondence[~mask] = np.array([-1, -1])
+        correspondence[mask] -= np.array(self.crop_start)
+        point["correspondence"] = correspondence.reshape(correspondence_shape)
+        return point

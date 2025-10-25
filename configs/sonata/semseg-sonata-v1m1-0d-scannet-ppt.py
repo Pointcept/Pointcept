@@ -325,7 +325,7 @@ data = dict(
             #             mode="train",
             #             return_grid_coord=True,
             #         ),
-            #         dict(type="SphereCrop", scale=0.6, mode="random"),
+            #         dict(type="SphereCrop", sample_rate=0.6, mode="random"),
             #         dict(type="SphereCrop", point_max=204800, mode="random"),
             #         dict(type="CenterShift", apply_z=False),
             #         dict(type="NormalizeColor"),
