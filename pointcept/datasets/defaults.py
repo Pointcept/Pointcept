@@ -208,6 +208,7 @@ class DefaultImagePointDataset(Dataset):
         "coord",
         "color",
         "normal",
+        "segment",
     ]
 
     def __init__(
@@ -248,8 +249,10 @@ class DefaultImagePointDataset(Dataset):
         self.data_list, self.split_list = self.get_data_list()
         if isinstance(self.data_list, dict):
             self.data_name = list(self.data_list.keys())
-        else:
+        elif isinstance(self.data_list[0], dict):
             self.data_name = list([data["token"] for data in self.data_list])
+        else:
+            self.data_name = self.data_list
         logger = get_root_logger()
         logger.info(
             "Totally {} x {} samples in {} {} set.".format(
