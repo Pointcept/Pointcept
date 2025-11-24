@@ -585,7 +585,6 @@ class SGIFormer(nn.Module):
         return target
 
     def forward(self, data_dict, return_point=False):
-        torch.save(data_dict, "test.pth")
         if return_point:
             return dict(point=self.backbone(data_dict))
 
