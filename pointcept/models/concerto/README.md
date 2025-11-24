@@ -58,6 +58,8 @@ For those who wish to do data preprocessing locally, please follow the instructi
 
 - Now you can follow the instructions below to processe the image assets. 
     - ScanNet v2
+        - Download the [ScanNet](http://www.scan-net.org/) v2 dataset.
+        - Run preprocessing code for raw ScanNet as follows:
         ```bash
         # RAW_SCANNET_DIR: the directory of downloaded ScanNet v2 raw dataset. PROCESSED_SCANNET_DIR: the directory of the processed ScanNet dataset (output dir).
         # Use -p to parse depths of the selected images.
@@ -66,6 +68,8 @@ For those who wish to do data preprocessing locally, please follow the instructi
         python pointcept/datasets/preprocessing/concerto/scannet/splits.py --dataset_root ${PROCESSED_SCANNET_DIR}
         ```
     - ScanNet++
+        - Download the [ScanNet++](https://kaldir.vc.in.tum.de/scannetpp/) dataset.
+        - Run preprocessing code for raw ScanNet++ as follows:
         ```bash
         # For Concerto, we use the unsplitted point cloud data. There is no need to split the large scene because we crop the scenes in code according to the selected camera views.
         # RAW_SCANNETPP_DIR: the directory of downloaded ScanNet++ raw dataset. PROCESSED_SCANNETPP_DIR: the directory of the processed ScanNet++ dataset (output dir).
@@ -75,6 +79,10 @@ For those who wish to do data preprocessing locally, please follow the instructi
         python pointcept/datasets/preprocessing/concerto/scannetpp/splits.py --dataset_root ${PROCESSED_SCANNETPP_DIR}
         ```
     - S3DIS
+        - Download S3DIS data by filling this [Google form](https://docs.google.com/forms/d/e/1FAIpQLScDimvNMCGhy_rmBA2gHfDu3naktRm6A8BPwAWWDv-Uhm6Shw/viewform?c=0&w=1). Download the `Stanford3dDataset_v1.2.zip` file and unzip it.
+        - Fix error in `Area_5/office_19/Annotations/ceiling` Line 323474 (103.0�0000 => 103.000000).
+        - (Optional) Download Full 2D-3D S3DIS dataset (no XYZ) from [here](https://github.com/alexsax/2D-3D-Semantics) for parsing normal.
+        - Run preprocessing code for S3DIS as follows:
         ```bash
         # Default not use --align_angle
         # S3DIS_DIR: the directory of downloaded Stanford3dDataset_v1.2 dataset. RAW_S3DIS_DIR: the directory of the Stanford2d3dDataset_noXYZ dataset. PROCESSED_S3DIS_DIR: the directory of the processed S3DIS dataset (output dir).
@@ -84,6 +92,14 @@ For those who wish to do data preprocessing locally, please follow the instructi
         python pointcept/datasets/preprocessing/concerto/s3dis/splits.py --dataset_root ${PROCESSED_S3DIS_DIR}
         ```
     - ARKitScenes
+        - Download ArkitScenes 3DOD split with the following commands:
+        ```bash
+        # RAW_AS_DIR: the directory of downloaded Raw ArkitScenes dataset.
+        git clone https://github.com/apple/ARKitScenes.git
+        cd ARKitScenes
+        python download_data.py 3dod --download_dir $RAW_AS_DIR --video_id_csv threedod/3dod_train_val_splits.csv
+        ```
+        - Run preprocessing code for ArkitScenes as follows:
         ```bash
         # RAW_AS_DIR: the directory of the downloaded ARKitScenes dataset. PROCESSED_AS_DIR: the directory of processed ArkitScenes dataset (output dir).
         # NUM_WORKERS: Number of workers for preprocessing, default same as CPU count (might OOM).
@@ -93,6 +109,8 @@ For those who wish to do data preprocessing locally, please follow the instructi
         python pointcept/datasets/preprocessing/concerto/arkitscenes/splits.py --dataset_root ${PROCESSED_ARKITSCENES_DIR}
         ```
     - Habitat - Matterport 3D (HM3D)
+        - Download HM3D `hm3d-train-glb-v0.2.tar` and `hm3d-val-glb-v0.2.tar` with instuction [here](https://github.com/facebookresearch/habitat-sim/blob/main/DATASETS.md#habitat-matterport-3d-research-dataset-hm3d) and unzip them.
+        - Run preprocessing code for HM3D as follows:
         ```bash
         # We leverage the Habitat-Sim to simulate the camera views. The detailed installation for Habitat-Sim can be found at Habitat-Sim(https://github.com/facebookresearch/habitat-sim)
         # RAW_HM_DIR: the directory of downloaded HM3D dataset. PROCESSED_HM_DIR: the directory of processed HM3D dataset (output dir).
@@ -103,6 +121,9 @@ For those who wish to do data preprocessing locally, please follow the instructi
         python pointcept/datasets/preprocessing/concerto/hm3d/splits.py --dataset_root ${PROCESSED_HM3D_DIR}
         ```
     - Structured3D
+        - Download Structured3D panorama related and perspective (full) related zip files by filling this [Google form](https://docs.google.com/forms/d/e/1FAIpQLSc0qtvh4vHSoZaW6UvlXYy79MbcGdZfICjh4_t4bYofQIVIdw/viewform?pli=1) (no need to unzip them).
+        - Organize all downloaded zip file in one folder (`${STRUCT3D_DIR}`).
+        - Run preprocessing code for Structured3D as follows:
         ```bash
         # RAW_STRUCT3D_DIR: the directory of downloaded Structured3D dataset. PROCESSED_STRUCT3D_DIR: the directory of processed Structured3D dataset (output dir).
         # NUM_WORKERS: Number of workers for preprocessing, default same as CPU count (might OOM).
@@ -128,6 +149,90 @@ For those who wish to do data preprocessing locally, please follow the instructi
         # To generate the JSON file for the Concerto dataloader
         python pointcept/datasets/preprocessing/concerto/re10k/splits.py --dataset_root ${PROCESSED_RE10K_DIR}
         ```
+    - SemanticKITTI
+        - Download [SemanticKITTI](http://www.semantic-kitti.org/dataset.html#download) dataset.
+        - SemanticKitti does not need any preprocessing.
+        ```bash
+        # SEMANTIC_KITTI_DIR: the directory of SemanticKITTI dataset.
+        # |- SEMANTIC_KITTI_DIR
+        #   |- dataset
+        #     |- sequences
+        #       |- 00
+        #       |- 01
+        #       |- ...
+        ```
+
+    - nuScenes
+        - Download the official [NuScene](https://www.nuscenes.org/nuscenes#download) dataset (with Lidar Segmentation) and organize the downloaded files as follows:
+        ```bash
+        NUSCENES_DIR
+        │── samples
+        │── sweeps
+        │── lidarseg
+        ...
+        │── v1.0-trainval 
+        │── v1.0-test
+        ```
+        - Run information preprocessing code (modified from OpenPCDet) for nuScenes as follows:
+        ```bash
+        # NUSCENES_DIR: the directory of downloaded nuScenes dataset.
+        # PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
+        # MAX_SWEEPS: Max number of sweeps. Default: 10.
+        pip install nuscenes-devkit pyquaternion
+        python pointcept/datasets/preprocessing/nuscenes/preprocess_nuscenes_info.py --dataset_root ${NUSCENES_DIR} --output_root ${PROCESSED_NUSCENES_DIR} --max_sweeps ${MAX_SWEEPS} --with_camera
+        ```
+
+        - Link raw dataset to processed NuScene dataset folder:
+        ```bash
+        # NUSCENES_DIR: the directory of downloaded nuScenes dataset.
+        # PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
+        ln -s ${NUSCENES_DIR} {PROCESSED_NUSCENES_DIR}/raw
+        ```
+        then the processed nuscenes folder is organized as follows:
+        ```bash
+        nuscene
+        |── raw
+            │── samples
+            │── sweeps
+            │── lidarseg
+            ...
+            │── v1.0-trainval
+            │── v1.0-test
+        |── info
+        ```
+    - Waymo
+        - Download the official [Waymo](https://waymo.com/open/download/) dataset (v1.4.3) and organize the downloaded files as follows:
+        ```bash
+        WAYMO_RAW_DIR
+        │── training
+        │── validation
+        │── testing
+        ```
+        - Install the following dependence:
+        ```bash
+        # If shows "No matching distribution found", download whl directly from Pypi and install the package.
+        conda create -n waymo python=3.10 -y
+        conda activate waymo
+        pip install waymo-open-dataset-tf-2-12-0
+        ```
+        - Run the preprocessing code as follows:
+        ```bash
+        # WAYMO_DIR: the directory of the downloaded Waymo dataset.
+        # PROCESSED_WAYMO_DIR: the directory of the processed Waymo dataset (output dir).
+        # NUM_WORKERS: num workers for preprocessing
+        python pointcept/datasets/preprocessing/waymo/preprocess_waymo.py --dataset_root ${WAYMO_DIR} --output_root ${PROCESSED_WAYMO_DIR} --splits training validation --num_workers ${NUM_WORKERS}
+        # To generate the JSON file for the Concerto dataloader
+        python pointcept/datasets/preprocessing/concerto/waymo/splits.py --dataset_root ${PROCESSED_WAYMO_DIR}
+        ```
+
+    - After all the preprocessing, link processed dataset above to the codebase.
+    ```bash
+    # PROCESSED_DIR: the directory of the processed dataset (output dir).
+    # DATASET_NAME: the dataset name, which should be consistent with 'data_root' in the corresponding config, such as scannet, scannetpp, s3dis, arkitscenes, hm3d, structured3d, re10k, semantic_kitti, nuscenes, waymo
+    mkdir data
+    ln -s ${PROCESSED_DIR} ${CODEBASE_DIR}/data/${DATASET_NAME}
+    ```
+
 ##### 2.2 [Option B] Download Preprocessed Dataset
 You can download the preprocessed datasets from Huggingface. The downloaded datasets should be put in the folders named after the ${DATASET_NAME}, which is the string in front of .tar.gz.
     
@@ -142,6 +247,13 @@ You can download the preprocessed datasets from Huggingface. The downloaded data
 Then you need to decompress the tar.gz using:
 ```bash
 cat ${DATASET_NAME}/${DATASET_NAME}.tar.gz.* | tar -xzvf -
+```
+After decompressing, link processed dataset above to the codebase.
+```bash
+# PROCESSED_DIR: the directory of the processed dataset (output dir).
+# DATASET_NAME: the dataset name, which should be consistent with 'data_root' in the corresponding config, such as scannet, scannetpp, s3dis, arkitscenes, hm3d, structured3d, re10k, semantic_kitti, nuscenes, waymo
+mkdir data
+ln -s ${PROCESSED_DIR} ${CODEBASE_DIR}/data/${DATASET_NAME}
 ```
 
 #### 3. Pre-training
@@ -165,8 +277,23 @@ sh scripts/train.sh -m 4 -g 8 -d concerto -c pretrain-concerto-v1m1-2-large-vide
 ```
 
 #### 4. Probing and Tuning
-After pre-training, you can probe or tune the base model using the same scripts as Sonata. For the large model, you can follow the instructions below:
-(Our pre-trained model weight can be downloaded [here](https://huggingface.co/Pointcept/Concerto/blob/main/pretrain-concerto-v1m1-2-large-video.pth))
+Our pre-trained model weight can be downloaded [here](https://huggingface.co/Pointcept/Concerto/blob/main/pretrain-concerto-v1m1-2-large-video.pth). Read [model card](https://huggingface.co/Pointcept/Concerto/blob/main/README.md) on huggingface for more information about different model weights. For `concerto_large/base/small/large_outdoor.pth` on [huggingface](https://huggingface.co/Pointcept/Concerto/tree/main), replace the lines below in the config to correctly load the model weight:
+```bash
+dict(
+        type="CheckpointLoader",
+        keywords="module.student.backbone",
+        replacement="module.backbone",
+    ),
+```
+to 
+```bash
+dict(
+        type="CheckpointLoader",
+        keywords="module",
+        replacement="module.backbone",
+    ),
+```
+Here are the example commands for probing and tuning on large model:
 ```bash
 # Assume the pre-trained experiment is recorded in:
 # exp/concerto/pretrain-concerto-v1m1-0-large-base
