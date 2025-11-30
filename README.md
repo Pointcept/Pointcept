@@ -156,7 +156,7 @@ If you find _Pointcept_ useful to your research, please cite our work as encoura
   conda activate pointcept-torch2.5.0-cu12.4
   ```
 
-- **Method 2**: Use our pre-built Docker image and refer to the supported tags [here](https://hub.docker.com/repository/docker/pointcept/pointcept/general). Quickly verify the Docker image on your local machine with the following command:
+- **Method 2**: Use our pre-built Docker image and refer to the supported tags [here](https://hub.docker.com/r/pointcept/pointcept/tags). Quickly verify the Docker image on your local machine with the following command:
   ```bash
   docker run --gpus all -it --rm pointcept/pointcept:v1.6.0-pytorch2.5.0-cuda12.4-cudnn9-devel bash
   git clone https://github.com/facebookresearch/sonata
