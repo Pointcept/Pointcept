@@ -35,6 +35,8 @@ def build_optimizer(cfg, model, param_dicts=None):
             cfg.params.append(param_group)
 
         for n, p in model.named_parameters():
+            if not p.requires_grad:
+                continue
             flag = False
             for i in range(len(param_dicts)):
                 if param_dicts[i].keyword in n:
