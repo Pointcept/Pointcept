@@ -102,7 +102,8 @@ Datasets:
 [SemanticKITTI](http://www.semantic-kitti.org/) ([here](#semantickitti)),
 [nuScenes](https://www.nuscenes.org/nuscenes) ([here](#nuscenes)),
 [ModelNet40](https://modelnet.cs.princeton.edu/) ([here](#modelnet)),
-[Waymo](https://waymo.com/open/) ([here](#waymo)).
+[Waymo](https://waymo.com/open/) ([here](#waymo)),
+[ZAHA](https://github.com/oloocki/zaha) ([here](#zaha)).
 
 
 ## Highlights
@@ -506,6 +507,20 @@ https://huggingface.co/datasets/Pointcept/nuscenes-compressed)] (only processed 
   mkdir -p data
   ln -s ${MODELNET_DIR} ${CODEBASE_DIR}/data/modelnet40_normal_resampled
   ```
+
+### ZAHA
+- Download [ZAHA](https://syncandshare.lrz.de/getlink/fi7J6RXToWkf8xdrAzLCwe/ZAHA) and follow the train/validation/test folder structure.
+- If you want to have them geo-referenced check the translation vector in readme.txt
+- 
+  ```bash
+  WAYMO_RAW_DIR
+  │── training
+  │── validation
+  │── test
+  │── readme.txt
+  │── ...
+  ```
+
 
 ## Quick Start
 
