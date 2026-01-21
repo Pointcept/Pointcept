@@ -25,7 +25,7 @@ model = dict(
         context_channels=256,
         channels=(32, 64, 128, 256, 256, 128, 96, 96),
         layers=(2, 3, 4, 6, 2, 2, 2, 2),
-        cls_mode=False,
+        enc_mode=False,
         conditions=("ScanNet", "S3DIS", "Structured3D"),
         zero_init=False,
         norm_decouple=True,
@@ -363,3 +363,14 @@ data = dict(
         ),
     ),
 )
+
+# hook
+hooks = [
+    dict(type="CheckpointLoader"),
+    dict(type="ModelHook"),
+    dict(type="IterationTimer", warmup_iter=2),
+    dict(type="InformationWriter"),
+    dict(type="SemSegEvaluator"),
+    dict(type="CheckpointSaver", save_freq=None),
+    dict(type="PreciseEvaluator", test_last=True),
+]

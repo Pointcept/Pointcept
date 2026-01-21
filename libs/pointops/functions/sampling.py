@@ -15,8 +15,8 @@ class FarthestPointSampling(Function):
         n, b, n_max = xyz.shape[0], offset.shape[0], offset[0]
         for i in range(1, b):
             n_max = max(offset[i] - offset[i - 1], n_max)
-        idx = torch.cuda.IntTensor(new_offset[b - 1].item()).zero_()
-        tmp = torch.cuda.FloatTensor(n).fill_(1e10)
+        idx = torch.zeros(new_offset[b - 1].item(), dtype=torch.int, device=xyz.device)
+        tmp = torch.ones(n, dtype=torch.float, device=xyz.device) * 1e10
         farthest_point_sampling_cuda(
             b, n_max, xyz, offset.int(), new_offset.int(), tmp, idx
         )

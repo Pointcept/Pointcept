@@ -8,11 +8,13 @@ Please cite our work if the code is helpful to you.
 import os
 import sys
 import weakref
+import wandb
 import torch
 import torch.nn as nn
 import torch.utils.data
 from packaging import version
 from functools import partial
+from pathlib import Path
 
 if sys.version_info >= (3, 10):
     from collections.abc import Iterator
@@ -149,6 +151,7 @@ class Trainer(TrainerBase):
         self.scaler = self.build_scaler()
         self.logger.info("=> Building hooks ...")
         self.register_hooks(self.cfg.hooks)
+        self._gradient_accumulation_counter = 0
 
     def train(self):
         with EventStorage() as self.storage, ExceptionWriter():
@@ -190,35 +193,53 @@ class Trainer(TrainerBase):
             if isinstance(input_dict[key], torch.Tensor):
                 input_dict[key] = input_dict[key].cuda(non_blocking=True)
 
+        # Only clear gradients on first accumulation step
+        if self._gradient_accumulation_counter == 0:
+            self.optimizer.zero_grad()
+
+        # Forward pass
         with auto_cast(
             enabled=self.cfg.enable_amp, dtype=AMP_DTYPE[self.cfg.amp_dtype]
         ):
             output_dict = self.model(input_dict)
-            loss = output_dict["loss"]
-        self.optimizer.zero_grad()
+            loss = (
+                output_dict["loss"] / self.cfg.gradient_accumulation_steps
+            )  # scale loss
+
+        # Backward pass
         if self.cfg.enable_amp:
             self.scaler.scale(loss).backward()
-            self.scaler.unscale_(self.optimizer)
-            if self.cfg.clip_grad is not None:
-                torch.nn.utils.clip_grad_norm_(
-                    self.model.parameters(), self.cfg.clip_grad
-                )
-            self.scaler.step(self.optimizer)
-
-            # When enable amp, optimizer.step call are skipped if the loss scaling factor is too large.
-            # Fix torch warning scheduler step before optimizer step.
-            scaler = self.scaler.get_scale()
-            self.scaler.update()
-            if scaler <= self.scaler.get_scale():
-                self.scheduler.step()
         else:
             loss.backward()
-            if self.cfg.clip_grad is not None:
-                torch.nn.utils.clip_grad_norm_(
-                    self.model.parameters(), self.cfg.clip_grad
-                )
-            self.optimizer.step()
-            self.scheduler.step()
+        self._gradient_accumulation_counter += 1
+
+        # Perform optimizer step only when enough gradients have accumulated
+        if self._gradient_accumulation_counter >= self.cfg.gradient_accumulation_steps:
+            if self.cfg.enable_amp:
+                self.scaler.unscale_(self.optimizer)
+                if self.cfg.clip_grad is not None:
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(), self.cfg.clip_grad
+                    )
+                self.scaler.step(self.optimizer)
+
+                # When enable amp, optimizer.step call are skipped if the loss scaling factor is too large.
+                # Fix torch warning scheduler step before optimizer step.
+                scale = self.scaler.get_scale()
+                self.scaler.update()
+                if scale <= self.scaler.get_scale():
+                    self.scheduler.step()
+            else:
+                if self.cfg.clip_grad is not None:
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(), self.cfg.clip_grad
+                    )
+                self.optimizer.step()
+                self.scheduler.step()
+
+            # Reset grad accumulation counter
+            self._gradient_accumulation_counter = 0
+
         if self.cfg.empty_cache:
             torch.cuda.empty_cache()
         self.comm_info["model_output_dict"] = output_dict
@@ -247,6 +268,16 @@ class Trainer(TrainerBase):
     def build_writer(self):
         writer = SummaryWriter(self.cfg.save_path) if comm.is_main_process() else None
         self.logger.info(f"Tensorboard writer logging dir: {self.cfg.save_path}")
+        if self.cfg.enable_wandb and comm.is_main_process():
+            tag, name = Path(self.cfg.save_path).parts[-2:]
+            wandb.init(
+                project=self.cfg.wandb_project,
+                name=f"{tag}/{name}",
+                tags=[tag],
+                dir=self.cfg.save_path,
+                settings=wandb.Settings(api_key=self.cfg.wandb_key),
+                config=self.cfg,
+            )
         return writer
 
     def build_train_loader(self):
@@ -307,7 +338,11 @@ class Trainer(TrainerBase):
     def build_scheduler(self):
         assert hasattr(self, "optimizer")
         assert hasattr(self, "train_loader")
-        self.cfg.scheduler.total_steps = len(self.train_loader) * self.cfg.eval_epoch
+        self.cfg.scheduler.total_steps = (
+            len(self.train_loader)
+            * self.cfg.eval_epoch
+            // self.cfg.gradient_accumulation_steps
+        )
         return build_scheduler(self.cfg.scheduler, self.optimizer)
 
     def build_scaler(self):

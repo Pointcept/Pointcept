@@ -80,7 +80,7 @@ data = dict(
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(
-                type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=1.0
+                type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.8
             ),
             # dict(type="RandomRotateTargetAngle", angle=(1/2, 1, 3/2), center=[0, 0, 0], axis="z", p=0.75),
             dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.5),
@@ -103,6 +103,7 @@ data = dict(
                 mode="train",
                 return_grid_coord=True,
             ),
+            dict(type="SphereCrop", sample_rate=0.8, mode="random"),
             dict(type="SphereCrop", point_max=204800, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
@@ -122,19 +123,21 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
+            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             dict(
                 type="GridSample",
                 grid_size=0.02,
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
+                return_inverse=True,
             ),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=("coord", "grid_coord", "segment"),
+                keys=("coord", "grid_coord", "segment", "origin_segment", "inverse"),
                 feat_keys=("coord", "color", "normal"),
             ),
         ],

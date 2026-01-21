@@ -6,8 +6,10 @@ Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
+import warnings
 import argparse
 import json
+import torch
 import numpy as np
 import pandas as pd
 import open3d as o3d
@@ -16,6 +18,13 @@ from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 from pathlib import Path
+
+try:
+    import pointseg
+except:
+    # Pointseg is located in libs/pointseg
+    warnings.warn("Pointseg is not installed, superpoint segmentation will be skipped.")
+    pointseg = None
 
 
 def parse_scene(
@@ -44,11 +53,21 @@ def parse_scene(
     color = (np.array(mesh.vertex_colors) * 255).astype(np.uint8)
     normal = np.array(mesh.vertex_normals).astype(np.float32)
 
+    # extract superpoint information
+    if pointseg is not None:
+        vertices_sp = torch.from_numpy(np.array(mesh.vertices).astype(np.float32))
+        faces_sp = torch.from_numpy(np.array(mesh.triangles).astype(np.int64))
+        superpoint = pointseg.segment_mesh(vertices_sp, faces_sp).numpy()
+    else:
+        superpoint = None
+
     save_path = output_root / split / name
     save_path.mkdir(parents=True, exist_ok=True)
     np.save(save_path / "coord.npy", coord)
     np.save(save_path / "color.npy", color)
     np.save(save_path / "normal.npy", normal)
+    if superpoint is not None:
+        np.save(save_path / "superpoint.npy", superpoint)
 
     if split == "test":
         return
@@ -80,7 +99,7 @@ def parse_scene(
         instance["label_orig"] = label
         # remap label
         instance["label"] = label_mapping.get(label, None)
-        instance["label_index"] = class2idx.get(label, ignore_index)
+        instance["label_index"] = class2idx.get(instance["label"], ignore_index)
 
         if instance["label_index"] == ignore_index:
             continue
@@ -118,8 +137,7 @@ def parse_scene(
     np.save(save_path / "instance.npy", instance_gt)
 
 
-def filter_map_classes(mapping, count_thresh, count_type, mapping_type):
-    mapping = mapping[mapping[count_type] >= count_thresh]
+def filter_map_classes(mapping, mapping_type):
     if mapping_type == "semantic":
         map_key = "semantic_map_to"
     elif mapping_type == "instance":
@@ -228,9 +246,7 @@ if __name__ == "__main__":
     label_mapping = pd.read_csv(
         config.dataset_root / "metadata" / "semantic_benchmark" / "map_benchmark.csv"
     )
-    # label_mapping = filter_map_classes(
-    #     label_mapping, count_thresh=0, count_type="count", mapping_type="semantic"
-    # )
+    label_mapping = filter_map_classes(label_mapping, mapping_type="semantic")
     class2idx = {
         class_name: idx for (idx, class_name) in enumerate(segment_class_names)
     }
@@ -250,3 +266,12 @@ if __name__ == "__main__":
         )
     )
     pool.shutdown()
+    # parse_scene(
+    #     data_list[0],
+    #     split_list[0],
+    #     config.dataset_root,
+    #     config.output_root,
+    #     label_mapping,
+    #     class2idx,
+    #     config.ignore_index,
+    # )

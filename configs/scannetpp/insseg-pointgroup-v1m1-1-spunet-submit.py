@@ -1,37 +1,18 @@
-_base_ = ["../_base_/default_runtime.py"]
+_base_ = [
+    "../_base_/default_runtime.py",
+    "../_base_/dataset/scannetpp.py",
+]
 
 # misc custom setting
-batch_size = 16  # bs: total bs in all gpus
-num_worker = 32
+batch_size = 12  # bs: total bs in all gpus
+num_worker = 12
 mix_prob = 0
 empty_cache = False
-enable_amp = False
-evaluate = True
+enable_amp = True
+evaluate = False
 
-class_names = [
-    "wall",
-    "floor",
-    "cabinet",
-    "bed",
-    "chair",
-    "sofa",
-    "table",
-    "door",
-    "window",
-    "bookshelf",
-    "picture",
-    "counter",
-    "desk",
-    "curtain",
-    "refridgerator",
-    "shower curtain",
-    "toilet",
-    "sink",
-    "bathtub",
-    "otherfurniture",
-]
-num_classes = 20
-segment_ignore_index = (-1, 0, 1)
+num_classes = 100
+segment_ignore_index = (-1, 0, 1, 2, 16, 19, 20, 24, 26, 33, 36, 48, 53, 63, 64, 73, 74)
 
 # model settings
 model = dict(
@@ -60,41 +41,45 @@ optimizer = dict(type="SGD", lr=0.1, momentum=0.9, weight_decay=0.0001, nesterov
 scheduler = dict(type="PolyLR")
 
 # dataset settings
-dataset_type = "ScanNetDataset"
-data_root = "data/scannet"
+dataset_type = "ScanNetPPDataset"
+data_root = "data/scannetpp"
 
 data = dict(
-    num_classes=num_classes,
+    num_classes=100,
     ignore_index=-1,
-    names=class_names,
     train=dict(
         type=dataset_type,
-        split="train",
+        split=["train_grid1mm_chunk6x6_stride3x3", "val_grid1mm_chunk6x6_stride3x3"],
         data_root=data_root,
         transform=[
-            # dict(type="CenterShift", apply_z=True),
-            # dict(type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.5),
-            # # dict(type="RandomRotateTargetAngle", angle=(1/2, 1, 3/2), center=[0, 0, 0], axis='z', p=0.75),
-            # dict(type="RandomRotate", angle=[-1, 1], axis='z', center=[0, 0, 0], p=0.5),
-            # dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis='x', p=0.5),
-            # dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis='y', p=0.5),
-            # dict(type="RandomScale", scale=[0.9, 1.1]),
-            # # dict(type="RandomShift", shift=[0.2, 0.2, 0.2]),
-            # dict(type="RandomFlip", p=0.5),
-            # dict(type="RandomJitter", sigma=0.005, clip=0.02),
-            # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
-            # dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
-            # dict(type="ChromaticTranslation", p=0.95, ratio=0.1),
-            # dict(type="ChromaticJitter", p=0.95, std=0.05),
-            # # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
-            # # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
-            # dict(type="GridSample",
-            #      grid_size=0.02,
-            #      hash_type='fnv',
-            #      mode='train',
-            #      return_grid_coord=True,),
-            # dict(type="SphereCrop", sample_rate=0.8, mode='random'),
-            # dict(type="NormalizeColor"),
+            dict(type="CenterShift", apply_z=True),
+            dict(
+                type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
+            ),
+            # dict(type="RandomRotateTargetAngle", angle=(1/2, 1, 3/2), center=[0, 0, 0], axis="z", p=0.75),
+            dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.5),
+            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.5),
+            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="y", p=0.5),
+            dict(type="RandomScale", scale=[0.9, 1.1]),
+            # dict(type="RandomShift", shift=[0.2, 0.2, 0.2]),
+            dict(type="RandomFlip", p=0.5),
+            dict(type="RandomJitter", sigma=0.005, clip=0.02),
+            dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
+            dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
+            dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
+            dict(type="ChromaticJitter", p=0.95, std=0.05),
+            # dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
+            # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
+            dict(
+                type="GridSample",
+                grid_size=0.02,
+                hash_type="fnv",
+                mode="train",
+                return_grid_coord=True,
+            ),
+            dict(type="SphereCrop", point_max=204800, mode="random"),
+            dict(type="CenterShift", apply_z=False),
+            dict(type="NormalizeColor"),
             dict(
                 type="InstanceParser",
                 segment_ignore_index=segment_ignore_index,
@@ -116,9 +101,9 @@ data = dict(
         ],
         test_mode=False,
     ),
-    val=dict(
+    test=dict(
         type=dataset_type,
-        split="val",
+        split="test",
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
@@ -151,21 +136,19 @@ data = dict(
                 keys=(
                     "coord",
                     "grid_coord",
-                    "segment",
-                    "instance",
                     "origin_coord",
                     "origin_segment",
                     "origin_instance",
                     "instance_centroid",
                     "bbox",
+                    "name",
                 ),
                 feat_keys=("color", "normal"),
                 offset_keys_dict=dict(offset="coord", origin_offset="origin_coord"),
             ),
         ],
-        test_mode=False,
-    ),
-    test=dict(),  # currently not available
+        test_mode=False,  # TODO: design test mode for ins seg, e.g. TTA
+    ),  # currently not available
 )
 
 hooks = [
@@ -178,4 +161,13 @@ hooks = [
         instance_ignore_index=-1,
     ),
     dict(type="CheckpointSaver", save_freq=None),
+    dict(type="PreciseEvaluator", test_last=True),
 ]
+
+# Tester
+test = dict(
+    type="InsSegTester",
+    segment_ignore_index=segment_ignore_index,
+    instance_ignore_index=-1,
+    verbose=False,
+)

@@ -5,6 +5,7 @@ Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
+import copy
 import numpy as np
 import torch.optim.lr_scheduler as lr_scheduler
 from .registry import Registry
@@ -199,5 +200,6 @@ class CosineScheduler(object):
 
 
 def build_scheduler(cfg, optimizer):
+    cfg = copy.deepcopy(cfg)
     cfg.optimizer = optimizer
     return SCHEDULERS.build(cfg=cfg)

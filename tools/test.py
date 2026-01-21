@@ -16,7 +16,8 @@ from pointcept.engines.launch import launch
 
 def main_worker(cfg):
     cfg = default_setup(cfg)
-    tester = TESTERS.build(dict(type=cfg.test.type, cfg=cfg))
+    test_cfg = dict(cfg=cfg, **cfg.test)
+    tester = TESTERS.build(test_cfg)
     tester.test()
 
 

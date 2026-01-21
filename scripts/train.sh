@@ -93,7 +93,7 @@ echo "Running code in: $CODE_DIR"
 
 
 echo " =========> RUN TASK <========="
-
+ulimit -n 65536
 if [ "${WEIGHT}" = "None" ]
 then
     $PYTHON "$CODE_DIR"/tools/$TRAIN_CODE \

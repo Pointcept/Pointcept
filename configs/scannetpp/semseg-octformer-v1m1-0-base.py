@@ -107,6 +107,7 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
+            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             dict(
                 type="GridSample",
                 grid_size=0.01,
@@ -115,6 +116,7 @@ data = dict(
                 return_min_coord=True,
                 return_displacement=True,
                 project_displacement=True,
+                return_inverse=True,
             ),
             # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
@@ -122,7 +124,7 @@ data = dict(
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=("coord", "normal", "segment"),
+                keys=("coord", "normal", "segment", "origin_segment", "inverse"),
                 feat_keys=("coord", "color", "normal", "displacement"),
             ),
         ],
@@ -135,6 +137,14 @@ data = dict(
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(type="NormalizeColor"),
+            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
+            dict(
+                type="GridSample",
+                grid_size=0.01,
+                hash_type="fnv",
+                mode="train",
+                return_inverse=True,
+            ),
         ],
         test_mode=True,
         test_cfg=dict(

@@ -1,58 +1,67 @@
-"""
-An example for enabling precise evaluation validation dataset during training.
-PLease compare with semseg-pt-v2m2-0-base.py to lean the mechanism.
-"""
-
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 12  # bs: total bs in all gpus
+batch_size = 24  # bs: total bs in all gpus
+num_worker = 48
 mix_prob = 0.8
+clip_grad = 3.0
 empty_cache = False
 enable_amp = True
 
 # model settings
 model = dict(
-    type="DefaultSegmentor",
+    type="DefaultSegmentorV2",
+    num_classes=20,
+    backbone_out_channels=64,
     backbone=dict(
-        type="PT-v2m2",
+        type="PT-v3m2",
         in_channels=9,
-        num_classes=20,
-        patch_embed_depth=1,
-        patch_embed_channels=48,
-        patch_embed_groups=6,
-        patch_embed_neighbours=8,
-        enc_depths=(2, 2, 6, 2),
-        enc_channels=(96, 192, 384, 512),
-        enc_groups=(12, 24, 48, 64),
-        enc_neighbours=(16, 16, 16, 16),
-        dec_depths=(1, 1, 1, 1),
-        dec_channels=(48, 96, 192, 384),
-        dec_groups=(6, 12, 24, 48),
-        dec_neighbours=(16, 16, 16, 16),
-        grid_sizes=(0.06, 0.15, 0.375, 0.9375),  # x3, x2.5, x2.5, x2.5
-        attn_qkv_bias=True,
-        pe_multiplier=False,
-        pe_bias=True,
-        attn_drop_rate=0.0,
-        drop_path_rate=0.3,
-        enable_checkpoint=False,
-        unpool_backend="map",  # map / interp
+        order=("z", "z-trans", "hilbert", "hilbert-trans"),
+        stride=(2, 2, 2, 2),
+        enc_depths=(3, 3, 3, 12, 3),
+        enc_channels=(64, 128, 256, 512, 768),
+        enc_num_head=(4, 8, 16, 32, 48),
+        enc_patch_size=(1024, 1024, 1024, 1024, 1024),
+        dec_depths=(2, 2, 2, 2),
+        dec_channels=(64, 96, 192, 384),
+        dec_num_head=(4, 6, 12, 24),
+        dec_patch_size=(1024, 1024, 1024, 1024),
+        mlp_ratio=4,
+        qkv_bias=True,
+        qk_scale=None,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        drop_path=0.3,
+        shuffle_orders=True,
+        pre_norm=True,
+        enable_rpe=False,
+        enable_flash=True,
+        upcast_attention=False,
+        upcast_softmax=False,
+        traceable=False,
+        mask_token=False,
+        enc_mode=False,
+        freeze_encoder=False,
     ),
-    criteria=[dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1)],
+    criteria=[
+        dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1),
+        dict(type="LovaszLoss", mode="multiclass", loss_weight=1.0, ignore_index=-1),
+    ],
+    freeze_backbone=False,
 )
 
 # scheduler settings
-epoch = 900
-optimizer = dict(type="AdamW", lr=0.005, weight_decay=0.02)
+epoch = 800
+optimizer = dict(type="AdamW", lr=0.002, weight_decay=0.02)
 scheduler = dict(
     type="OneCycleLR",
-    max_lr=optimizer["lr"],
+    max_lr=[0.002, 0.0002],
     pct_start=0.05,
     anneal_strategy="cos",
     div_factor=10.0,
     final_div_factor=1000.0,
 )
+param_dicts = [dict(keyword="block", lr=0.0002)]
 
 # dataset settings
 dataset_type = "ScanNetDataset"
@@ -87,10 +96,11 @@ data = dict(
         type=dataset_type,
         split="train",
         data_root=data_root,
+        lr_file="data/scannet/tasks/scenes/10.txt",
         transform=[
             dict(type="CenterShift", apply_z=True),
             dict(
-                type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2
+                type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=1.0
             ),
             # dict(type="RandomRotateTargetAngle", angle=(1/2, 1, 3/2), center=[0, 0, 0], axis="z", p=0.75),
             dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.5),
@@ -111,16 +121,16 @@ data = dict(
                 grid_size=0.02,
                 hash_type="fnv",
                 mode="train",
-                return_min_coord=True,
+                return_grid_coord=True,
             ),
-            dict(type="SphereCrop", point_max=100000, mode="random"),
+            dict(type="SphereCrop", point_max=102400, mode="random"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
-            dict(type="ShufflePoint"),
+            # dict(type="ShufflePoint"),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=("coord", "segment"),
+                keys=("coord", "grid_coord", "segment"),
                 feat_keys=("coord", "color", "normal"),
             ),
         ],
@@ -132,26 +142,22 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(
-                type="Copy",
-                keys_dict={"coord": "origin_coord", "segment": "origin_segment"},
-            ),
+            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             dict(
                 type="GridSample",
                 grid_size=0.02,
                 hash_type="fnv",
                 mode="train",
-                return_min_coord=True,
+                return_grid_coord=True,
+                return_inverse=True,
             ),
-            # dict(type="SphereCrop", point_max=1000000, mode="center"),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=("coord", "origin_coord", "segment", "origin_segment"),
+                keys=("coord", "grid_coord", "segment", "origin_segment", "inverse"),
                 feat_keys=("coord", "color", "normal"),
-                offset_keys_dict=dict(offset="coord", origin_offset="origin_coord"),
             ),
         ],
         test_mode=False,
@@ -171,6 +177,7 @@ data = dict(
                 grid_size=0.02,
                 hash_type="fnv",
                 mode="test",
+                return_grid_coord=True,
             ),
             crop=None,
             post_transform=[
@@ -178,7 +185,7 @@ data = dict(
                 dict(type="ToTensor"),
                 dict(
                     type="Collect",
-                    keys=("coord", "index"),
+                    keys=("coord", "grid_coord", "index"),
                     feat_keys=("coord", "color", "normal"),
                 ),
             ],
@@ -304,3 +311,18 @@ data = dict(
         ),
     ),
 )
+
+
+# hook
+hooks = [
+    dict(
+        type="CheckpointLoader",
+        keywords="module.student.backbone",
+        replacement="module.backbone",
+    ),
+    dict(type="IterationTimer", warmup_iter=2),
+    dict(type="InformationWriter"),
+    dict(type="SemSegEvaluator"),
+    dict(type="CheckpointSaver", save_freq=None),
+    dict(type="PreciseEvaluator", test_last=False),
+]

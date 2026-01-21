@@ -85,6 +85,12 @@ data = dict(
             dict(type="RandomScale", scale=[0.9, 1.1]),
             dict(type="Copy", keys_dict={"coord": "origin_coord"}),
             dict(
+                type="Update",
+                keys_dict={
+                    "index_valid_keys": ["coord", "color", "normal", "origin_coord"],
+                },
+            ),
+            dict(
                 type="ContrastiveViewsGenerator",
                 view_keys=("coord", "color", "normal", "origin_coord"),
                 view_trans_cfg=[

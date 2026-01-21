@@ -33,34 +33,36 @@ class PointPromptTraining(nn.Module):
         backbone=None,
         criteria=None,
         backbone_out_channels=96,
-        context_channels=256,
         conditions=("Structured3D", "ScanNet", "S3DIS"),
         template="[x]",
         clip_model="ViT-B/16",
-        # fmt: off
-        class_name=(
-            "wall", "floor", "cabinet", "bed", "chair", "sofa", "table", "door",
-            "window", "bookshelf", "bookcase", "picture", "counter", "desk", "shelves", "curtain",
-            "dresser", "pillow", "mirror", "ceiling", "refrigerator", "television", "shower curtain", "nightstand",
-            "toilet", "sink", "lamp", "bathtub", "garbagebin", "board", "beam", "column",
-            "clutter", "otherstructure", "otherfurniture", "otherprop",
-        ),
-        valid_index=(
-            (0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 25, 26, 33, 34, 35),
-            (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 15, 20, 22, 24, 25, 27, 34),
-            (0, 1, 4, 5, 6, 7, 8, 10, 19, 29, 30, 31, 32),
-        ),
-        # fmt: on
+        class_names=None,
         freeze_backbone=False,
         backbone_mode=False,
     ):
         super().__init__()
-        assert len(conditions) == len(valid_index)
+        if class_names is None:
+            # fmt: off
+            class_names = [
+                ("wall", "floor", "cabinet", "bed", "chair",
+                 "sofa", "table", "door", "window", "picture",
+                 "desk", "shelves", "curtain", "dresser", "pillow",
+                 "mirror", "ceiling", "refrigerator", "television", "nightstand",
+                 "sink", "lamp", "otherstructure", "otherfurniture", "otherprop"),
+                ("wall", "floor", "cabinet", "bed", "chair",
+                 "sofa", "table", "door", "window", "bookshelf",
+                 "picture", "counter", "desk", "curtain", "refridgerator",
+                 "shower curtain", "toilet", "sink", "bathtub", "otherfurniture"),
+                ("ceiling", "floor", "wall", "beam", "column",
+                 "window", "door", "table", "chair", "sofa",
+                 "bookcase", "board", "clutter"),
+            ]
+            # fmt: on
+        assert len(conditions) == len(class_names)
         # assert backbone.type in ["SpUNet-v1m3", "PT-v2m3", "PT-v3m1"]
         self.backbone = MODELS.build(backbone)
         self.criteria = build_criteria(criteria)
         self.conditions = conditions
-        self.valid_index = valid_index
         self.freeze_backbone = freeze_backbone
         if self.freeze_backbone:
             for p in self.backbone.parameters():
@@ -73,13 +75,22 @@ class PointPromptTraining(nn.Module):
                 clip_model, device="cpu", download_root="./.cache/clip"
             )
             clip_model.requires_grad_(False)
-            class_prompt = [template.replace("[x]", name) for name in class_name]
-            class_token = clip.tokenize(class_prompt)
-            class_embedding = clip_model.encode_text(class_token)
-            class_embedding = class_embedding / class_embedding.norm(
-                dim=-1, keepdim=True
-            )
-            self.register_buffer("class_embedding", class_embedding)
+            class_embeddings = []
+            num_classes = []
+            for i in range(len(conditions)):
+                class_prompt = [
+                    template.replace("[x]", name) for name in class_names[i]
+                ]
+                class_token = clip.tokenize(class_prompt)
+                class_embedding = clip_model.encode_text(class_token)
+                class_embedding = class_embedding / class_embedding.norm(
+                    dim=-1, keepdim=True
+                )
+                class_embeddings.append(class_embedding)
+                num_classes.append(len(class_prompt))
+            class_embeddings = torch.cat(class_embeddings, dim=0)
+            self.register_buffer("class_embeddings", class_embeddings, persistent=False)
+            self.num_classes = num_classes
             self.proj_head = nn.Linear(
                 backbone_out_channels, clip_model.text_projection.shape[1]
             )
@@ -110,8 +121,8 @@ class PointPromptTraining(nn.Module):
 
         sim = (
             feat
-            @ self.class_embedding[
-                self.valid_index[self.conditions.index(condition)], :
+            @ self.class_embeddings.split(self.num_classes)[
+                self.conditions.index(condition)
             ].t()
         )
         logit_scale = self.logit_scale.exp()

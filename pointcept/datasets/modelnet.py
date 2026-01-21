@@ -10,6 +10,7 @@ Please cite our work if the code is helpful to you.
 
 import os
 import numpy as np
+import copy
 import pointops
 import torch
 from torch.utils.data import Dataset
@@ -69,7 +70,7 @@ class ModelNetDataset(Dataset):
         record_path = os.path.join(self.data_root, f"{record_name}.pth")
         if os.path.isfile(record_path):
             logger.info(f"Loading record: {record_name} ...")
-            self.data = torch.load(record_path)
+            self.data = torch.load(record_path, weights_only=False)
         else:
             logger.info(f"Preparing record: {record_name} ...")
             self.data = {}
@@ -84,7 +85,7 @@ class ModelNetDataset(Dataset):
         data_idx = idx % len(self.data_list)
         data_name = self.data_list[data_idx]
         if data_name in self.data.keys():
-            return self.data[data_name]
+            return copy.deepcopy(self.data[data_name])
         else:
             data_shape = "_".join(data_name.split("_")[0:-1])
             data_path = os.path.join(

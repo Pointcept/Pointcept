@@ -16,7 +16,9 @@ def interpolation(xyz, new_xyz, feat, offset, new_offset, k=3):
     norm = torch.sum(dist_recip, dim=1, keepdim=True)
     weight = dist_recip / norm  # (n, 3)
 
-    new_feat = torch.cuda.FloatTensor(new_xyz.shape[0], feat.shape[1]).zero_()
+    new_feat = torch.zeros(
+        (new_xyz.shape[0], feat.shape[1]), dtype=torch.float, device=xyz.device
+    )
     for i in range(k):
         new_feat += feat[idx[:, i].long(), :] * weight[:, i].unsqueeze(-1)
     return new_feat
@@ -36,7 +38,7 @@ class Interpolation(Function):
         weight = dist_recip / norm  # (n, k)
 
         n, c, m = new_xyz.shape[0], input.shape[1], input.shape[0]
-        output = torch.cuda.FloatTensor(n, c).zero_()
+        output = torch.zeros((n, c), dtype=torch.float, device=xyz.device)
         interpolation_forward_cuda(n, c, k, input, idx, weight, output)
         ctx.m, ctx.k = m, k
         ctx.save_for_backward(idx, weight)
@@ -51,7 +53,7 @@ class Interpolation(Function):
         m, k = ctx.m, ctx.k
         idx, weight = ctx.saved_tensors
         n, c = grad_output.shape
-        grad_input = torch.cuda.FloatTensor(m, c).zero_()
+        grad_input = torch.zeros((m, c), dtype=torch.float, device=idx.device)
         interpolation_backward_cuda(n, c, k, grad_output, idx, weight, grad_input)
         return None, None, grad_input, None, None, None
 

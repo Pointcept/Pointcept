@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch_scatter
 import torch_cluster
+from peft import LoraConfig, get_peft_model
+from collections import OrderedDict
 
 from pointcept.models.losses import build_criteria
 from pointcept.models.utils.structure import Point
@@ -88,6 +90,114 @@ class DefaultSegmentorV2(nn.Module):
             return_dict["loss"] = loss
             return_dict["seg_logits"] = seg_logits
         # test
+        else:
+            return_dict["seg_logits"] = seg_logits
+        return return_dict
+
+
+@MODELS.register_module()
+class DefaultLORASegmentorV2(nn.Module):
+    def __init__(
+        self,
+        num_classes,
+        backbone_out_channels,
+        backbone=None,
+        criteria=None,
+        freeze_backbone=False,
+        use_lora=False,
+        lora_r=8,
+        lora_alpha=16,
+        lora_dropout=0.1,
+        backbone_path=None,
+        keywords=None,
+        replacements=None,
+    ):
+        super().__init__()
+        self.seg_head = (
+            nn.Linear(backbone_out_channels, num_classes)
+            if num_classes > 0
+            else nn.Identity()
+        )
+        self.keywords = keywords
+        self.replacements = replacements
+        self.backbone = build_model(backbone)
+        backbone_weight = torch.load(
+            backbone_path,
+            map_location=lambda storage, loc: storage.cuda(),
+        )
+        self.backbone_load(backbone_weight)
+
+        self.criteria = build_criteria(criteria)
+        self.freeze_backbone = freeze_backbone
+        self.use_lora = use_lora
+
+        if self.use_lora:
+            lora_config = LoraConfig(
+                r=lora_r,
+                lora_alpha=lora_alpha,
+                target_modules=["qkv"],
+                # target_modules=["query", "value"],
+                lora_dropout=lora_dropout,
+                bias="none",
+            )
+            self.backbone.enc = get_peft_model(self.backbone.enc, lora_config)
+
+        if self.freeze_backbone:
+            for p in self.backbone.parameters():
+                p.requires_grad = False
+        if self.use_lora:
+            for name, param in self.backbone.named_parameters():
+                if "lora_" in name:
+                    param.requires_grad = True
+        self.backbone.enc.print_trainable_parameters()
+
+    def backbone_load(self, checkpoint):
+        weight = OrderedDict()
+        for key, value in checkpoint["state_dict"].items():
+            if not key.startswith("module."):
+                key = "module." + key  # xxx.xxx -> module.xxx.xxx
+            # Now all keys contain "module." no matter DDP or not.
+            if self.keywords in key:
+                key = key.replace(self.keywords, self.replacements)
+            key = key[7:]  # module.xxx.xxx -> xxx.xxx
+            if key.startswith("backbone."):
+                key = key[9:]
+            weight[key] = value
+        load_state_info = self.backbone.load_state_dict(weight, strict=False)
+        print(f"Missing keys: {load_state_info[0]}")
+        print(f"Unexpected keys: {load_state_info[1]}")
+
+    def forward(self, input_dict, return_point=False):
+        point = Point(input_dict)
+        if self.freeze_backbone and not self.use_lora:
+            with torch.no_grad():
+                point = self.backbone(point)
+        else:
+            point = self.backbone(point)
+
+        if isinstance(point, Point):
+            while "pooling_parent" in point.keys():
+                assert "pooling_inverse" in point.keys()
+                parent = point.pop("pooling_parent")
+                inverse = point.pop("pooling_inverse")
+                parent.feat = torch.cat([parent.feat, point.feat[inverse]], dim=-1)
+                point = parent
+            feat = point.feat
+        else:
+            feat = point
+
+        seg_logits = self.seg_head(feat)
+        return_dict = dict()
+        if return_point:
+            return_dict["point"] = point
+
+        if self.training:
+            loss = self.criteria(seg_logits, input_dict["segment"])
+            return_dict["loss"] = loss
+        elif "segment" in input_dict.keys():
+            loss = self.criteria(seg_logits, input_dict["segment"])
+            return_dict["loss"] = loss
+            return_dict["seg_logits"] = seg_logits
         else:
             return_dict["seg_logits"] = seg_logits
         return return_dict

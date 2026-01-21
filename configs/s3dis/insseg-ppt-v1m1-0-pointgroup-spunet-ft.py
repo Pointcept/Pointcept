@@ -40,7 +40,7 @@ model = dict(
             context_channels=256,
             channels=(32, 64, 128, 256, 256, 128, 96, 96),
             layers=(2, 3, 4, 6, 2, 2, 2, 2),
-            cls_mode=False,
+            enc_mode=False,
             conditions=("ScanNet", "S3DIS", "Structured3D"),
             zero_init=False,
             norm_decouple=True,
@@ -248,6 +248,7 @@ data = dict(
                     "instance_centroid",
                     "bbox",
                     "condition",
+                    "name",
                 ),
                 feat_keys=("color", "normal"),
                 offset_keys_dict=dict(offset="coord", origin_offset="origin_coord"),
@@ -255,7 +256,58 @@ data = dict(
         ],
         test_mode=False,
     ),
-    test=dict(),  # currently not available
+    test=dict(
+        type=dataset_type,
+        split="Area_5",
+        data_root=data_root,
+        transform=[
+            dict(type="CenterShift", apply_z=True),
+            dict(
+                type="Copy",
+                keys_dict={
+                    "coord": "origin_coord",
+                    "segment": "origin_segment",
+                    "instance": "origin_instance",
+                },
+            ),
+            dict(
+                type="GridSample",
+                grid_size=0.02,
+                hash_type="fnv",
+                mode="train",
+                return_grid_coord=True,
+            ),
+            # dict(type="SphereCrop", point_max=1000000, mode='center'),
+            dict(type="CenterShift", apply_z=False),
+            dict(type="NormalizeColor"),
+            dict(
+                type="InstanceParser",
+                segment_ignore_index=segment_ignore_index,
+                instance_ignore_index=-1,
+            ),
+            dict(type="Update", keys_dict={"condition": "S3DIS"}),
+            dict(type="ToTensor"),
+            dict(
+                type="Collect",
+                keys=(
+                    "coord",
+                    "grid_coord",
+                    "segment",
+                    "instance",
+                    "origin_coord",
+                    "origin_segment",
+                    "origin_instance",
+                    "instance_centroid",
+                    "bbox",
+                    "condition",
+                    "name",
+                ),
+                feat_keys=("color", "normal"),
+                offset_keys_dict=dict(offset="coord", origin_offset="origin_coord"),
+            ),
+        ],
+        test_mode=False,
+    ),
 )
 
 hooks = [
@@ -268,4 +320,13 @@ hooks = [
         instance_ignore_index=-1,
     ),
     dict(type="CheckpointSaver", save_freq=None),
+    dict(type="PreciseEvaluator", test_last=False),
 ]
+
+# Tester
+test = dict(
+    type="InsSegTester",
+    segment_ignore_index=segment_ignore_index,
+    instance_ignore_index=-1,
+    verbose=False,
+)

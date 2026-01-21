@@ -149,7 +149,17 @@ data = dict(
         type=dataset_type,
         split="test",
         data_root=data_root,
-        transform=[],
+        transform=[
+            dict(type="PointClip", point_cloud_range=(-35.2, -35.2, -4, 35.2, 35.2, 2)),
+            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
+            dict(
+                type="GridSample",
+                grid_size=0.025,
+                hash_type="fnv",
+                mode="train",
+                return_inverse=True,
+            ),
+        ],
         test_mode=True,
         test_cfg=dict(
             voxelize=dict(
@@ -161,10 +171,6 @@ data = dict(
             ),
             crop=None,
             post_transform=[
-                dict(
-                    type="PointClip",
-                    point_cloud_range=(-35.2, -35.2, -4, 35.2, 35.2, 2),
-                ),
                 dict(type="ToTensor"),
                 dict(
                     type="Collect",
@@ -214,3 +220,14 @@ data = dict(
         ignore_index=ignore_index,
     ),
 )
+
+# hook
+hooks = [
+    dict(type="CheckpointLoader"),
+    dict(type="ModelHook"),
+    dict(type="IterationTimer", warmup_iter=2),
+    dict(type="InformationWriter"),
+    dict(type="SemSegEvaluator"),
+    dict(type="CheckpointSaver", save_freq=None),
+    dict(type="PreciseEvaluator", test_last=True),
+]

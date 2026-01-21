@@ -89,30 +89,21 @@ data = dict(
         data_root=data_root,
         transform=[
             dict(type="CenterShift", apply_z=True),
-            dict(
-                type="Copy",
-                keys_dict={"coord": "origin_coord", "segment": "origin_segment"},
-            ),
+            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             dict(
                 type="GridSample",
                 grid_size=0.05,
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
+                return_inverse=True,
             ),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=(
-                    "coord",
-                    "grid_coord",
-                    "origin_coord",
-                    "segment",
-                    "origin_segment",
-                ),
-                offset_keys_dict=dict(offset="coord", origin_offset="origin_coord"),
+                keys=("coord", "grid_coord", "segment", "origin_segment", "inverse"),
                 feat_keys=["coord", "color"],
             ),
         ],

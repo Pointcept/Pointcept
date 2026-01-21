@@ -94,7 +94,7 @@ class SpUNetBase(nn.Module):
         base_channels=32,
         channels=(32, 64, 128, 256, 256, 128, 96, 96),
         layers=(2, 3, 4, 6, 2, 2, 2, 2),
-        cls_mode=False,
+        enc_mode=False,
     ):
         super().__init__()
         assert len(layers) % 2 == 0
@@ -105,7 +105,7 @@ class SpUNetBase(nn.Module):
         self.channels = channels
         self.layers = layers
         self.num_stages = len(layers) // 2
-        self.cls_mode = cls_mode
+        self.enc_mode = enc_mode
 
         norm_fn = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
         block = BasicBlock
@@ -128,7 +128,7 @@ class SpUNetBase(nn.Module):
         self.down = nn.ModuleList()
         self.up = nn.ModuleList()
         self.enc = nn.ModuleList()
-        self.dec = nn.ModuleList() if not self.cls_mode else None
+        self.dec = nn.ModuleList() if not self.enc_mode else None
 
         for s in range(self.num_stages):
             # encode num_stages
@@ -166,7 +166,7 @@ class SpUNetBase(nn.Module):
                     )
                 )
             )
-            if not self.cls_mode:
+            if not self.enc_mode:
                 # decode num_stages
                 self.up.append(
                     spconv.SparseSequential(
@@ -216,7 +216,7 @@ class SpUNetBase(nn.Module):
             dec_channels = channels[len(channels) - s - 2]
 
         final_in_channels = (
-            channels[-1] if not self.cls_mode else channels[self.num_stages - 1]
+            channels[-1] if not self.enc_mode else channels[self.num_stages - 1]
         )
         self.final = (
             spconv.SubMConv3d(
@@ -264,7 +264,7 @@ class SpUNetBase(nn.Module):
             x = self.enc[s](x)
             skips.append(x)
         x = skips.pop(-1)
-        if not self.cls_mode:
+        if not self.enc_mode:
             # dec forward
             for s in reversed(range(self.num_stages)):
                 x = self.up[s](x)
@@ -273,7 +273,7 @@ class SpUNetBase(nn.Module):
                 x = self.dec[s](x)
 
         x = self.final(x)
-        if self.cls_mode:
+        if self.enc_mode:
             x = x.replace_feature(
                 scatter(x.features, x.indices[:, 0].long(), reduce="mean", dim=0)
             )

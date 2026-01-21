@@ -219,7 +219,7 @@ class SerializedAttention(PointModule):
             feat = (attn @ v).transpose(1, 2).reshape(-1, C)
         else:
             feat = flash_attn.flash_attn_varlen_qkvpacked_func(
-                qkv.half().reshape(-1, 3, H, C // H),
+                qkv.to(torch.bfloat16).reshape(-1, 3, H, C // H),
                 cu_seqlens,
                 max_seqlen=self.patch_size,
                 dropout_p=self.attn_drop if self.training else 0,
@@ -451,6 +451,7 @@ class GridPooling(PointModule):
         if self.traceable:
             point_dict["pooling_inverse"] = cluster
             point_dict["pooling_parent"] = point
+            point_dict["idx_ptr"] = idx_ptr
         order = point.order
         point = Point(point_dict)
         if self.norm is not None:

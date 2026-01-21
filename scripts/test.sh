@@ -81,7 +81,7 @@ echo "Running code in: $CODE_DIR"
 
 
 echo " =========> RUN TASK <========="
-
+ulimit -n 65536
 #$PYTHON -u "$CODE_DIR"/tools/$TEST_CODE \
 $PYTHON -u tools/$TEST_CODE \
   --config-file "$CONFIG_DIR" \

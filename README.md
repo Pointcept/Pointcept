@@ -13,7 +13,13 @@
 [![Formatter](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml/badge.svg)](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml)
 
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
-- 🚀 **Sonata: Self-Supervised Learning of Reliable Point Representations**  
+- 🚀 **Concerto: Joint 2D-3D Self-Supervised Learning Emerges Spatial Representations**  
+*Yujia Zhang, Xiaoyang Wu, Yixing Lao, Chengyao Wang, Zhuotao Tian, Naiyan Wang, Hengshuang Zhao*   
+Conference on Neural Information Processing Systems (**NeurIPS**) 2025  
+[ Pretrain ] [Concerto] - [ [Project](https://pointcept.github.io/Concerto/) ] [ [Bib](https://xywu.me/research/concerto/bib.txt) ] [ [HF Demo](https://huggingface.co/spaces/Pointcept/Concerto) ] [ [Inference](https://github.com/Pointcept/Concerto) ] [ [Weight](https://huggingface.co/Pointcept/Concerto) ] &rarr; [here](#concerto)
+
+
+- **Sonata: Self-Supervised Learning of Reliable Point Representations**  
 *Xiaoyang Wu, Daniel DeTone, Duncan Frost, Tianwei Shen, Chris Xie, Nan Yang, Jakob Engel, Richard Newcombe, Hengshuang Zhao, Julian Straub*  
 IEEE Conference on Computer Vision and Pattern Recognition (**CVPR**) 2025 - Highlight  
 [ Pretrain ] [Sonata] - [ [Project](https://xywu.me/sonata/) ] [ [arXiv](https://arxiv.org/abs/2503.16429) ] [ [Bib](https://xywu.me/research/sonata/bib.txt) ] [ [Demo](https://github.com/facebookresearch/sonata) ] [ [Weight](https://huggingface.co/facebook/sonata) ] &rarr; [here](#sonata)
@@ -82,7 +88,8 @@ Pre-training:
 [Contrastive Scene Contexts](https://github.com/facebookresearch/ContrastiveSceneContexts) ([here](#contrastive-scene-contexts)),
 [Masked Scene Contrast](https://arxiv.org/abs/2303.14191) ([here](#masked-scene-contrast-msc)),
 [Point Prompt Training](https://arxiv.org/abs/2308.09718) ([here](#point-prompt-training-ppt)),
-[Sonata]() ([here](#sonata));  
+[Sonata](https://arxiv.org/abs/2503.16429) ([here](#sonata)),
+[Concerto]() ([here](#concerto));  
 Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
@@ -99,6 +106,7 @@ Datasets:
 
 
 ## Highlights
+- *Apr 2025* 🚀: We now support `wandb`, check the [Quick Start](#quick-start) training section for more information. (Thanks @Streakfull for his contribution!)
 - *Mar 2025* 🚀: **Sonata** is accepted by CVPR 2025 and selected as one of the **Highlight** presentations (3.0% submissions)! We release the code with Pointcept v1.6.0. We release the pre-training **[code](#sonata)** along with Pointcept v1.6.0 and provide an easy-to-use pre-trained model for inference, tuning, and visualization in our project **[repository](https://github.com/facebookresearch/sonata)** hosted by Meta.
 - *May 2024*: In v1.5.2, we redesigned the default structure for each dataset for better performance. Please **re-preprocess** datasets or **download** our preprocessed datasets from **[here](https://huggingface.co/Pointcept)**.
 - *Apr 2024*: **PTv3** is selected as one of the 90 **Oral** papers (3.3% accepted papers, 0.78% submissions) by CVPR'24!
@@ -148,7 +156,16 @@ If you find _Pointcept_ useful to your research, please cite our work as encoura
   conda activate pointcept-torch2.5.0-cu12.4
   ```
 
-- **Method 2**: Manually create a conda environment:
+- **Method 2**: Use our pre-built Docker image and refer to the supported tags [here](https://hub.docker.com/r/pointcept/pointcept/tags). Quickly verify the Docker image on your local machine with the following command:
+  ```bash
+  docker run --gpus all -it --rm pointcept/pointcept:v1.6.0-pytorch2.5.0-cuda12.4-cudnn9-devel bash
+  git clone https://github.com/facebookresearch/sonata
+  cd sonata
+  export PYTHONPATH=./ && python demo/0_pca.py
+  # Ignore the GUI error, we cannot expect a container to have its GUI, right?
+  ```
+
+- **Method 3**: Manually create a conda environment:
   ```bash
   conda create -n pointcept python=3.10 -y
   conda activate pointcept
@@ -160,7 +177,7 @@ If you find _Pointcept_ useful to your research, please cite our work as encoura
   # Choose version you want here: https://pytorch.org/get-started/previous-versions/
   conda install pytorch==2.5.0 torchvision==0.13.1 torchaudio==0.20.0 pytorch-cuda=12.4 -c pytorch -y
   conda install h5py pyyaml -c anaconda -y
-  conda install sharedarray tensorboard tensorboardx yapf addict einops scipy plyfile termcolor timm -c conda-forge -y
+  conda install sharedarray tensorboard tensorboardx wandb yapf addict einops scipy plyfile termcolor timm -c conda-forge -y
   conda install pytorch-cluster pytorch-scatter pytorch-sparse -c pyg -y
   pip install torch-geometric
 
@@ -238,7 +255,6 @@ The preprocessing supports semantic and instance segmentation for both `ScanNet2
   python pointcept/datasets/preprocessing/sampling_chunking_data.py --dataset_root ${PROCESSED_SCANNETPP_DIR} --grid_size 0.01 --chunk_range 6 6 --chunk_stride 3 3 --split train --num_workers ${NUM_WORKERS}
   python pointcept/datasets/preprocessing/sampling_chunking_data.py --dataset_root ${PROCESSED_SCANNETPP_DIR} --grid_size 0.01 --chunk_range 6 6 --chunk_stride 3 3 --split val --num_workers ${NUM_WORKERS}
   ```
-- (Alternative) Our preprocess data can be directly downloaded [[here](https://huggingface.co/datasets/Pointcept/scannetpp-compressed)], please agree the official license before download it.
 - Link processed dataset to codebase:
   ```bash
   # PROCESSED_SCANNETPP_DIR: the directory of the processed ScanNet dataset.
@@ -525,9 +541,14 @@ sh scripts/train.sh -p ${INTERPRETER_PATH} -g ${NUM_GPU} -d ${DATASET_NAME} -c $
 export PYTHONPATH=./
 python tools/train.py --config-file ${CONFIG_PATH} --num-gpus ${NUM_GPU} --options save_path=${SAVE_PATH} resume=True weight=${CHECKPOINT_PATH}
 ```
+**Weights and Biases.**
+Pointcept by default enables both `tensorboard` and `wandb`. There are some usage notes related to `wandb`:
+1. Disable by set `enable_wandb=False`;
+2. Sync with  `wandb` remote server by `wandb login` in the terminal or set `wandb_key=YOUR_WANDB_KEY` in config.
+3. The project name is "Pointcept" by default, custom it to your research project name by setting `wandb_project=YOUR_PROJECT_NAME` (e.g. Sonata-Dev, PointTransformerV3-Dev)
 
 ### Testing
-During training, model evaluation is performed on point clouds after grid sampling (voxelization), providing an initial assessment of model performance. However, to obtain precise evaluation results, testing is **essential**. The testing process involves subsampling a dense point cloud into a sequence of voxelized point clouds, ensuring comprehensive coverage of all points. These sub-results are then predicted and collected to form a complete prediction of the entire point cloud. This approach yields  higher evaluation results compared to simply mapping/interpolating the prediction. In addition, our testing code supports TTA (test time augmentation) testing, which further enhances the stability of evaluation performance.
+During training, model evaluation is performed on point clouds after grid sampling (voxelization), providing an initial assessment of model performance. ~~However, to obtain precise evaluation results, testing is **essential**~~ *(now we automatically run the testing process after training with the `PreciseEvaluation` hook)*. The testing process involves subsampling a dense point cloud into a sequence of voxelized point clouds, ensuring comprehensive coverage of all points. These sub-results are then predicted and collected to form a complete prediction of the entire point cloud. This approach yields  higher evaluation results compared to simply mapping/interpolating the prediction. In addition, our testing code supports TTA (test time augmentation) testing, which further enhances the stability of evaluation performance.
 
 ```bash
 # By script (Based on experiment folder created by training script)
@@ -701,20 +722,8 @@ Indoor semantic segmentation
 | PTv3 | ScanNet |     &cross;     | 4 | 77.6% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-pt-v3m1-0-base.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/scannet-semseg-pt-v3m1-0-base) |
 | PTv3 + PPT | ScanNet |     &check;     | 8 | 78.5% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-pt-v3m1-1-ppt-extreme.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/scannet-semseg-pt-v3m1-1-ppt-extreme) |
 | PTv3 | ScanNet200 |     &cross;     | 4 | 35.3% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet200/semseg-pt-v3m1-0-base.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) |[link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/scannet200-semseg-pt-v3m1-0-base)|
-| PTv3 + PPT | ScanNet200 | &check; (f.t.)  | 4 |  |  |  |  |
 | PTv3 | S3DIS (Area5) |     &cross;     | 4 | 73.6% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/s3dis/semseg-pt-v3m1-0-rpe.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/s3dis-semseg-pt-v3m1-0-rpe) |
 | PTv3 + PPT | S3DIS (Area5) |     &check;     | 8 | 75.4% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/s3dis/semseg-pt-v3m1-1-ppt-extreme.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/s3dis-semseg-pt-v3m1-1-ppt-extreme) |
-
-Outdoor semantic segmentation  
-| Model | Benchmark | Additional Data | Num GPUs | Val mIoU | Config | Tensorboard | Exp Record |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| PTv3 | nuScenes | &cross; | 4 | 80.3 | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/nuscenes/semseg-pt-v3m1-0-base.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard)|[link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/nuscenes-semseg-pt-v3m1-0-base) |
-| PTv3 + PPT | nuScenes | &check; | 8 | | | | |
-| PTv3 | SemanticKITTI | &cross; | 4 | | | | |
-| PTv3 + PPT | SemanticKITTI | &check; | 8 | | | | |
-| PTv3 | Waymo | &cross; | 4 | 71.2 | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/waymo/semseg-pt-v3m1-0-base.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/waymo-semseg-pt-v3m1-0-base) (log only) |
-| PTv3 + PPT | Waymo | &check; | 8 | | | | |
-
 _**\*Released model weights are trained for v1.5.1, weights for v1.5.2 and later is still ongoing.**_
 
 - **PTv2 mode2**
@@ -909,10 +918,11 @@ sh scripts/train.sh -g 4 -d scannet -c insseg-pointgroup-v1m1-0-spunet-base -n i
 ```
 
 ### 3. Pre-training
+#### Concerto
+Follow the instruction [here](https://github.com/Pointcept/Pointcept/tree/main/pointcept/models/concerto).
+
 #### Sonata
 Follow the instruction [here](https://github.com/Pointcept/Pointcept/tree/main/pointcept/models/sonata).
-
-
 
 #### Masked Scene Contrast (MSC)
 1. Pre-training with the following example scripts:

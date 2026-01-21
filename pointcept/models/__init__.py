@@ -19,8 +19,10 @@ from .context_aware_classifier import *
 
 # Instance Segmentation
 from .point_group import *
+from .sgiformer import *
 
 # Pretraining
 from .masked_scene_contrast import *
 from .point_prompt_training import *
 from .sonata import *
+from .concerto import *

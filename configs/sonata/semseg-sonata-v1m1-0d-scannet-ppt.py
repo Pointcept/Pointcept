@@ -1,15 +1,3 @@
-"""
-PTv3 + PPT
-Pre-trained on ScanNet + Structured3D
-(S3DIS is commented by default as a long data time issue of S3DIS: https://github.com/Pointcept/Pointcept/issues/103)
-In the original PPT paper, 3 datasets are jointly trained and validated on the three datasets jointly with
-one shared weight model. In PTv3, we trained on multi-dataset but only validated on one single dataset to
-achieve extreme performance on one single dataset.
-
-To enable joint training on three datasets, uncomment config for the S3DIS dataset and change the "loop" of
- Structured3D and ScanNet to 4 and 2 respectively.
-"""
-
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
@@ -39,7 +27,7 @@ model = dict(
         enc_channels=(48, 96, 192, 384, 512),
         enc_num_head=(3, 6, 12, 24, 32),
         enc_patch_size=(1024, 1024, 1024, 1024, 1024),
-        dec_depths=(2, 2, 2, 2),
+        dec_depths=(3, 3, 3, 3),
         dec_channels=(64, 96, 192, 384),
         dec_num_head=(4, 6, 12, 24),
         dec_patch_size=(1024, 1024, 1024, 1024),
@@ -66,24 +54,75 @@ model = dict(
     ],
     freeze_backbone=False,
     backbone_out_channels=64,
-    context_channels=256,
     conditions=("Structured3D", "ScanNet", "S3DIS"),
     template="[x]",
     clip_model="ViT-B/16",
-    # fmt: off
-    class_name=(
-        "wall", "floor", "cabinet", "bed", "chair", "sofa", "table", "door",
-        "window", "bookshelf", "bookcase", "picture", "counter", "desk", "shelves", "curtain",
-        "dresser", "pillow", "mirror", "ceiling", "refrigerator", "television", "shower curtain", "nightstand",
-        "toilet", "sink", "lamp", "bathtub", "garbagebin", "board", "beam", "column",
-        "clutter", "otherstructure", "otherfurniture", "otherprop",
-    ),
-    valid_index=(
-        (0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 25, 26, 33, 34, 35),
-        (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 15, 20, 22, 24, 25, 27, 34),
-        (0, 1, 4, 5, 6, 7, 8, 10, 19, 29, 30, 31, 32),
-    ),
-    # fmt: on
+    class_names=[
+        [
+            "wall",
+            "floor",
+            "cabinet",
+            "bed",
+            "chair",
+            "sofa",
+            "table",
+            "door",
+            "window",
+            "picture",
+            "desk",
+            "shelves",
+            "curtain",
+            "dresser",
+            "pillow",
+            "mirror",
+            "ceiling",
+            "refrigerator",
+            "television",
+            "nightstand",
+            "sink",
+            "lamp",
+            "otherstructure",
+            "otherfurniture",
+            "otherprop",
+        ],
+        [
+            "wall",
+            "floor",
+            "cabinet",
+            "bed",
+            "chair",
+            "sofa",
+            "table",
+            "door",
+            "window",
+            "bookshelf",
+            "picture",
+            "counter",
+            "desk",
+            "curtain",
+            "refridgerator",
+            "shower curtain",
+            "toilet",
+            "sink",
+            "bathtub",
+            "otherfurniture",
+        ],
+        [
+            "ceiling",
+            "floor",
+            "wall",
+            "beam",
+            "column",
+            "window",
+            "door",
+            "table",
+            "chair",
+            "sofa",
+            "bookcase",
+            "board",
+            "clutter",
+        ],
+    ],
     backbone_mode=False,
 )
 
@@ -286,7 +325,7 @@ data = dict(
             #             mode="train",
             #             return_grid_coord=True,
             #         ),
-            #         dict(type="SphereCrop", scale=0.6, mode="random"),
+            #         dict(type="SphereCrop", sample_rate=0.6, mode="random"),
             #         dict(type="SphereCrop", point_max=204800, mode="random"),
             #         dict(type="CenterShift", apply_z=False),
             #         dict(type="NormalizeColor"),
@@ -310,12 +349,14 @@ data = dict(
         data_root="data/scannet",
         transform=[
             dict(type="CenterShift", apply_z=True),
+            dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             dict(
                 type="GridSample",
                 grid_size=0.02,
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
+                return_inverse=True,
             ),
             dict(type="CenterShift", apply_z=False),
             dict(type="NormalizeColor"),
@@ -323,7 +364,14 @@ data = dict(
             dict(type="ToTensor"),
             dict(
                 type="Collect",
-                keys=("coord", "grid_coord", "segment", "condition"),
+                keys=(
+                    "coord",
+                    "grid_coord",
+                    "segment",
+                    "condition",
+                    "origin_segment",
+                    "inverse",
+                ),
                 feat_keys=("coord", "color", "normal"),
             ),
         ],
