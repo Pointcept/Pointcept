@@ -9,8 +9,10 @@ Please cite our work if the code is helpful to you.
 
 import os
 import sys
+import shutil
 import argparse
 import multiprocessing as mp
+from importlib import import_module
 from torch.nn.parallel import DistributedDataParallel
 
 
@@ -35,7 +37,7 @@ def create_ddp_model(model, *, fp16_compression=False, **kwargs):
         kwargs["device_ids"] = [comm.get_local_rank()]
         if "output_device" not in kwargs:
             kwargs["output_device"] = [comm.get_local_rank()]
-    ddp = DistributedDataParallel(model, **kwargs)
+    ddp = DistributedDataParallel(model,** kwargs)
     if fp16_compression:
         from torch.distributed.algorithms.ddp_comm_hooks import default as comm_hooks
 
@@ -92,7 +94,7 @@ def default_argument_parser(epilog=None):
     # PyTorch still may leave orphan processes in multi-gpu training.
     # Therefore we use a deterministic way to obtain port,
     # so that users are aware of orphan processes by seeing the port occupied.
-    # port = 2 ** 15 + 2 ** 14 + hash(os.getuid() if sys.platform != "win32" else 1) % 2 ** 14
+    # port = 2 **15 + 2** 14 + hash(os.getuid() if sys.platform != "win32" else 1) % 2 **14
     parser.add_argument(
         "--dist-url",
         # default="tcp://127.0.0.1:{}".format(port),
@@ -107,24 +109,83 @@ def default_argument_parser(epilog=None):
 
 
 def default_config_parser(file_path, options):
-    # config name protocol: dataset_name/model_name-exp_name
+    from pointcept.models.builder import MODELS    # 导入模块注册器
+    # 1. Determine the real path of the original configuration file (source file)
     if os.path.isfile(file_path):
-        cfg = Config.fromfile(file_path)
+        real_config_path = file_path  # Source file: original config file (e.g., config/s3dis/xxx.py)
     else:
         sep = file_path.find("-")
-        cfg = Config.fromfile(os.path.join(file_path[:sep], file_path[sep + 1 :]))
+        real_config_path = os.path.join(file_path[:sep], file_path[sep + 1:])
+    # Verify the original configuration file exists
+    if not os.path.isfile(real_config_path):
+        raise FileNotFoundError(f"Original configuration file does not exist: {real_config_path}")
 
+    # 2. Parse the original configuration first
+    cfg = Config.fromfile(real_config_path)
+
+    # 3. Merge options first (key modification: merge options in advance to get correct save_path)
     if options is not None:
         cfg.merge_from_dict(options)
 
+    # 4. Determine the save path for the configuration file (target file) - now using merged save_path
+    save_path = cfg.save_path
+    os.makedirs(save_path, exist_ok=True)  # Ensure the save directory exists
+    model_save_dir = os.path.join(save_path, "model")
+    os.makedirs(model_save_dir, exist_ok=True)
+    config_save_path = os.path.join(save_path, "config.py")  # Target file: config.py in the save directory
+
+    # 5. Copy the original configuration file (now using correct save_path)
+    if not cfg.test_only:  # Only copy in training mode
+        # Check if source and target files are the same (avoid SameFileError)
+        if os.path.abspath(real_config_path) == os.path.abspath(config_save_path):
+            print(f"Source configuration file is the same as the target path, skipping copy: {real_config_path}")
+        else:
+            if cfg.resume:  # Resume mode: copy only if target file does not exist
+                if not os.path.exists(config_save_path):
+                    shutil.copy2(real_config_path, config_save_path)
+                    print(f"Resume mode: Copying original configuration file to: {config_save_path}")
+                else:
+                    print(f"Resume mode: Configuration file already exists, skipping copy: {config_save_path}")
+            else:  # Non-resume mode: force copy (overwrite old file)
+                shutil.copy2(real_config_path, config_save_path)
+                print(f"Training mode: Copying original configuration file to: {config_save_path}")
+    else:
+        print("Testing mode: Skipping configuration file copy")
+
+    # 6. Handle random seed
     if cfg.seed is None:
         cfg.seed = get_random_seed()
-
     cfg.data.train.loop = cfg.epoch // cfg.eval_epoch
 
-    os.makedirs(os.path.join(cfg.save_path, "model"), exist_ok=True)
-    if not cfg.resume:
-        cfg.dump(os.path.join(cfg.save_path, "config.py"))
+    # 7. Copy backbone file (now using correct save_path)
+    try:
+        backbone_type = cfg.model.backbone.type
+        if not backbone_type:
+            raise ValueError("model.backbone.type not found in config")
+        backbone_cls = MODELS.get(backbone_type)
+        if backbone_cls is None:
+            raise KeyError(f"Backbone type {backbone_type} not found in MODELS registry")
+        module_path = backbone_cls.__module__
+        module = import_module(module_path)
+        backbone_file_path = module.__file__  # Source file: original file where backbone is located
+        if not backbone_file_path:
+            raise FileNotFoundError(f"Failed to get module file corresponding to {backbone_type}")
+        if backbone_file_path.endswith(".pyc"):
+            backbone_file_path = backbone_file_path[:-1]  # Remove .pyc suffix
+        dest_file = os.path.join(save_path, os.path.basename(backbone_file_path))  # Target file: file with the same name in save directory
+        
+        # Check if source and target files are the same
+        if os.path.abspath(backbone_file_path) == os.path.abspath(dest_file):
+            print(f"Source backbone file is the same as the target path, skipping copy: {backbone_file_path}")
+        else:
+            if not os.path.exists(dest_file):
+                shutil.copy2(backbone_file_path, dest_file)
+                print(f"Copied backbone module file to: {dest_file}")
+            else:
+                print(f"Backbone module file already exists, skipping copy: {dest_file}")
+    except Exception as e:
+        print(f"Warning: Failed to copy backbone module file, reason: {str(e)}")
+
     return cfg
 
 
