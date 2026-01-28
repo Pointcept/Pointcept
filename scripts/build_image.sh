@@ -46,17 +46,18 @@ RUN rm /etc/apt/sources.list.d/*.list
 
 # Installing apt packages
 RUN export DEBIAN_FRONTEND=noninteractive \
-	&& apt -y update --no-install-recommends \
-	&& apt -y install --no-install-recommends \
-	  git wget tmux vim zsh build-essential cmake ninja-build libopenblas-dev libsparsehash-dev \
-	&& apt autoremove -y \
-	&& apt clean -y \
-	&& export DEBIAN_FRONTEND=dialog
+  && apt -y update --no-install-recommends \
+  && apt -y install --no-install-recommends \
+    git wget tmux vim zsh build-essential cmake ninja-build libopenblas-dev libsparsehash-dev \
+  && apt autoremove -y \
+  && apt clean -y \
+  && export DEBIAN_FRONTEND=dialog
 
 # Install Pointcept environment
 RUN conda install h5py pyyaml tensorboard tensorboardx wandb yapf addict einops scipy plyfile termcolor matplotlib black open3d -c conda-forge -y
 
 RUN pip install --upgrade pip
+RUN pip install peft
 RUN pip install timm
 RUN pip install torch-geometric
 RUN pip install torch_scatter torch_sparse torch_cluster -f https://data.pyg.org/whl/torch-${TORCH_VERSION}+cu${CUDA_VERSION_NO_DOT}.html
@@ -66,17 +67,17 @@ RUN pip install ftfy regex tqdm
 RUN pip install git+https://github.com/openai/CLIP.git
 
 # Build swin3d
-RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install -U git+https://github.com/microsoft/Swin3D.git -v
+RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install -U git+https://github.com/microsoft/Swin3D.git -v --no-build-isolation
 
 # Build FlashAttention2
-RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install git+https://github.com/Dao-AILab/flash-attention.git
+RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install git+https://github.com/Dao-AILab/flash-attention.git --no-build-isolation
 
 # Build pointops
 RUN git clone https://github.com/Pointcept/Pointcept.git
-RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install Pointcept/libs/pointops -v
+RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install Pointcept/libs/pointops -v --no-build-isolation
 
 # Build pointgroup_ops
-RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install Pointcept/libs/pointgroup_ops -v
+RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install Pointcept/libs/pointgroup_ops -v --no-build-isolation
 
 EOM
 
