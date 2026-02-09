@@ -124,6 +124,9 @@ class DefaultDataset(Dataset):
         if "coord" in data_dict.keys():
             data_dict["coord"] = data_dict["coord"].astype(np.float32)
 
+        if "strength" in data_dict.keys():
+            data_dict["strength"] = data_dict["strength"].astype(np.float32)
+
         if "color" in data_dict.keys():
             data_dict["color"] = data_dict["color"].astype(np.float32)
 
