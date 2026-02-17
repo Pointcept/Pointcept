@@ -15,7 +15,7 @@ from .aeo import AEODataset
 from .semantic_kitti import SemanticKITTIDataset
 from .nuscenes import NuScenesDataset
 from .waymo import WaymoDataset
-
+from .perciv import PercivDataset
 # object
 from .modelnet import ModelNetDataset
 from .shapenet_part import ShapeNetPartDataset

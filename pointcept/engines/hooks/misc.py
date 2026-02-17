@@ -12,6 +12,8 @@ import shutil
 import time
 import gc
 import wandb
+import clearml
+from clearml import Logger, Task, OutputModel
 import torch
 import torch.utils.data
 from collections import OrderedDict
@@ -82,7 +84,7 @@ class InformationWriter(HookBase):
     def __init__(self):
         self.curr_iter = 0
         self.model_output_keys = []
-
+        self.clearml_logger = Logger.current_logger()
     def before_train(self):
         self.trainer.comm_info["iter_info"] = ""
         self.curr_iter = self.trainer.start_epoch * len(self.trainer.train_loader)
@@ -137,7 +139,10 @@ class InformationWriter(HookBase):
                         },
                         step=wandb.run.step,
                     )
-
+            self.clearml_logger.report_scalar(title="Iter", series="Iter", iteration=self.curr_iter, value=self.curr_iter)
+            self.clearml_logger.report_scalar(title="params/lr", series="params/lr", iteration=self.curr_iter, value=lr)
+            for key in self.model_output_keys:
+                self.clearml_logger.report_scalar(title="train_batch/" + key, series="train_batch/" + key, iteration=self.curr_iter, value=self.trainer.storage.history(key).val)
     def after_epoch(self):
         epoch_info = "Train result: "
         for key in self.model_output_keys:
@@ -163,13 +168,16 @@ class InformationWriter(HookBase):
                         },
                         step=wandb.run.step,
                     )
+            for key in self.model_output_keys:
+                self.clearml_logger.report_scalar(title=f"train epoch/{key}", series=f"train epoch/{key}", iteration=self.trainer.epoch + 1, value=self.trainer.storage.history(key).avg)
 
 
 @HOOKS.register_module()
 class CheckpointSaver(HookBase):
     def __init__(self, save_freq=None):
         self.save_freq = save_freq  # None or int, None indicate only save model last
-
+        self.task = Task.current_task()
+        self.task_name = self.task.name
     def after_epoch(self):
         if is_main_process():
             is_best = False
@@ -215,6 +223,17 @@ class CheckpointSaver(HookBase):
                     filename,
                     os.path.join(self.trainer.cfg.save_path, "model", "model_best.pth"),
                 )
+                om = OutputModel(
+                    task=self.task, name=f"{self.task_name}_best", framework="pytorch"
+                )
+
+                om.update_weights(
+                    weights_filename=filename, async_enable=False
+                )
+                print(f"Uploaded weights from {filename} to clearml (model ID: {om.id})")
+
+                # Upload training configuration
+                om.update_design(config_dict=self.trainer.cfg)
             if self.save_freq and (self.trainer.epoch + 1) % self.save_freq == 0:
                 shutil.copyfile(
                     filename,

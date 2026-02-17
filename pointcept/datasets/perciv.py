@@ -15,7 +15,7 @@ import torch
 
 from .builder import DATASETS
 from .defaults import DefaultDataset, DefaultImagePointDataset
-
+from nuscenes.utils.data_classes import RadarPointCloud
 os.environ["OMP_NUM_THREADS"] = "1"
 
 
@@ -59,13 +59,11 @@ class PercivDataset(DefaultDataset):
 
     def get_data(self, idx):
         data = self.data_list[idx % len(self.data_list)]
-        lidar_path = os.path.join(self.data_root, "raw", data["radar_path"])
-        points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape(
-            [-1, 5]
-        )
+        lidar_path = os.path.join(self.data_root, data["radar_path"])
+        points = RadarPointCloud.from_file(str(lidar_path)).points.T
         coord = points[:, :3]
-        doppler = points[:, self.radar_mapping["doppler"]]
-        rcs = points[:, self.radar_mapping["rcs"]]
+        doppler = points[:, self.radar_mapping["doppler"]].reshape([-1, 1])
+        rcs = points[:, self.radar_mapping["rcs"]].reshape([-1, 1])
 
         data_dict = dict(
             coord=coord,
@@ -122,7 +120,7 @@ class PercivColorNormalDataset(PercivDataset):
 
 
 @DATASETS.register_module()
-class NuScenesImagePointDataset(DefaultImagePointDataset):
+class PercivImagePointDataset(DefaultImagePointDataset):
     CAMERA_TYPES = [
         "CAM_FRONT",
         "CAM_FRONT_RIGHT",

@@ -6,8 +6,8 @@ Dataset: ScanNet v2, ScanNet++, S3DIS, HM3D, ArkitScene, Structured3D
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 96  # bs: total bs in all gpus
-num_worker = 96
+batch_size = 4  # bs: total bs in all gpus
+num_worker = 4
 mix_prob = 0
 clip_grad = 3.0
 empty_cache = False
@@ -23,7 +23,7 @@ model = dict(
     # backbone - student & teacher
     backbone=dict(
         type="PT-v3m2",
-        in_channels=9,
+        in_channels=5,
         order=("z", "z-trans", "hilbert", "hilbert-trans"),
         stride=(2, 2, 2, 2),
         enc_depths=(3, 3, 3, 12, 3),
@@ -172,80 +172,43 @@ transform = [
         keys=(
             "global_origin_coord",
             "global_coord",
-            "global_color",
             "global_offset",
+            "global_doppler",
+            "global_rcs",
             "local_origin_coord",
             "local_coord",
-            "local_color",
             "local_offset",
+            "local_doppler",
+            "local_rcs",
             "grid_size",
             "name",
         ),
         offset_keys_dict=dict(),
-        global_feat_keys=("global_coord", "global_color", "global_normal"),
-        local_feat_keys=("local_coord", "local_color", "local_normal"),
+        global_feat_keys=("global_coord", "global_doppler", "global_rcs"),
+        local_feat_keys=("local_coord", "local_doppler", "local_rcs"),
     ),
 ]
-
+zf_mapping ={
+      "radar_id": 8,
+      "time": 7,
+      "confidence": 6,
+      "rcs": 5,
+      "absolute_doppler": 4,
+      "doppler": 3,
+      "z": 2,
+      "y": 1,
+      "x": 0}
 data = dict(
     train=dict(
         type="ConcatDataset",
         datasets=[
-            # ScanNet
+
             dict(
-                type="ScanNetDataset",
-                split=["train", "val", "test"],
-                data_root="data/scannet",
-                transform=transform,
-                test_mode=False,
-                loop=1,
-            ),
-            # ScanNet++
-            dict(
-                type="ScanNetPPDataset",
-                split=[
-                    "train_grid1mm_chunk6x6_stride3x3",
-                    "val_grid1mm_chunk6x6_stride3x3",
-                    "test_grid1mm_chunk6x6_stride3x3",
-                ],
-                data_root="data/scannetpp",
-                transform=transform,
-                test_mode=False,
-                loop=1,
-            ),
-            # S3DIS
-            dict(
-                type="S3DISDataset",
-                split=["Area_1", "Area_2", "Area_3", "Area_4", "Area_5", "Area_6"],
-                data_root="data/s3dis",
-                transform=transform,
-                test_mode=False,
-                loop=1,
-            ),
-            # ArkitScenes
-            dict(
-                type="DefaultDataset",
-                split=["Training", "Validation"],
-                data_root="data/arkitscenes",
-                transform=transform,
-                test_mode=False,
-                loop=1,
-            ),
-            # HM3D
-            dict(
-                type="HM3DDataset",
-                split=["train", "val"],
-                data_root="data/hm3d",
-                transform=transform,
-                test_mode=False,
-                force_label=False,
-                loop=1,
-            ),
-            # Structured3D
-            dict(
-                type="Structured3DDataset",
-                split=["train", "val", "test"],
-                data_root="data/structured3d",
+                type="PercivDataset",
+                split=["train"],
+                data_root="/media/Datasets/perciv/perciv-scenes-2/perciv-scenes-2",
+                radar_mapping = zf_mapping,
+                sweeps=10,
                 transform=transform,
                 test_mode=False,
                 loop=1,

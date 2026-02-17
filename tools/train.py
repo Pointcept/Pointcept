@@ -12,7 +12,7 @@ from pointcept.engines.defaults import (
 )
 from pointcept.engines.train import TRAINERS
 from pointcept.engines.launch import launch
-
+from clearml import Task
 
 def main_worker(cfg):
     cfg = default_setup(cfg)
@@ -21,8 +21,17 @@ def main_worker(cfg):
 
 
 def main():
+    task: Task = Task.init(
+            output_uri=True,
+            auto_connect_frameworks=False,
+        )
     args = default_argument_parser().parse_args()
-    cfg = default_config_parser(args.config_file, args.options)
+    config_path = task.connect_configuration(
+        args.config_file,
+        name="Pretraining configuration",
+        description="Configuration for pretraining.",
+    )
+    cfg = default_config_parser(config_path, args.options)
 
     launch(
         main_worker,
