@@ -64,11 +64,12 @@ class PercivDataset(DefaultDataset):
         coord = points[:, :3]
         doppler = points[:, self.radar_mapping["doppler"]].reshape([-1, 1])
         rcs = points[:, self.radar_mapping["rcs"]].reshape([-1, 1])
-
+        image_path = os.path.join(self.data_root, data.get("cam_front_path", ""))
         data_dict = dict(
             coord=coord,
             doppler=doppler,
             rcs=rcs,
+            image_path=image_path,
             name=self.get_data_name(idx),
         )
         return data_dict

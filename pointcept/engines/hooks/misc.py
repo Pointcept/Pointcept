@@ -17,7 +17,11 @@ from clearml import Logger, Task, OutputModel
 import torch
 import torch.utils.data
 from collections import OrderedDict
-
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2
+from PIL import Image
+from sklearn.decomposition import PCA
 if sys.version_info >= (3, 10):
     from collections.abc import Sequence
 else:
@@ -31,6 +35,96 @@ import pointcept.utils.comm as comm
 from .default import HookBase
 from .builder import HOOKS
 
+
+@HOOKS.register_module()
+class PCAVisualizationHook(HookBase):
+    def __init__(self, interval=500, save_path="visuals/pca_bev", x_lim=(-50, 50), y_lim=(0, 100)):
+        self.interval = interval
+        self.save_path = save_path
+        self.x_lim = x_lim  # Lateral (left/right)
+        self.y_lim = y_lim  # Longitudinal (forward)
+
+    def before_step(self):
+        curr_iter = self.trainer.comm_info.get("iter", 0)
+        # Inject the flag into the data_dict so the model knows to return features
+        if curr_iter % self.interval == 0:
+            self.trainer.comm_info.get("input_dict")["visualize"] = True
+
+    def after_step(self):
+        curr_iter = self.trainer.comm_info.get("iter", 0)
+        rank = self.trainer.comm_info.get("rank", 0)
+        
+        # Check if the flag was set and we are on master
+        if curr_iter % self.interval == 0 and rank == 0:
+            # Pointcept stores the model's return value in trainer.comm_info["model_output_dict"]
+            output_dict = self.trainer.comm_info.get("model_output_dict", {})
+            
+            if "feat" in output_dict:
+                self._plot_debug_frame(curr_iter, output_dict)
+            
+            # Clean up the flag for the next step
+            if "visualize" in self.trainer.comm_info.get("input_dict", {}):
+                del self.trainer.comm_info.get("input_dict")["visualize"]
+
+    @torch.no_grad()
+    def _plot_debug_frame(self, curr_iter, output_dict):
+        # Use the features and coords directly from the output_dict
+        feat = output_dict["feat"].cpu().numpy()
+        # Use origin_coord returned by model to ensure 1:1 point alignment
+        coord = output_dict["feat_coord"].cpu().numpy()
+        
+        input_dict = self.trainer.comm_info.get("input_dict")       
+        # 2. PCA Projection (C -> 3 for RGB)
+        pca = PCA(n_components=3)
+        feat_rgb = pca.fit_transform(feat)
+        feat_rgb = (feat_rgb - feat_rgb.min(0)) / (feat_rgb.max(0) - feat_rgb.min(0) + 1e-8)
+
+        # 3. Image Context
+        # Get the first image path from the batch list
+        img_paths = input_dict.get("image_path", [])
+        img = None
+        if len(img_paths) > 0 and os.path.exists(img_paths[0]):
+            # img_paths[0] corresponds to batch index 0
+            img = cv2.cvtColor(cv2.imread(img_paths[0]), cv2.COLOR_BGR2RGB)
+
+        # 4. Create Side-by-Side Plot
+        fig, (ax_img, ax_pca) = plt.subplots(1, 2, figsize=(20, 10), facecolor='black')
+        
+        # --- Left: Camera ---
+        if img is not None:
+            ax_img.imshow(img)
+            ax_img.set_title("Front Camera Context", color='white', fontsize=15)
+        ax_img.axis('off')
+
+        # --- Right: BEV PCA ---
+        # Note: In most Radar/LiDAR coordinate systems, X is Forward, Y is Left/Right.
+        # We plot Y as the horizontal axis and X as the vertical axis for a "dashcam" BEV feel.
+        ax_pca.scatter(coord[:, 1], coord[:, 0], c=feat_rgb, s=5, alpha=0.7)
+        ax_pca.set_xlim(self.x_lim)
+        ax_pca.set_ylim(self.y_lim)
+        ax_pca.set_facecolor('#111111')
+        ax_pca.set_title(f"Iter {curr_iter} | BEV Feature PCA (Stable View)", color='white', fontsize=15)
+        ax_pca.set_xlabel("Lateral (m)", color='white')
+        ax_pca.set_ylabel("Longitudinal (m)", color='white')
+        ax_pca.grid(color='gray', linestyle='--', alpha=0.3)
+
+        # 5. Save
+        save_dir = os.path.join(self.trainer.writer.logdir, self.save_path)
+        save_path = os.path.join(save_dir, f"combined_{curr_iter:07d}.png")
+        os.makedirs(save_dir, exist_ok=True)
+        plt.savefig(save_path, dpi=150, bbox_inches='tight', facecolor='black')
+
+        if Task.current_task() is not None:
+            logger = Logger.current_logger()
+            pil_img = Image.open(save_path)
+            rgb_img = pil_img.convert("RGB")
+            logger.report_image(
+                f"PCA",
+                "train",
+                image=rgb_img,
+                iteration=curr_iter,
+            )
+        plt.close(fig)
 
 @HOOKS.register_module()
 class IterationTimer(HookBase):
@@ -106,7 +200,9 @@ class InformationWriter(HookBase):
     def after_step(self):
         if "model_output_dict" in self.trainer.comm_info.keys():
             model_output_dict = self.trainer.comm_info["model_output_dict"]
-            self.model_output_keys = model_output_dict.keys()
+            # Convert to set and subtract the keys you want to exclude
+            self.model_output_keys = set(model_output_dict.keys()) - {"feat", "feat_coord"}
+
             for key in self.model_output_keys:
                 self.trainer.storage.put_scalar(key, model_output_dict[key].item())
 

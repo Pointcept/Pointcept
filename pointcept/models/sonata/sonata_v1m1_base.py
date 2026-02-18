@@ -357,7 +357,7 @@ class Sonata(PointModel):
             point = parent
         return point
 
-    def forward(self, data_dict, return_point=False):
+    def forward(self, data_dict, return_point=False, visualize=False):
         if return_point:
             point = self.teacher.backbone(data_dict)
             for _ in range(self.up_cast_level):
@@ -368,7 +368,7 @@ class Sonata(PointModel):
                 parent.feat = torch.cat([parent.feat, point.feat[inverse]], dim=-1)
                 point = parent
             return dict(point=point)
-
+        should_visualize = visualize or data_dict.get("visualize", False)
         # prepare global_point, mask_global_point, local_point
         with torch.no_grad():
             # global_point & masking
@@ -414,6 +414,7 @@ class Sonata(PointModel):
             # teacher backbone forward (shared with mask and unmask)
             global_point_ = self.teacher.backbone(global_point)
             global_point_ = self.up_cast(global_point_)
+
             global_feat = global_point_.feat
 
         if self.mask_loss_weight > 0 or self.roll_mask_loss_weight > 0:
@@ -423,6 +424,14 @@ class Sonata(PointModel):
             # student forward
             mask_global_point_ = self.student.backbone(mask_global_point)
             mask_global_point_ = self.up_cast(mask_global_point_)
+            if should_visualize:
+                # We only care about the first cloud in the batch (batch index 0)
+                # mask_global_point_.batch is a tensor of shape [N] containing batch indices
+                first_batch_mask = (mask_global_point_.batch == 0)
+                
+                # Slice the tensors to only include the first cloud
+                result_dict["feat"] = mask_global_point_.feat[first_batch_mask].detach()
+                result_dict["feat_coord"] = mask_global_point_.origin_coord[first_batch_mask].detach()
             mask_pred_sim = self.student.mask_head(mask_global_point_.feat)
 
             if self.mask_loss_weight > 0:
