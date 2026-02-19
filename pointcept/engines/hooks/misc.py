@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import cv2
 from PIL import Image
 from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
 if sys.version_info >= (3, 10):
     from collections.abc import Sequence
 else:
@@ -68,63 +69,70 @@ class PCAVisualizationHook(HookBase):
 
     @torch.no_grad()
     def _plot_debug_frame(self, curr_iter, output_dict):
-        # Use the features and coords directly from the output_dict
+        # 1. Extraction
         feat = output_dict["feat"].cpu().numpy()
-        # Use origin_coord returned by model to ensure 1:1 point alignment
         coord = output_dict["feat_coord"].cpu().numpy()
-        
         input_dict = self.trainer.comm_info.get("input_dict")       
-        # 2. PCA Projection (C -> 3 for RGB)
+
+        # 2. PCA Projection (for RGB visualization)
         pca = PCA(n_components=3)
         feat_rgb = pca.fit_transform(feat)
         feat_rgb = (feat_rgb - feat_rgb.min(0)) / (feat_rgb.max(0) - feat_rgb.min(0) + 1e-8)
 
-        # 3. Image Context
-        # Get the first image path from the batch list
+        # 3. K-Means Clustering (for semantic grouping)
+        # n_clusters=8 is a good starting point for Radar scenes (cars, walls, ground, etc.)
+        num_clusters = 8
+        kmeans = KMeans(n_clusters=num_clusters, n_init='auto', random_state=42)
+        cluster_labels = kmeans.fit_predict(feat)
+
+        # 4. Image Context
         img_paths = input_dict.get("image_path", [])
         img = None
         if len(img_paths) > 0 and os.path.exists(img_paths[0]):
-            # img_paths[0] corresponds to batch index 0
             img = cv2.cvtColor(cv2.imread(img_paths[0]), cv2.COLOR_BGR2RGB)
 
-        # 4. Create Side-by-Side Plot
-        fig, (ax_img, ax_pca) = plt.subplots(1, 2, figsize=(20, 10), facecolor='black')
+        # 5. Create 3-Panel Plot (Camera | PCA BEV | K-Means BEV)
+        fig, (ax_img, ax_pca, ax_km) = plt.subplots(1, 3, figsize=(30, 10), facecolor='black')
         
-        # --- Left: Camera ---
+        # --- Panel 1: Camera ---
         if img is not None:
             ax_img.imshow(img)
             ax_img.set_title("Front Camera Context", color='white', fontsize=15)
         ax_img.axis('off')
 
-        # --- Right: BEV PCA ---
-        # Note: In most Radar/LiDAR coordinate systems, X is Forward, Y is Left/Right.
-        # We plot Y as the horizontal axis and X as the vertical axis for a "dashcam" BEV feel.
-        ax_pca.scatter(coord[:, 1], coord[:, 0], c=feat_rgb, s=5, alpha=0.7)
-        ax_pca.set_xlim(self.x_lim)
-        ax_pca.set_ylim(self.y_lim)
-        ax_pca.set_facecolor('#111111')
-        ax_pca.set_title(f"Iter {curr_iter} | BEV Feature PCA (Stable View)", color='white', fontsize=15)
-        ax_pca.set_xlabel("Lateral (m)", color='white')
-        ax_pca.set_ylabel("Longitudinal (m)", color='white')
-        ax_pca.grid(color='gray', linestyle='--', alpha=0.3)
+        # --- Panel 2: BEV PCA ---
+        # Fix mirroring: Plot Longitudinal (X) on Y-axis and -Lateral (-Y) on X-axis
+        ax_pca.scatter(-coord[:, 1], coord[:, 0], c=feat_rgb, s=8, alpha=0.8)
+        self._format_bev_ax(ax_pca, curr_iter, "Feature PCA (RGB)")
 
-        # 5. Save
+        # --- Panel 3: BEV K-Means ---
+        # Use a qualitative colormap (tab10) for distinct cluster labels
+        scatter_km = ax_km.scatter(-coord[:, 1], coord[:, 0], c=cluster_labels, s=8, cmap='tab10', alpha=0.8)
+        self._format_bev_ax(ax_km, curr_iter, f"K-Means Clusters (K={num_clusters})")
+
+        # 6. Save and Report
         save_dir = os.path.join(self.trainer.writer.logdir, self.save_path)
-        save_path = os.path.join(save_dir, f"combined_{curr_iter:07d}.png")
+        save_path = os.path.join(save_dir, f"debug_{curr_iter:07d}.png")
         os.makedirs(save_dir, exist_ok=True)
         plt.savefig(save_path, dpi=150, bbox_inches='tight', facecolor='black')
 
         if Task.current_task() is not None:
             logger = Logger.current_logger()
-            pil_img = Image.open(save_path)
-            rgb_img = pil_img.convert("RGB")
-            logger.report_image(
-                f"PCA",
-                "train",
-                image=rgb_img,
-                iteration=curr_iter,
-            )
+            rgb_img = Image.open(save_path).convert("RGB")
+            logger.report_image("Visualization", "BEV_Debug", image=rgb_img, iteration=curr_iter)
+        
         plt.close(fig)
+
+    def _format_bev_ax(self, ax, curr_iter, title_suffix):
+        """Helper to keep BEV axes consistent."""
+        ax.set_xlim([-self.x_lim[1], -self.x_lim[0]]) # Flipped lateral limits
+        ax.set_ylim(self.y_lim)
+        ax.set_facecolor('#0a0a0a')
+        ax.set_title(f"Iter {curr_iter} | {title_suffix}", color='white', fontsize=15)
+        ax.set_xlabel("Right <--- Lateral (m) ---> Left", color='white')
+        ax.set_ylabel("Longitudinal (Forward m)", color='white')
+        ax.grid(color='gray', linestyle='--', alpha=0.2)
+        ax.tick_params(colors='white')
 
 @HOOKS.register_module()
 class IterationTimer(HookBase):
