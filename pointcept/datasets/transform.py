@@ -1072,7 +1072,128 @@ class ContrastiveViewsGenerator(object):
             data_dict["view2_" + key] = value
         return data_dict
 
+@TRANSFORMS.register_module()
+class MultiTemporalViewGenerator(object):
+    def __init__(
+        self,
+        global_view_num=2,
+        global_sweep_range=(3, 4), # Min and max sweeps for a global view
+        local_view_num=4,
+        local_sweep_range=(1, 2),  # Min and max sweeps for a local view
+        global_shared_transform=None,
+        global_transform=None,
+        local_transform=None,
+        view_keys=("coord", "doppler", "rcs", "time"), # Ensure radar features are tracked
+        static_view_keys=("name", "img_num"),
+    ):
+        self.global_view_num = global_view_num
+        self.global_sweep_range = global_sweep_range
+        self.local_view_num = local_view_num
+        self.local_sweep_range = local_sweep_range
+        
+        # Safely handle transforms if they are None
+        self.global_shared_transform = Compose(global_shared_transform) if global_shared_transform else lambda x: x
+        self.global_transform = Compose(global_transform) if global_transform else lambda x: x
+        self.local_transform = Compose(local_transform) if local_transform else lambda x: x
+        
+        self.view_keys = view_keys
+        self.static_view_keys = static_view_keys
 
+    def get_temporal_view(self, point, sweep_range):
+        """
+        Samples a subset of points based entirely on their time/sweep index.
+        """
+        # Extract the time column (assumes shape [N, 1] or [N])
+        time_array = point["time"].squeeze()
+        available_times = np.unique(time_array)
+        
+        min_sweeps, max_sweeps = sweep_range
+        # Prevent requesting more sweeps than actually exist in the point cloud
+        max_sweeps = min(max_sweeps, len(available_times))
+        min_sweeps = min(min_sweeps, max_sweeps)
+        
+        # Determine how many sweeps to include in this view
+        if max_sweeps == 0:
+            num_sweeps = 0
+        else:
+            num_sweeps = np.random.randint(min_sweeps, max_sweeps + 1)
+        
+        # Randomly select the specific sweeps to keep
+        if num_sweeps > 0:
+            sampled_times = np.random.choice(available_times, num_sweeps, replace=False)
+            index = np.where(np.isin(time_array, sampled_times))
+        else:
+            # Fallback: just return the latest sweep if parameters are misconfigured
+            index = np.where(time_array == available_times)
+
+        view = dict(index=index)
+        for key in point.keys():
+            if key in self.view_keys:
+                view[key] = point[key][index]
+            if key in self.static_view_keys:
+                view[key] = point[key]
+                
+        if "index_valid_keys" in point.keys():
+            view["index_valid_keys"] = point["index_valid_keys"]
+            
+        return view
+
+    def __call__(self, data_dict):
+        point = self.global_shared_transform(copy.deepcopy(data_dict))
+
+        # Generate temporal global views
+        global_views = [
+            self.get_temporal_view(point, self.global_sweep_range)
+            for _ in range(self.global_view_num)
+        ]
+
+        # Generate temporal local views
+        local_views = [
+            self.get_temporal_view(point, self.local_sweep_range)
+            for _ in range(self.local_view_num)
+        ]
+
+        # Augmentation and concatenation
+        view_dict = {}
+        for global_view in global_views:
+            global_view.pop("index", None)
+            global_view = self.global_transform(global_view)
+            for key in self.view_keys:
+                if f"global_{key}" in view_dict.keys():
+                    view_dict[f"global_{key}"].append(global_view[key])
+                else:
+                    view_dict[f"global_{key}"] = [global_view[key]]
+                    
+        if "global_coord" in view_dict:
+            view_dict["global_offset"] = np.cumsum(
+                [data.shape for data in view_dict["global_coord"]]
+            )
+            
+        for local_view in local_views:
+            local_view.pop("index", None)
+            local_view = self.local_transform(local_view)
+            for key in self.view_keys:
+                if f"local_{key}" in view_dict.keys():
+                    view_dict[f"local_{key}"].append(local_view[key])
+                else:
+                    view_dict[f"local_{key}"] = [local_view[key]]
+                    
+        if "local_coord" in view_dict:
+            view_dict["local_offset"] = np.cumsum(
+                [data.shape for data in view_dict["local_coord"]]
+            )
+
+        # Merge views back into data_dict
+        for key in view_dict.keys():
+            if "offset" not in key:
+                if key in self.static_view_keys:
+                    view_dict[key] = view_dict[key]
+                else:
+                    view_dict[key] = np.concatenate(view_dict[key], axis=0)
+                    
+        data_dict.update(view_dict)
+        return data_dict
+    
 @TRANSFORMS.register_module()
 class MultiViewGenerator(object):
     def __init__(

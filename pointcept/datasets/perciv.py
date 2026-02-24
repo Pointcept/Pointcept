@@ -21,24 +21,30 @@ os.environ["OMP_NUM_THREADS"] = "1"
 
 @DATASETS.register_module()
 class PercivDataset(DefaultDataset):
-    def __init__(self, radar_mapping, sweeps=10, ignore_index=-1, **kwargs):
+    def __init__(self, radar_mapping, norm_params, sweeps=5, max_sweeps=10, ignore_index=-1, **kwargs):
         self.sweeps = sweeps
+        self.max_sweeps = max_sweeps
         self.radar_mapping = radar_mapping  
+        self.norm_params = norm_params
+        self.doppler_mean = self.norm_params["doppler"][0]
+        self.doppler_std = self.norm_params["doppler"][1]
+        self.rcs_mean = self.norm_params["rcs"][0]
+        self.rcs_std = self.norm_params["rcs"][1]
         super().__init__(ignore_index=ignore_index, **kwargs)
 
     def get_info_path(self, split):
         assert split in ["train", "val", "test"]
         if split == "train":
             return os.path.join(
-                self.data_root, "info", f"nuscenes_infos_{self.sweeps}sweeps_train.pkl"
+                self.data_root, "info", f"nuscenes_infos_{self.max_sweeps}sweeps_train.pkl"
             )
         elif split == "val":
             return os.path.join(
-                self.data_root, "info", f"nuscenes_infos_{self.sweeps}sweeps_val.pkl"
+                self.data_root, "info", f"nuscenes_infos_{self.max_sweeps}sweeps_val.pkl"
             )
         elif split == "test":
             return os.path.join(
-                self.data_root, "info", f"nuscenes_infos_{self.sweeps}sweeps_test.pkl"
+                self.data_root, "info", f"nuscenes_infos_{self.max_sweeps}sweeps_test.pkl"
             )
         else:
             raise NotImplementedError
@@ -61,10 +67,20 @@ class PercivDataset(DefaultDataset):
         data = self.data_list[idx % len(self.data_list)]
         lidar_path = os.path.join(self.data_root, data["radar_path"])
         points = RadarPointCloud.from_file(str(lidar_path)).points.T
+        
         coord = points[:, :3]
-        doppler = points[:, self.radar_mapping["doppler"]].reshape([-1, 1])
-        rcs = points[:, self.radar_mapping["rcs"]].reshape([-1, 1])
+        
+        # 2. Extract raw features
+        raw_doppler = points[:, self.radar_mapping["doppler"]].reshape([-1, 1])
+        raw_rcs = points[:, self.radar_mapping["rcs"]].reshape([-1, 1])
+        
+        # 3. Apply Z-score normalization
+        # A small epsilon (1e-6) is added to the denominator to prevent division by zero
+        doppler = (raw_doppler - self.doppler_mean) / (self.doppler_std + 1e-6)
+        rcs = (raw_rcs - self.rcs_mean) / (self.rcs_std + 1e-6)
+        
         image_path = os.path.join(self.data_root, data.get("cam_front_path", ""))
+        
         data_dict = dict(
             coord=coord,
             doppler=doppler,
@@ -78,6 +94,70 @@ class PercivDataset(DefaultDataset):
         # return data name for lidar seg, optimize the code when need to support detection
         return self.data_list[idx % len(self.data_list)]["radar_token"]
 
+
+@DATASETS.register_module()
+class PercivMultisweepDataset(PercivDataset):
+    def __init__(self, radar_mapping, norm_params, sweeps=5, max_sweeps=10, ignore_index=-1, add_time_diff_dim='index', **kwargs):
+        super().__init__(radar_mapping=radar_mapping, norm_params=norm_params, ignore_index=ignore_index, **kwargs)        
+        self.add_time_diff_dim = add_time_diff_dim
+        self.sweeps = sweeps
+        self.max_sweeps = max_sweeps
+
+
+
+    def get_data(self, idx):
+        data = self.data_list[idx % len(self.data_list)]
+        sweeps = data['sweeps']
+        radar_path = os.path.join(self.data_root, data["radar_path"])
+        points = RadarPointCloud.from_file(str(radar_path)).points.T
+        if self.add_time_diff_dim:
+            time_diff = np.ones((points.shape[0], 1)) * 0
+            points = np.concatenate([points, time_diff], axis=1)
+        points_sweep_list = [points]
+        for idx, sweep in enumerate(sweeps[:(self.sweeps-1)]): #iterate over sweeps
+            sweep_path = os.path.join(self.data_root, sweep['radar_path'])
+            points_sweep = RadarPointCloud.from_file(str(sweep_path)).points.T
+            trans_matrix = sweep['transform_matrix']
+            points_homogeneous = np.hstack((points_sweep[:,:3], np.ones((points_sweep.shape[0], 1))))
+            transformed_points_homogeneous = trans_matrix.dot(points_homogeneous.T).T
+
+            points_sweep[:,:3] = transformed_points_homogeneous[:, :3]
+        
+            if self.add_time_diff_dim:
+                # timestamp = sweep['timestamp'] * 1e-6
+                # time_diff = (ts - timestamp) if self.add_time_diff_dim=='with_seconds' else idx
+                time_diff = idx+1
+                time_diff = np.ones((points_sweep.shape[0], 1)) * time_diff
+
+                points_sweep_ = np.concatenate(
+                    [points_sweep, time_diff], axis=1)
+
+            points_sweep_list.append(points_sweep_)
+        
+        points = np.concatenate(points_sweep_list, axis=0)
+                
+        # 2. Extract raw features
+        coord = points[:, :3]
+        raw_doppler = points[:, self.radar_mapping["doppler"]].reshape([-1, 1])
+        raw_rcs = points[:, self.radar_mapping["rcs"]].reshape([-1, 1])
+        time = points[:, -1].reshape([-1, 1])
+
+        # 3. Apply Z-score normalization
+        # A small epsilon (1e-6) is added to the denominator to prevent division by zero
+        doppler = (raw_doppler - self.doppler_mean) / (self.doppler_std + 1e-6)
+        rcs = (raw_rcs - self.rcs_mean) / (self.rcs_std + 1e-6)
+        
+        image_path = os.path.join(self.data_root, data.get("cam_front_path", ""))
+        
+        data_dict = dict(
+            coord=coord,
+            doppler=doppler,
+            rcs=rcs,
+            time =time,
+            image_path=image_path,
+            name=self.get_data_name(idx),
+        )
+        return data_dict
 
 
 

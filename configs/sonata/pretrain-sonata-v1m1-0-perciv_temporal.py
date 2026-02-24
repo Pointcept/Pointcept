@@ -15,15 +15,15 @@ enable_amp = True
 amp_dtype = "bfloat16"
 evaluate = False
 find_unused_parameters = False
-
+weight ='/media/Datasets/checkpoints/pretrain-sonata-v1m1-0-base.pth'
 
 # model settings
 model = dict(
-    type="Sonata-v1m1",
+    type="Sonata-v1m1-temp",
     # backbone - student & teacher
     backbone=dict(
         type="PT-v3m2",
-        in_channels=5,
+        in_channels=6,
         order=("z", "z-trans", "hilbert", "hilbert-trans"),
         stride=(2, 2, 2, 2),
         enc_depths=(3, 3, 3, 12, 3),
@@ -57,13 +57,9 @@ model = dict(
     head_num_prototypes=4096,
     num_global_view=2,
     num_local_view=4,
-    mask_size_start=0.1,
-    mask_size_base=0.4,
-    mask_size_warmup_ratio=0.05,
-    mask_ratio_start=0.3,
-    mask_ratio_base=0.7,
-    mask_ratio_warmup_ratio=0.05,
-    mask_jitter=0.01,
+    mask_sweep_start=0.05, #modified for radar
+    mask_sweep_base=0.15, #modified for radar
+    mask_sweep_warmup_ratio=0.05,
     teacher_temp_start=0.04,
     teacher_temp_base=0.07,
     teacher_temp_warmup_ratio=0.05,
@@ -110,47 +106,36 @@ scheduler = dict(
 
 # dataset settings
 transform = [
+    dict(type="Update", keys_dict={"index_valid_keys": ["coord", "doppler", "rcs", "time"]}),
     dict(type="GridSample", grid_size=0.02, hash_type="fnv", mode="train"),
     dict(type="Copy", keys_dict={"coord": "origin_coord"}),
     dict(
-        type="MultiViewGenerator",
-        view_keys=("coord", "origin_coord", "doppler", "rcs"),
+        type="MultiTemporalViewGenerator",
+        view_keys=("coord", "origin_coord", "doppler", "rcs", "time"),
         global_view_num=2,
-        global_view_scale=(0.4, 1.0),
+        global_sweep_range=(4,5),
         local_view_num=4,
-        local_view_scale=(0.1, 0.4),
-        global_shared_transform=[
-        #     dict(
-        #         type="RandomColorJitter",
-        #         brightness=0.4,
-        #         contrast=0.4,
-        #         saturation=0.2,
-        #         hue=0.02,
-        #         p=0.8,
-        #     ),
-        #     dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
-        #     dict(type="ChromaticJitter", p=0.95, std=0.05),
-        #     dict(type="NormalizeColor"),
-        ],
+        local_sweep_range=(1,2),
+        global_shared_transform=[],
         global_transform=[
-            dict(type="CenterShift", apply_z=True),
-            dict(type="RandomScale", scale=[0.9, 1.1]),
-            dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.8),
-            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.8),
-            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="y", p=0.8),
-            dict(type="RandomFlip", p=0.5),
-            dict(type="RandomJitter", sigma=0.005, clip=0.02),
-            # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
+            # dict(type="CenterShift", apply_z=True),
+            # dict(type="RandomScale", scale=[0.9, 1.1]),
+            # dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.8),  #disabled to maintain geometric constraint of velocity
+            # dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.8),
+            # dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="y", p=0.8),
+            # dict(type="RandomFlip", p=0.5),
+            # dict(type="RandomJitter", sigma=0.005, clip=0.02),
+            # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]), #disabled for speed
         ],
         local_transform=[
-            dict(type="CenterShift", apply_z=True),
-            dict(type="RandomScale", scale=[0.9, 1.1]),
-            dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.8),
-            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.8),
-            dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="y", p=0.8),
-            dict(type="RandomFlip", p=0.5),
-            dict(type="RandomJitter", sigma=0.005, clip=0.02),
-            # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
+            # dict(type="CenterShift", apply_z=True),
+            # dict(type="RandomScale", scale=[0.9, 1.1]),
+            # dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.8), #disabled to maintain geometric constraint of velocity
+            # dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.8),
+            # dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="y", p=0.8),
+            # dict(type="RandomFlip", p=0.5),
+            # dict(type="RandomJitter", sigma=0.005, clip=0.02),
+            # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),  #disabled for speed
             # dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
             # dict(
             #     type="RandomColorJitter",
@@ -164,7 +149,6 @@ transform = [
             # dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="NormalizeColor"),
         ],
-        max_size=65536,
     ),
     dict(type="ToTensor"),
     dict(type="Update", keys_dict={"grid_size": 0.02}),
@@ -176,18 +160,20 @@ transform = [
             "global_offset",
             "global_doppler",
             "global_rcs",
+            "global_time",
             "local_origin_coord",
             "local_coord",
             "local_offset",
             "local_doppler",
             "local_rcs",
+            "local_time",
             "grid_size",
             "name",
             "image_path",
         ),
         offset_keys_dict=dict(),
-        global_feat_keys=("global_coord", "global_doppler", "global_rcs"),
-        local_feat_keys=("local_coord", "local_doppler", "local_rcs"),
+        global_feat_keys=("global_coord", "global_doppler", "global_rcs", "global_time"),
+        local_feat_keys=("local_coord", "local_doppler", "local_rcs", "local_time"),
     ),
 ]
 zf_mapping_ps2 ={
@@ -200,6 +186,9 @@ zf_mapping_ps2 ={
       "z": 2,
       "y": 1,
       "x": 0}
+zf_norm_ps2 = { #mean, std
+    "doppler": [-4.25, 10.74],
+    "rcs": [-3.8,17.32]}
 zf_mapping_magna ={
       "radar_id": 9,
       "time": 8,
@@ -211,27 +200,34 @@ zf_mapping_magna ={
       "z": 2,
       "y": 1,
       "x": 0}
+zf_norm_magna = { #mean, std
+    "doppler": [-3.46, 4.45],
+    "rcs": [-4.88,16.6]}
 data = dict(
     train=dict(
         type="ConcatDataset",
         datasets=[
 
             dict(
-                type="PercivDataset",
+                type="PercivMultisweepDataset",
                 split=["train"],
                 data_root="/media/Datasets/perciv/perciv-scenes-2/perciv-scenes-2",
                 radar_mapping = zf_mapping_ps2,
-                sweeps=10,
+                norm_params = zf_norm_ps2,
+                sweeps=5,
+                max_sweeps=10,
                 transform=transform,
                 test_mode=False,
                 loop=1,
             ),
             dict(
-                type="PercivDataset",
+                type="PercivMultisweepDataset",
                 split=["train"],
                 data_root="/media/Datasets/customer/Magna/magna_04_03/magna_nusc",
                 radar_mapping = zf_mapping_magna,
-                sweeps=10,
+                norm_params = zf_norm_magna,
+                sweeps=5,
+                max_sweeps=10,
                 transform=transform,
                 test_mode=False,
                 loop=1,

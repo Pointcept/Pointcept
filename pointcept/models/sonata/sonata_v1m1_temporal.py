@@ -68,7 +68,7 @@ class OnlineCluster(nn.Module):
         return similarity
 
 
-@MODELS.register_module("Sonata-v1m1")
+@MODELS.register_module("Sonata-v1m1-temp")
 class Sonata(PointModel):
     def __init__(
         self,
@@ -80,13 +80,9 @@ class Sonata(PointModel):
         teacher_custom=None,
         num_global_view=2,
         num_local_view=4,
-        mask_size_start=0.1,
-        mask_size_base=0.4,
-        mask_size_warmup_ratio=0.05,
-        mask_ratio_start=0.3,
-        mask_ratio_base=0.7,
-        mask_ratio_warmup_ratio=0.05,
-        mask_jitter=None,
+        mask_sweep_start=1,
+        mask_sweep_base=3,
+        mask_sweep_warmup_ratio=0.05,
         teacher_temp_start=0.04,
         teacher_temp_base=0.07,
         teacher_temp_warmup_ratio=0.05,
@@ -109,19 +105,12 @@ class Sonata(PointModel):
         self.num_local_view = num_local_view
 
         # masking and scheduler
-        self.mask_size = mask_size_start
-        self.mask_size_start = mask_size_start
-        self.mask_size_base = mask_size_base
-        self.mask_size_warmup_ratio = mask_size_warmup_ratio
-        self.mask_size_scheduler = None
-
-        self.mask_ratio = mask_ratio_start
-        self.mask_ratio_start = mask_ratio_start
-        self.mask_ratio_base = mask_ratio_base
-        self.mask_ratio_warmup_ratio = mask_ratio_warmup_ratio
-        self.mask_ratio_scheduler = None
-
-        self.mask_jitter = mask_jitter
+        self.mask_sweep = mask_sweep_start
+        self.mask_sweep_start = mask_sweep_start
+        self.mask_sweep_base = mask_sweep_base
+        self.mask_sweep_warmup_ratio = mask_sweep_warmup_ratio
+        self.mask_sweep_scheduler = None
+        # self.mask_jitter = mask_jitter
 
         # temperature and scheduler
         self.teacher_temp = teacher_temp_start
@@ -188,25 +177,16 @@ class Sonata(PointModel):
         # make ModelHook after CheckPointLoader
         total_steps = self.trainer.cfg.scheduler.total_steps
         curr_step = self.trainer.start_epoch * len(self.trainer.train_loader)
-        # mask size scheduler
-        self.mask_size_scheduler = CosineScheduler(
-            start_value=self.mask_size_start,
-            base_value=self.mask_size_base,
-            final_value=self.mask_size_base,
-            warmup_iters=int(total_steps * self.mask_size_warmup_ratio),
-            total_iters=total_steps,
-        )
-        self.mask_size_scheduler.iter = curr_step
 
-        # mask ratio scheduler
-        self.mask_ratio_scheduler = CosineScheduler(
-            start_value=self.mask_ratio_start,
-            base_value=self.mask_ratio_base,
-            final_value=self.mask_ratio_base,
-            warmup_iters=int(total_steps * self.mask_ratio_warmup_ratio),
+        # mask sweep scheduler
+        self.mask_sweep_scheduler = CosineScheduler(
+            start_value=self.mask_sweep_start,
+            base_value=self.mask_sweep_base,
+            final_value=self.mask_sweep_base,
+            warmup_iters=int(total_steps * self.mask_sweep_warmup_ratio),
             total_iters=total_steps,
         )
-        self.mask_ratio_scheduler.iter = curr_step
+        self.mask_sweep_scheduler.iter = curr_step
 
         # teacher temperature scheduler
         self.teacher_temp_scheduler = CosineScheduler(
@@ -228,21 +208,15 @@ class Sonata(PointModel):
 
     def before_step(self):
         # update parameters from schedulers
-        self.mask_size = self.mask_size_scheduler.step()
-        self.mask_ratio = self.mask_ratio_scheduler.step()
+        self.mask_sweep = self.mask_sweep_scheduler.step()
         self.teacher_temp = self.teacher_temp_scheduler.step()
         self.momentum = self.momentum_scheduler.step()
 
         if self.trainer.writer is not None:
             self.trainer.writer.add_scalar(
-                "params/mask_size",
-                self.mask_size,
-                self.mask_size_scheduler.iter,
-            )
-            self.trainer.writer.add_scalar(
-                "params/mask_ratio",
-                self.mask_ratio,
-                self.mask_ratio_scheduler.iter,
+                "params/mask_sweep",
+                self.mask_sweep,
+                self.mask_sweep_scheduler.iter,
             )
             self.trainer.writer.add_scalar(
                 "params/teacher_temp",
@@ -290,23 +264,71 @@ class Sonata(PointModel):
         q *= n  # the columns must sum to 1 so that Q is an assignment
         return q.t()
 
-    def generate_mask(self, coord, offset):
+    def generate_mask(self, time, offset):
+        """
+        Generates a temporal mask based on sweep indices.
+        
+        Args:
+            time (Tensor): The time/sweep indices for each point, shape (N, 1) or (N,).
+            offset (Tensor): The batch offsets defining point cloud boundaries.
+        """
         batch = offset2batch(offset)
-        mask_size = self.mask_size
-        mask_ratio = self.mask_ratio
-
-        # Grouping points with grid patch
-        min_coord = torch_scatter.segment_coo(coord, batch, reduce="min")
-        grid_coord = ((coord - min_coord[batch]) // mask_size).int()
-        grid_coord = torch.cat([batch.unsqueeze(-1), grid_coord], dim=-1)
-        unique, point_cluster, counts = torch.unique(
-            grid_coord, dim=0, sorted=True, return_inverse=True, return_counts=True
-        )
-        patch_num = unique.shape[0]
-        mask_patch_num = int(patch_num * mask_ratio)
-        patch_index = torch.randperm(patch_num, device=coord.device)
-        mask_patch_index = patch_index[:mask_patch_num]
-        point_mask = torch.isin(point_cluster, mask_patch_index)
+        time = time.squeeze() # Ensure it's a 1D tensor of shape (N,)
+        
+        # In this context, mask_ratio acts as the "number of sweeps to mask"
+        mask_sweeps = self.mask_sweep
+        full_sweeps = int(mask_sweeps)
+        fractional_sweep = mask_sweeps - full_sweeps
+        
+        point_mask = torch.zeros_like(time, dtype=torch.bool)
+        
+        # Reconstruct point_cluster for the downstream loss function
+        # Multiplying batch by a large magnitude ensures sweep IDs don't overlap across batch items
+        point_cluster = batch * 10000 + time.long()
+        
+        start_idx = 0
+        for i in range(offset.shape):
+            end_idx = offset[i]
+            batch_time = time[start_idx:end_idx]
+            
+            # Identify all unique sweeps available in this specific point cloud
+            unique_sweeps = torch.unique(batch_time)
+            num_sweeps = len(unique_sweeps)
+            
+            # Shuffle the available sweeps to select random ones to mask
+            shuffled_sweeps = unique_sweeps[torch.randperm(num_sweeps, device=time.device)]
+            
+            actual_full_sweeps = min(full_sweeps, num_sweeps)
+            
+            # 1. Mask the full sweeps
+            if actual_full_sweeps > 0:
+                sweeps_to_mask_full = shuffled_sweeps[:actual_full_sweeps]
+                batch_mask = torch.isin(batch_time, sweeps_to_mask_full)
+            else:
+                batch_mask = torch.zeros_like(batch_time, dtype=torch.bool)
+            
+            # 2. Mask the fractional sweep
+            if fractional_sweep > 0 and actual_full_sweeps < num_sweeps:
+                # Pick the next sweep in the shuffled list
+                frac_sweep_id = shuffled_sweeps[actual_full_sweeps]
+                
+                # Get the exact indices of the points belonging to this specific sweep
+                frac_indices = torch.where(batch_time == frac_sweep_id)
+                num_frac_points = len(frac_indices)
+                
+                # Calculate how many points represent the 'fraction'
+                num_to_mask = int(num_frac_points * fractional_sweep)
+                
+                if num_to_mask > 0:
+                    # Randomly select a subset of points within this sweep to mask
+                    rand_idx = torch.randperm(num_frac_points, device=time.device)[:num_to_mask]
+                    selected_indices = frac_indices[rand_idx]
+                    batch_mask[selected_indices] = True
+                    
+            # Assign the mask for this batch item back to the global mask
+            point_mask[start_idx:end_idx] = batch_mask
+            start_idx = end_idx
+            
         return point_mask, point_cluster
 
     @torch.no_grad()
@@ -375,21 +397,22 @@ class Sonata(PointModel):
             global_point = Point(
                 feat=data_dict["global_feat"],
                 coord=data_dict["global_coord"],
+                time = data_dict["global_time"],
                 origin_coord=data_dict["global_origin_coord"],
                 offset=data_dict["global_offset"],
                 grid_size=data_dict["grid_size"][0],
             )
             global_mask, global_cluster = self.generate_mask(
-                global_point.coord, global_point.offset
+                global_point.time, global_point.offset
             )
             mask_global_coord = global_point.coord.clone().detach()
-            if self.mask_jitter is not None:
-                mask_global_coord[global_mask] += torch.clip(
-                    torch.randn_like(mask_global_coord[global_mask]).mul(
-                        self.mask_jitter
-                    ),
-                    max=self.mask_jitter * 2,
-                )
+            # if self.mask_jitter is not None:
+            #     mask_global_coord[global_mask] += torch.clip(
+            #         torch.randn_like(mask_global_coord[global_mask]).mul(
+            #             self.mask_jitter
+            #         ),
+            #         max=self.mask_jitter * 2,
+            #     )
 
             mask_global_point = Point(
                 feat=data_dict["global_feat"],

@@ -44,6 +44,8 @@ class PCAVisualizationHook(HookBase):
         self.save_path = save_path
         self.x_lim = x_lim  # Lateral (left/right)
         self.y_lim = y_lim  # Longitudinal (forward)
+        self._total_iter = 0
+
 
     def before_step(self):
         curr_iter = self.trainer.comm_info.get("iter", 0)
@@ -54,14 +56,14 @@ class PCAVisualizationHook(HookBase):
     def after_step(self):
         curr_iter = self.trainer.comm_info.get("iter", 0)
         rank = self.trainer.comm_info.get("rank", 0)
-        
+        self._total_iter += 1
         # Check if the flag was set and we are on master
         if curr_iter % self.interval == 0 and rank == 0:
             # Pointcept stores the model's return value in trainer.comm_info["model_output_dict"]
             output_dict = self.trainer.comm_info.get("model_output_dict", {})
             
-            if "feat" in output_dict:
-                self._plot_debug_frame(curr_iter, output_dict)
+            if "student_feat" in output_dict:
+                self._plot_debug_frame(self._total_iter, output_dict)
             
             # Clean up the flag for the next step
             if "visualize" in self.trainer.comm_info.get("input_dict", {}):
@@ -69,57 +71,72 @@ class PCAVisualizationHook(HookBase):
 
     @torch.no_grad()
     def _plot_debug_frame(self, curr_iter, output_dict):
-        # 1. Extraction
-        feat = output_dict["feat"].cpu().numpy()
-        coord = output_dict["feat_coord"].cpu().numpy()
+        # 1. Extraction: Get Student and Teacher data
+        # Use .float() to convert BFloat16 to Float32 before calling .cpu().numpy()
+        s_feat = output_dict["student_feat"].float().cpu().numpy()
+        s_coord = output_dict["student_feat_coord"].float().cpu().numpy()
+        t_feat = output_dict["teacher_feat"].float().cpu().numpy()
+        t_coord = output_dict["teacher_feat_coord"].float().cpu().numpy()
+    
         input_dict = self.trainer.comm_info.get("input_dict")       
-
-        # 2. PCA Projection (for RGB visualization)
-        pca = PCA(n_components=3)
-        feat_rgb = pca.fit_transform(feat)
-        feat_rgb = (feat_rgb - feat_rgb.min(0)) / (feat_rgb.max(0) - feat_rgb.min(0) + 1e-8)
-
-        # 3. K-Means Clustering (for semantic grouping)
-        # n_clusters=8 is a good starting point for Radar scenes (cars, walls, ground, etc.)
         num_clusters = 8
-        kmeans = KMeans(n_clusters=num_clusters, n_init='auto', random_state=42)
-        cluster_labels = kmeans.fit_predict(feat)
 
-        # 4. Image Context
+        # --- Feature Processing Function ---
+        def process_features(feat):
+            # PCA Projection
+            pca = PCA(n_components=3)
+            rgb = pca.fit_transform(feat)
+            rgb = (rgb - rgb.min(0)) / (rgb.max(0) - rgb.min(0) + 1e-8)
+            
+            # K-Means
+            kmeans = KMeans(n_clusters=num_clusters, n_init='auto', random_state=42)
+            clusters = kmeans.fit_predict(feat)
+            return rgb, clusters
+
+        s_rgb, s_clusters = process_features(s_feat)
+        t_rgb, t_clusters = process_features(t_feat)
+
+        # 2. Image Context
         img_paths = input_dict.get("image_path", [])
         img = None
         if len(img_paths) > 0 and os.path.exists(img_paths[0]):
             img = cv2.cvtColor(cv2.imread(img_paths[0]), cv2.COLOR_BGR2RGB)
 
-        # 5. Create 3-Panel Plot (Camera | PCA BEV | K-Means BEV)
-        fig, (ax_img, ax_pca, ax_km) = plt.subplots(1, 3, figsize=(30, 10), facecolor='black')
+        # 3. Create 2x3 Grid (Row 0: Student | Row 1: Teacher)
+        # Col 0: Camera | Col 1: PCA | Col 2: K-Means
+        fig, axes = plt.subplots(2, 3, figsize=(30, 18), facecolor='black')
         
-        # --- Panel 1: Camera ---
-        if img is not None:
-            ax_img.imshow(img)
-            ax_img.set_title("Front Camera Context", color='white', fontsize=15)
-        ax_img.axis('off')
+        # --- Helper for plotting columns ---
+        def plot_row(row_idx, coord, rgb, clusters, label_prefix):
+            # Column 0: Camera (Plot on both rows for alignment or leave bottom empty)
+            if img is not None:
+                axes[row_idx, 0].imshow(img)
+                axes[row_idx, 0].set_title(f"{label_prefix} Camera Ref", color='white', fontsize=15)
+            axes[row_idx, 0].axis('off')
 
-        # --- Panel 2: BEV PCA ---
-        # Fix mirroring: Plot Longitudinal (X) on Y-axis and -Lateral (-Y) on X-axis
-        ax_pca.scatter(-coord[:, 1], coord[:, 0], c=feat_rgb, s=8, alpha=0.8)
-        self._format_bev_ax(ax_pca, curr_iter, "Feature PCA (RGB)")
+            # Column 1: PCA BEV
+            axes[row_idx, 1].scatter(-coord[:, 1], coord[:, 0], c=rgb, s=8, alpha=0.8)
+            self._format_bev_ax(axes[row_idx, 1], curr_iter, f"{label_prefix} PCA (RGB)")
 
-        # --- Panel 3: BEV K-Means ---
-        # Use a qualitative colormap (tab10) for distinct cluster labels
-        scatter_km = ax_km.scatter(-coord[:, 1], coord[:, 0], c=cluster_labels, s=8, cmap='tab10', alpha=0.8)
-        self._format_bev_ax(ax_km, curr_iter, f"K-Means Clusters (K={num_clusters})")
+            # Column 2: K-Means BEV
+            axes[row_idx, 2].scatter(-coord[:, 1], coord[:, 0], c=clusters, s=8, cmap='tab10', alpha=0.8)
+            self._format_bev_ax(axes[row_idx, 2], curr_iter, f"{label_prefix} K-Means (K={num_clusters})")
 
-        # 6. Save and Report
+        # Plot Student Row
+        plot_row(0, s_coord, s_rgb, s_clusters, "STUDENT")
+        # Plot Teacher Row
+        plot_row(1, t_coord, t_rgb, t_clusters, "TEACHER")
+
+        # 4. Save and Report
         save_dir = os.path.join(self.trainer.writer.logdir, self.save_path)
         save_path = os.path.join(save_dir, f"debug_{curr_iter:07d}.png")
         os.makedirs(save_dir, exist_ok=True)
-        plt.savefig(save_path, dpi=150, bbox_inches='tight', facecolor='black')
+        plt.savefig(save_path, dpi=120, bbox_inches='tight', facecolor='black')
 
         if Task.current_task() is not None:
             logger = Logger.current_logger()
             rgb_img = Image.open(save_path).convert("RGB")
-            logger.report_image("Visualization", "BEV_Debug", image=rgb_img, iteration=curr_iter)
+            logger.report_image("Visualization", "Student_Teacher_Comparison", image=rgb_img, iteration=curr_iter)
         
         plt.close(fig)
 
@@ -209,7 +226,7 @@ class InformationWriter(HookBase):
         if "model_output_dict" in self.trainer.comm_info.keys():
             model_output_dict = self.trainer.comm_info["model_output_dict"]
             # Convert to set and subtract the keys you want to exclude
-            self.model_output_keys = set(model_output_dict.keys()) - {"feat", "feat_coord"}
+            self.model_output_keys = set(model_output_dict.keys()) - {"student_feat", "student_feat_coord", "teacher_feat", "teacher_feat_coord"}
 
             for key in self.model_output_keys:
                 self.trainer.storage.put_scalar(key, model_output_dict[key].item())
@@ -365,28 +382,58 @@ class CheckpointLoader(HookBase):
                 map_location=lambda storage, loc: storage.cuda(),
                 weights_only=False,
             )
+            
+            # Get current model state to check shapes
+            current_model_dict = self.trainer.model.state_dict()
             self.trainer.logger.info(
                 f"Loading layer weights with keyword: {self.keywords}, "
                 f"replace keyword with: {self.replacement}"
             )
+            
             weight = OrderedDict()
+            mismatched_keys = []
+
             for key, value in checkpoint["state_dict"].items():
+                # Standardize key names (handling 'module.' prefix)
                 if not key.startswith("module."):
-                    key = "module." + key  # xxx.xxx -> module.xxx.xxx
-                # Now all keys contain "module." no matter DDP or not.
+                    key = "module." + key
                 if self.keywords in key:
                     key = key.replace(self.keywords, self.replacement, 1)
-                if comm.get_world_size() == 1:
-                    key = key[7:]  # module.xxx.xxx -> xxx.xxx
-                weight[key] = value
+                if comm.get_world_size() == 1 and key.startswith("module."):
+                    key = key[7:]
+
+                # --- SHAPE CHECK LOGIC ---
+                if key in current_model_dict:
+                    if value.shape != current_model_dict[key].shape:
+                        mismatched_keys.append(
+                            f"{key} (Checkpoint: {list(value.shape)} vs Model: {list(current_model_dict[key].shape)})"
+                        )
+                        continue  # Skip this key, leaving model's random weights intact
+                    weight[key] = value
+                else:
+                    # Key exists in checkpoint but not in current model
+                    if self.strict:
+                        weight[key] = value
+
+            # Log warnings for skipped keys
+            if mismatched_keys:
+                self.trainer.logger.warning(
+                    f"⚠️ Found {len(mismatched_keys)} keys with shape mismatches. "
+                    f"These will remain randomized: {mismatched_keys}"
+                )
+
+            # Load the filtered weights
             load_state_info = self.trainer.model.load_state_dict(
                 weight, strict=self.strict
             )
-            self.trainer.logger.info(f"Missing keys: {load_state_info[0]}")
+            
+            self.trainer.logger.info(f"Successfully loaded {len(weight)} tensors.")
+            self.trainer.logger.info(f"Missing keys (not in checkpoint): {load_state_info[0]}")
+            self.trainer.logger.info(f"Unexpected keys (not in model): {load_state_info[1]}")
+
+            # --- Resume logic remains the same ---
             if self.trainer.cfg.resume:
-                self.trainer.logger.info(
-                    f"Resuming train at eval epoch: {checkpoint['epoch']}"
-                )
+                self.trainer.logger.info(f"Resuming train at eval epoch: {checkpoint['epoch']}")
                 self.trainer.start_epoch = checkpoint["epoch"]
                 self.trainer.best_metric_value = checkpoint["best_metric_value"]
                 self.trainer.optimizer.load_state_dict(checkpoint["optimizer"])
