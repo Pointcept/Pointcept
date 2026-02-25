@@ -55,7 +55,7 @@ model = dict(
     head_hidden_channels=4096,
     head_embed_channels=256,
     head_num_prototypes=4096,
-    num_global_view=2,
+    num_global_view=1,
     num_local_view=4,
     mask_size_start=0.025, #modified for radar
     mask_size_base=0.1, #modified for radar
@@ -63,14 +63,14 @@ model = dict(
     mask_ratio_start=0.05, #modified for radar
     mask_ratio_base=0.15, #modified for radar
     mask_ratio_warmup_ratio=0.05,
-    mask_jitter=0.01,
+    mask_jitter=0.0, #modified for radar
     teacher_temp_start=0.04,
     teacher_temp_base=0.07,
     teacher_temp_warmup_ratio=0.05,
     student_temp=0.1,
-    mask_loss_weight=2 / 8,
-    roll_mask_loss_weight=2 / 8,
-    unmask_loss_weight=4 / 8,
+    mask_loss_weight=1 / 8,
+    roll_mask_loss_weight=0 / 8,
+    unmask_loss_weight=7 / 8,
     momentum_base=0.994,
     momentum_final=1,
     match_max_k=8,
@@ -79,8 +79,8 @@ model = dict(
 )
 
 # scheduler settings
-epoch = 50
-eval_epoch = 50
+epoch = 20
+eval_epoch = 20
 base_lr = 0.004
 lr_decay = 0.9  # layer-wise lr decay
 
@@ -116,7 +116,7 @@ transform = [
     dict(
         type="MultiViewGenerator",
         view_keys=("coord", "origin_coord", "doppler", "rcs"),
-        global_view_num=2,
+        global_view_num=1,
         global_view_scale=(0.4, 1.0),
         local_view_num=4,
         local_view_scale=(0.1, 0.4),

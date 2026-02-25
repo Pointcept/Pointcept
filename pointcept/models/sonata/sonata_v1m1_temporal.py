@@ -266,69 +266,31 @@ class Sonata(PointModel):
 
     def generate_mask(self, time, offset):
         """
-        Generates a temporal mask based on sweep indices.
-        
-        Args:
-            time (Tensor): The time/sweep indices for each point, shape (N, 1) or (N,).
-            offset (Tensor): The batch offsets defining point cloud boundaries.
+        Generates a fully vectorized temporal mask based on a sweep ratio.
         """
         batch = offset2batch(offset)
-        time = time.squeeze() # Ensure it's a 1D tensor of shape (N,)
+        time = time.squeeze().long()
+        mask_sweep = self.mask_sweep  # e.g., 0.5 to drop half the sweeps
         
-        # In this context, mask_ratio acts as the "number of sweeps to mask"
-        mask_sweeps = self.mask_sweep
-        full_sweeps = int(mask_sweeps)
-        fractional_sweep = mask_sweeps - full_sweeps
+        # Combine batch and time to create a unique ID for each sweep in the batch
+        # This acts exactly like 'grid_coord' in the spatial version
+        sweep_coord = batch * 10000 + time
         
-        point_mask = torch.zeros_like(time, dtype=torch.bool)
+        # Group points into sweep clusters
+        unique, point_cluster = torch.unique(
+            sweep_coord, sorted=True, return_inverse=True
+        )
         
-        # Reconstruct point_cluster for the downstream loss function
-        # Multiplying batch by a large magnitude ensures sweep IDs don't overlap across batch items
-        point_cluster = batch * 10000 + time.long()
+        # Calculate how many sweeps to drop across the entire batch
+        patch_num = unique.shape[0]
+        mask_patch_num = int(mask_sweep)
         
-        start_idx = 0
-        for i in range(offset.shape):
-            end_idx = offset[i]
-            batch_time = time[start_idx:end_idx]
-            
-            # Identify all unique sweeps available in this specific point cloud
-            unique_sweeps = torch.unique(batch_time)
-            num_sweeps = len(unique_sweeps)
-            
-            # Shuffle the available sweeps to select random ones to mask
-            shuffled_sweeps = unique_sweeps[torch.randperm(num_sweeps, device=time.device)]
-            
-            actual_full_sweeps = min(full_sweeps, num_sweeps)
-            
-            # 1. Mask the full sweeps
-            if actual_full_sweeps > 0:
-                sweeps_to_mask_full = shuffled_sweeps[:actual_full_sweeps]
-                batch_mask = torch.isin(batch_time, sweeps_to_mask_full)
-            else:
-                batch_mask = torch.zeros_like(batch_time, dtype=torch.bool)
-            
-            # 2. Mask the fractional sweep
-            if fractional_sweep > 0 and actual_full_sweeps < num_sweeps:
-                # Pick the next sweep in the shuffled list
-                frac_sweep_id = shuffled_sweeps[actual_full_sweeps]
-                
-                # Get the exact indices of the points belonging to this specific sweep
-                frac_indices = torch.where(batch_time == frac_sweep_id)
-                num_frac_points = len(frac_indices)
-                
-                # Calculate how many points represent the 'fraction'
-                num_to_mask = int(num_frac_points * fractional_sweep)
-                
-                if num_to_mask > 0:
-                    # Randomly select a subset of points within this sweep to mask
-                    rand_idx = torch.randperm(num_frac_points, device=time.device)[:num_to_mask]
-                    selected_indices = frac_indices[rand_idx]
-                    batch_mask[selected_indices] = True
-                    
-            # Assign the mask for this batch item back to the global mask
-            point_mask[start_idx:end_idx] = batch_mask
-            start_idx = end_idx
-            
+        # Randomly select sweep clusters to mask out entirely
+        patch_index = torch.randperm(patch_num, device=time.device)
+        mask_patch_index = patch_index[:mask_patch_num]
+        
+        point_mask = torch.isin(point_cluster, mask_patch_index)
+        
         return point_mask, point_cluster
 
     @torch.no_grad()

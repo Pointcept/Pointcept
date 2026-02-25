@@ -117,7 +117,7 @@ class PercivMultisweepDataset(PercivDataset):
         for idx, sweep in enumerate(sweeps[:(self.sweeps-1)]): #iterate over sweeps
             sweep_path = os.path.join(self.data_root, sweep['radar_path'])
             points_sweep = RadarPointCloud.from_file(str(sweep_path)).points.T
-            trans_matrix = sweep['transform_matrix']
+            trans_matrix = sweep['transform_matrix'] if sweep['transform_matrix'] is not None else np.eye(4)
             points_homogeneous = np.hstack((points_sweep[:,:3], np.ones((points_sweep.shape[0], 1))))
             transformed_points_homogeneous = trans_matrix.dot(points_homogeneous.T).T
 

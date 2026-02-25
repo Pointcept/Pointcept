@@ -60,7 +60,7 @@ class NuScenesDataset(DefaultDataset):
 
     def get_data(self, idx):
         data = self.data_list[idx % len(self.data_list)]
-        lidar_path = os.path.join(self.data_root, "raw", data["lidar_path"])
+        lidar_path = os.path.join(self.data_root, data["lidar_path"])
         points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape(
             [-1, 5]
         )
@@ -69,7 +69,7 @@ class NuScenesDataset(DefaultDataset):
 
         if "gt_segment_path" in data.keys():
             gt_segment_path = os.path.join(
-                self.data_root, "raw", data["gt_segment_path"]
+                self.data_root, data["gt_segment_path"]
             )
             segment = np.fromfile(
                 str(gt_segment_path), dtype=np.uint8, count=-1
@@ -141,7 +141,7 @@ class NuScenesColorNormalDataset(NuScenesDataset):
 
     def get_data(self, idx):
         data = self.data_list[idx % len(self.data_list)]
-        lidar_path = os.path.join(self.data_root, "raw", data["lidar_path"])
+        lidar_path = os.path.join(self.data_root, data["lidar_path"])
         points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape(
             [-1, 5]
         )
@@ -149,7 +149,7 @@ class NuScenesColorNormalDataset(NuScenesDataset):
         normal = self.estimate_normals(coord)
         if "gt_segment_path" in data.keys():
             gt_segment_path = os.path.join(
-                self.data_root, "raw", data["gt_segment_path"]
+                self.data_root, data["gt_segment_path"]
             )
             segment = np.fromfile(
                 str(gt_segment_path), dtype=np.uint8, count=-1
@@ -171,15 +171,6 @@ class NuScenesColorNormalDataset(NuScenesDataset):
 
 @DATASETS.register_module()
 class NuScenesImagePointDataset(DefaultImagePointDataset):
-    CAMERA_TYPES = [
-        "CAM_FRONT",
-        "CAM_FRONT_RIGHT",
-        "CAM_FRONT_LEFT",
-        "CAM_BACK",
-        "CAM_BACK_LEFT",
-        "CAM_BACK_RIGHT",
-    ]
-
     def __init__(
         self,
         if_img=False,
@@ -189,6 +180,14 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
         sweep_gap=1,
         ignore_index=-1,
         img_num=4,
+        camera_types=[
+        "CAM_FRONT",
+        "CAM_FRONT_RIGHT",
+        "CAM_FRONT_LEFT",
+        "CAM_BACK",
+        "CAM_BACK_LEFT",
+        "CAM_BACK_RIGHT",
+    ],
         **kwargs,
     ):
         self.sweeps = sweeps
@@ -199,6 +198,7 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
         self.ignore_index = ignore_index
         self.learning_map = self.get_learning_map(ignore_index)
         self.img_ratio = img_num / (6 * sweeps)
+        self.camera_types = camera_types
         super().__init__(ignore_index=ignore_index, **kwargs)
 
     @staticmethod
@@ -289,7 +289,7 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
 
     def get_data(self, idx):
         data = self.data_list[idx % len(self.data_list)]
-        lidar_path = os.path.join(self.data_root, "raw", data["lidar_path"])
+        lidar_path = os.path.join(self.data_root, data["lidar_path"])
         points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape(
             [-1, 5]
         )
@@ -303,11 +303,11 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
         correspondence_start = 0
         frame_pcd_offset = []
         lidar_colors = np.zeros((points.shape[0], 3), dtype=int)  # Default to black
-        for id, cam_name in enumerate(self.CAMERA_TYPES):
+        for id, cam_name in enumerate(self.camera_types):
             cam_info = data["cams"][cam_name]
             cam_intrinsic = cam_info["camera_intrinsics"]
             cam_image = Image.open(
-                os.path.join(self.data_root, "raw", data["cams"][cam_name]["data_path"])
+                os.path.join(self.data_root, data["cams"][cam_name]["data_path"])
             )
             cam_image_np = np.array(cam_image)
             sensor2lidar = np.eye(4)
@@ -344,7 +344,7 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
             for id, sweep in enumerate(
                 data["sweeps"][: (self.sweep_gap * self.sweeps) : self.sweep_gap]
             ):
-                lidar_path = os.path.join(self.data_root, "raw", sweep["lidar_path"])
+                lidar_path = os.path.join(self.data_root, sweep["lidar_path"])
                 points = np.fromfile(
                     str(lidar_path), dtype=np.float32, count=-1
                 ).reshape([-1, 5])
@@ -356,12 +356,12 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
                     if sweep["transform_matrix"] is not None
                     else np.eye(4)
                 )
-                for id, cam_name in enumerate(self.CAMERA_TYPES):
+                for id, cam_name in enumerate(self.camera_types):
                     cam_info = sweep["cams"][cam_name]
                     # cam_image_np = np.array(imgs[id])
                     cam_intrinsic = cam_info["camera_intrinsics"]
                     cam_image = Image.open(
-                        os.path.join(self.data_root, "raw", cam_info["data_path"])
+                        os.path.join(self.data_root, cam_info["data_path"])
                     )
                     cam_image_np = np.array(cam_image)
                     sensor2lidar = np.eye(4)
@@ -461,7 +461,7 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
             img_assets["correspondence"] = correspondence_infos
         if "gt_segment_path" in data.keys():
             gt_segment_path = os.path.join(
-                self.data_root, "raw", data["gt_segment_path"]
+                self.data_root, data["gt_segment_path"]
             )
             segment = np.fromfile(
                 str(gt_segment_path), dtype=np.uint8, count=-1
@@ -496,8 +496,11 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
         return data_dict
 
     def get_data_name(self, idx):
-        return self.data_list[idx % len(self.data_list)]["lidar_token"]
+        try:
 
+            return self.data_list[idx % len(self.data_list)]["lidar_token"]
+        except:
+            return self.data_list[idx % len(self.data_list)]["token"]
     @staticmethod
     def get_normals(cam_center, coords):
         Cs = np.repeat(cam_center.reshape((1, -1)), coords.shape[0], axis=0)

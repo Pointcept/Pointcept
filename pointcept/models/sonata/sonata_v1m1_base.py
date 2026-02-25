@@ -401,13 +401,14 @@ class Sonata(PointModel):
             )
 
             # local point & matching
-            local_point = Point(
-                feat=data_dict["local_feat"],
-                coord=data_dict["local_coord"],
-                origin_coord=data_dict["local_origin_coord"],
-                offset=data_dict["local_offset"],
-                grid_size=data_dict["grid_size"][0],
-            )
+            if self.unmask_loss_weight > 0:
+                local_point = Point(
+                    feat=data_dict["local_feat"],
+                    coord=data_dict["local_coord"],
+                    origin_coord=data_dict["local_origin_coord"],
+                    offset=data_dict["local_offset"],
+                    grid_size=data_dict["grid_size"][0],
+                )
 
             # create result dictionary for return
             result_dict = dict(loss=[])
@@ -417,7 +418,7 @@ class Sonata(PointModel):
 
             global_feat = global_point_.feat
 
-        if self.mask_loss_weight > 0 or self.roll_mask_loss_weight > 0:
+        if self.mask_loss_weight > 0 or self.roll_mask_loss_weight > 0 or should_visualize:
             # teacher head forward
             with torch.no_grad():
                 global_point_.feat = self.teacher.mask_head(global_feat)

@@ -1085,6 +1085,7 @@ class MultiTemporalViewGenerator(object):
         local_transform=None,
         view_keys=("coord", "doppler", "rcs", "time"), # Ensure radar features are tracked
         static_view_keys=("name", "img_num"),
+        max_size=65536,
     ):
         self.global_view_num = global_view_num
         self.global_sweep_range = global_sweep_range
@@ -1099,11 +1100,13 @@ class MultiTemporalViewGenerator(object):
         self.view_keys = view_keys
         self.static_view_keys = static_view_keys
 
+        self.max_size = max_size
     def get_temporal_view(self, point, sweep_range):
         """
-        Samples a subset of points based entirely on their time/sweep index.
+        Samples a subset of points based entirely on their time/sweep index,
+        while strictly bounding the maximum number of points to prevent OOM.
         """
-        # Extract the time column (assumes shape [N, 1] or [N])
+        # Extract the time column 
         time_array = point["time"].squeeze()
         available_times = np.unique(time_array)
         
@@ -1118,15 +1121,23 @@ class MultiTemporalViewGenerator(object):
         else:
             num_sweeps = np.random.randint(min_sweeps, max_sweeps + 1)
         
-        # Randomly select the specific sweeps to keep
+        # Select sweeps and get their indices
         if num_sweeps > 0:
             sampled_times = np.random.choice(available_times, num_sweeps, replace=False)
-            index = np.where(np.isin(time_array, sampled_times))
+            # Use  to extract the actual 1D array of indices from the tuple returned by np.where
+            index = np.where(np.isin(time_array, sampled_times)) 
         else:
-            # Fallback: just return the latest sweep if parameters are misconfigured
+            # Fallback
             index = np.where(time_array == available_times)
 
+        # --- THE MEMORY FIX ---
+        # If the accumulated sweeps contain more points than the absolute max_size,
+        # randomly downsample the selection to fit within GPU bounds.
+        if len(index[0]) > self.max_size:
+            index = np.random.choice(index[0], self.max_size, replace=False)
+
         view = dict(index=index)
+        
         for key in point.keys():
             if key in self.view_keys:
                 view[key] = point[key][index]
@@ -1156,32 +1167,27 @@ class MultiTemporalViewGenerator(object):
         # Augmentation and concatenation
         view_dict = {}
         for global_view in global_views:
-            global_view.pop("index", None)
+            global_view.pop("index")
             global_view = self.global_transform(global_view)
             for key in self.view_keys:
                 if f"global_{key}" in view_dict.keys():
                     view_dict[f"global_{key}"].append(global_view[key])
                 else:
                     view_dict[f"global_{key}"] = [global_view[key]]
-                    
-        if "global_coord" in view_dict:
-            view_dict["global_offset"] = np.cumsum(
-                [data.shape for data in view_dict["global_coord"]]
-            )
-            
+        view_dict["global_offset"] = np.cumsum(
+            [data.shape[0] for data in view_dict["global_coord"]]
+        )
         for local_view in local_views:
-            local_view.pop("index", None)
+            local_view.pop("index")
             local_view = self.local_transform(local_view)
             for key in self.view_keys:
                 if f"local_{key}" in view_dict.keys():
                     view_dict[f"local_{key}"].append(local_view[key])
                 else:
                     view_dict[f"local_{key}"] = [local_view[key]]
-                    
-        if "local_coord" in view_dict:
-            view_dict["local_offset"] = np.cumsum(
-                [data.shape for data in view_dict["local_coord"]]
-            )
+        view_dict["local_offset"] = np.cumsum(
+            [data.shape[0] for data in view_dict["local_coord"]]
+        )
 
         # Merge views back into data_dict
         for key in view_dict.keys():

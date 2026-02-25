@@ -196,7 +196,7 @@ def obtain_sensor2top(
 
 
 def fill_trainval_infos(
-    data_path, nusc, train_scenes, radar_chan, test=False, max_sweeps=10, with_camera=False
+    data_path, nusc, train_scenes, radar_chan, test=False, max_sweeps=10, with_camera=False, with_lidar=True,
 ):
     train_nusc_infos = []
     val_nusc_infos = []
@@ -206,13 +206,16 @@ def fill_trainval_infos(
 
     ref_chan = radar_chan  # The radar channel from which we track back n sweeps to aggregate the point cloud.
     chan = radar_chan  # The reference channel of the current sample_rec that the point clouds are mapped to.
-
+    lidar_chan = nusc.lidar_chan
     for index, sample in enumerate(nusc.sample):
         progress_bar.update()
         camera_types = nusc.get_camera_types()
         available_cameras = [key for key in camera_types if key in sample["data"]]
         if nusc.cam_chan not in available_cameras:
             continue
+        if nusc.lidar_chan not in sample["data"] and with_lidar:
+            continue
+        ref_lidar_token = sample["data"].get(lidar_chan)
         ref_sd_token = sample["data"].get(ref_chan, None)
         if ref_sd_token is None:
             continue
@@ -224,7 +227,7 @@ def fill_trainval_infos(
         ref_time = 1e-6 * ref_sd_rec["timestamp"]
 
         ref_radar_path, ref_boxes, _ = get_sample_data(nusc, ref_sd_token)
-
+        ref_lidar_path, _,_ = get_sample_data(nusc, ref_lidar_token)
         ref_cam_front_token = sample["data"][nusc.cam_chan]
         ref_cam_path, _, ref_cam_intrinsic = nusc.get_sample_data(ref_cam_front_token)
 
@@ -241,6 +244,7 @@ def fill_trainval_infos(
         )
         info = {
             "radar_path": Path(ref_radar_path).relative_to(data_path).__str__(),
+            "lidar_path": Path(ref_lidar_path).relative_to(data_path).__str__(),
             "radar_token": ref_sd_token,
             "cam_front_path": Path(ref_cam_path).relative_to(data_path).__str__(),
             "cam_intrinsic": ref_cam_intrinsic,
