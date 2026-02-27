@@ -6,8 +6,8 @@ Dataset: ScanNet v2, ScanNet++, S3DIS, HM3D, ArkitScene, Structured3D
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 8  # bs: total bs in all gpus
-num_worker = 16
+batch_size = 4  # bs: total bs in all gpus
+num_worker = 8
 mix_prob = 0
 clip_grad = 3.0
 empty_cache = False
@@ -19,11 +19,11 @@ weight ='/media/Datasets/checkpoints/pretrain-sonata-v1m1-0-base.pth'
 
 # model settings
 model = dict(
-    type="Sonata-v1m1-temp",
+    type="Sonata-v1m3",
     # backbone - student & teacher
-    backbone=dict(
+    backbone_s=dict(
         type="PT-v3m2",
-        in_channels=6,
+        in_channels=5,
         order=("z", "z-trans", "hilbert", "hilbert-trans"),
         stride=(2, 2, 2, 2),
         enc_depths=(3, 3, 3, 12, 3),
@@ -46,20 +46,45 @@ model = dict(
         enc_mode=True,
         mask_token=True,
     ),
-    teacher_custom=dict(
+    backbone_t=dict(
+        type="PT-v3m2",
+        in_channels=9,
+        order=("z", "z-trans", "hilbert", "hilbert-trans"),
+        stride=(2, 2, 2, 2),
+        enc_depths=(3, 3, 3, 12, 3),
+        enc_channels=(48, 96, 192, 384, 512),
+        enc_num_head=(3, 6, 12, 24, 32),
+        enc_patch_size=(1024, 1024, 1024, 1024, 1024),
+        mlp_ratio=4,
+        qkv_bias=True,
+        qk_scale=None,
         attn_drop=0.0,
         proj_drop=0.0,
         drop_path=0.0,
+        shuffle_orders=True,
+        pre_norm=True,
+        enable_rpe=False,
+        enable_flash=True,
+        upcast_attention=False,
+        upcast_softmax=False,
+        traceable=True,
+        enc_mode=True,
+        mask_token=True,
     ),
-    head_in_channels=1088,
+    head_in_channels_s=1088,
+    head_in_channels_t=1088,
     head_hidden_channels=4096,
     head_embed_channels=256,
     head_num_prototypes=4096,
     num_global_view=2,
     num_local_view=4,
-    mask_sweep_start=1, #modified for radar
-    mask_sweep_base=3, #modified for radar
-    mask_sweep_warmup_ratio=0.05,
+    mask_size_start=0.025, #modified for radar
+    mask_size_base=0.1, #modified for radar
+    mask_size_warmup_ratio=0.05,
+    mask_ratio_start=0.05, #modified for radar
+    mask_ratio_base=0.15, #modified for radar
+    mask_ratio_warmup_ratio=0.05,
+    mask_jitter=0.0, #modified for radar
     teacher_temp_start=0.04,
     teacher_temp_base=0.07,
     teacher_temp_warmup_ratio=0.05,
@@ -70,20 +95,21 @@ model = dict(
     momentum_base=0.994,
     momentum_final=1,
     match_max_k=8,
-    match_max_r=0.32,
+    match_max_r=0.5,
     up_cast_level=2,
+    teacher_pretrained_path=weight,
 )
 
 # scheduler settings
-epoch = 50
-eval_epoch = 50
+epoch = 20
+eval_epoch = 20
 base_lr = 0.004
 lr_decay = 0.9  # layer-wise lr decay
 
 base_wd = 0.04  # wd scheduler enable in hooks
 final_wd = 0.2  # wd scheduler enable in hooks
 
-dec_depths = model["backbone"]["enc_depths"]
+dec_depths = model["backbone_s"]["enc_depths"]
 param_dicts = [
     dict(
         keyword=f"enc{e}.block{b}.",
@@ -106,35 +132,49 @@ scheduler = dict(
 
 # dataset settings
 transform = [
+    dict(type="Update", keys_dict={"index_valid_keys": ["lidar_coord", "color", "normal"]}),
+    dict(type="GridSample", grid_size=0.1, hash_type="fnv", mode="train", prefix="lidar_"),
     dict(type="Update", keys_dict={"index_valid_keys": ["coord", "doppler", "rcs", "time"]}),
     dict(type="GridSample", grid_size=0.02, hash_type="fnv", mode="train"),
     dict(type="Copy", keys_dict={"coord": "origin_coord"}),
     dict(
-        type="MultiTemporalViewGenerator",
-        view_keys=("coord", "origin_coord", "doppler", "rcs", "time"),
+        type="MultiViewGenerator",
+        view_keys=("coord", "origin_coord", "doppler", "rcs"),
         global_view_num=2,
-        global_sweep_range=(4,5),
+        global_view_scale=(0.4, 1.0),
         local_view_num=4,
-        local_sweep_range=(1,2),
-        global_shared_transform=[],
+        local_view_scale=(0.1, 0.4),
+        global_shared_transform=[
+        #     dict(
+        #         type="RandomColorJitter",
+        #         brightness=0.4,
+        #         contrast=0.4,
+        #         saturation=0.2,
+        #         hue=0.02,
+        #         p=0.8,
+        #     ),
+        #     dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
+        #     dict(type="ChromaticJitter", p=0.95, std=0.05),
+        #     dict(type="NormalizeColor"),
+        ],
         global_transform=[
-            # dict(type="CenterShift", apply_z=True),
-            # dict(type="RandomScale", scale=[0.9, 1.1]),
+            dict(type="CenterShift", apply_z=True),
+            dict(type="RandomScale", scale=[0.9, 1.1]),
             # dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.8),  #disabled to maintain geometric constraint of velocity
             # dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.8),
             # dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="y", p=0.8),
             # dict(type="RandomFlip", p=0.5),
-            # dict(type="RandomJitter", sigma=0.005, clip=0.02),
+            dict(type="RandomJitter", sigma=0.005, clip=0.02),
             # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]), #disabled for speed
         ],
         local_transform=[
-            # dict(type="CenterShift", apply_z=True),
-            # dict(type="RandomScale", scale=[0.9, 1.1]),
+            dict(type="CenterShift", apply_z=True),
+            dict(type="RandomScale", scale=[0.9, 1.1]),
             # dict(type="RandomRotate", angle=[-1, 1], axis="z", center=[0, 0, 0], p=0.8), #disabled to maintain geometric constraint of velocity
             # dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="x", p=0.8),
             # dict(type="RandomRotate", angle=[-1 / 64, 1 / 64], axis="y", p=0.8),
             # dict(type="RandomFlip", p=0.5),
-            # dict(type="RandomJitter", sigma=0.005, clip=0.02),
+            dict(type="RandomJitter", sigma=0.005, clip=0.02),
             # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),  #disabled for speed
             # dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
             # dict(
@@ -149,10 +189,11 @@ transform = [
             # dict(type="ChromaticJitter", p=0.95, std=0.05),
             # dict(type="NormalizeColor"),
         ],
-        max_size=1000,
+        max_size=65536,
     ),
+    dict(type="AddOffset"),
     dict(type="ToTensor"),
-    dict(type="Update", keys_dict={"grid_size": 0.02}),
+    dict(type="Update", keys_dict={"grid_size": 0.02, "lidar_grid_size": 0.1}),
     dict(
         type="Collect",
         keys=(
@@ -161,20 +202,22 @@ transform = [
             "global_offset",
             "global_doppler",
             "global_rcs",
-            "global_time",
             "local_origin_coord",
             "local_coord",
             "local_offset",
             "local_doppler",
             "local_rcs",
-            "local_time",
+            "lidar_coord",
+            "lidar_grid_size",
+            "lidar_offset",
             "grid_size",
             "name",
             "image_path",
         ),
         offset_keys_dict=dict(),
-        global_feat_keys=("global_coord", "global_doppler", "global_rcs", "global_time"),
-        local_feat_keys=("local_coord", "local_doppler", "local_rcs", "local_time"),
+        global_feat_keys=("global_coord", "global_doppler", "global_rcs"),
+        local_feat_keys=("local_coord", "local_doppler", "local_rcs"),
+        lidar_feat_keys=("lidar_coord", "color", "normal"),
     ),
 ]
 zf_mapping_ps2 ={
@@ -210,25 +253,29 @@ data = dict(
         datasets=[
 
             dict(
-                type="PercivMultisweepDataset",
+                type="PercivImagePointDataset",
                 split=["train"],
                 data_root="/media/Datasets/perciv/perciv-scenes-2/perciv-scenes-2",
                 radar_mapping = zf_mapping_ps2,
                 norm_params = zf_norm_ps2,
-                sweeps=5,
-                max_sweeps=10,
+                sweeps=1,
+                img_num=1,
+                camera_types=["OAK_CAM_FRONT"],
+                debug = True,
                 transform=transform,
                 test_mode=False,
                 loop=1,
             ),
             dict(
-                type="PercivMultisweepDataset",
+                type="PercivImagePointDataset",
                 split=["train"],
                 data_root="/media/Datasets/customer/Magna/magna_04_03/magna_nusc",
                 radar_mapping = zf_mapping_magna,
                 norm_params = zf_norm_magna,
-                sweeps=5,
-                max_sweeps=10,
+                sweeps=1,
+                img_num=1,
+                camera_types=["OAK_CAM_FRONT"],
+                debug = True,
                 transform=transform,
                 test_mode=False,
                 loop=1,

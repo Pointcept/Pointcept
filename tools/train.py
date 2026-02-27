@@ -15,7 +15,7 @@ from pointcept.engines.defaults import (
 )
 from pointcept.engines.train import TRAINERS
 from pointcept.engines.launch import launch
-from clearml import Task
+from clearml import Task, InputModel
 
 def fast_rsync(nas_path, local_path):
     """
@@ -57,30 +57,14 @@ def main():
     )
     cfg = default_config_parser(config_path, args.options)
 
-    # try:
-    #     # --- LOCAL DATA SYNC LOGIC ---
-    #     # Define your local scratch space (usually /tmp or /scratch)
-    #     # Using /tmp/pointcept_data to keep the node clean
-    #     base_local_path = "/tmp/pointcept_data"
-        
-    #     # We loop through the datasets in the config to sync each one
-    #     # This handles your PercivDataset and MagnaDataset entries
-    #     for dataset_cfg in cfg.data.train.datasets:
-    #         nas_root = dataset_cfg.data_root
-            
-    #         # Create a unique local subfolder name based on the NAS path hash or name
-    #         folder_name = os.path.basename(nas_root.strip("/"))
-    #         local_root = os.path.join(base_local_path, folder_name)
-            
-    #         # Perform the sync (only on the main process to avoid collisions)
-    #         fast_rsync(nas_root, local_root)
-            
-    #         # Crucial: Update the config to point to the LOCAL path
-    #         dataset_cfg.data_root = local_root
-    # except Exception as e:
-    #     print(f"❌ [Data Sync] Failed to sync data localy: {e}. Using default paths.")
-    #     pass
-    # # -----------------------------
+    if getattr(args, "input_model", None):
+        print("Loading model from input model: ", args.input_model)
+        original_model = InputModel(model_id=args.input_model)
+        task.connect(original_model)
+        checkpoint_path = original_model.get_weights(
+            raise_on_error=False, force_download=False, extract_archive=False
+        )
+        cfg.weight = checkpoint_path
 
     launch(
         main_worker,

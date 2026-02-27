@@ -50,7 +50,18 @@ def index_operator(data_dict, index, duplicate=False):
                 data_dict_[key] = data_dict[key]
         return data_dict_
 
+@TRANSFORMS.register_module()
+class AddOffset(object):
+    def __init__(self, coord_key="lidar_coord", offset_key="lidar_offset"):
+        self.coord_key = coord_key
+        self.offset_key = offset_key
 
+    def __call__(self, data_dict):
+        # Calculate the size of the single LiDAR view for this sample
+        # We wrap it in a numpy array so the collate function treats it as a stackable value
+        data_dict[self.offset_key] = np.array([data_dict[self.coord_key].shape[0]])
+        return data_dict
+    
 @TRANSFORMS.register_module()
 class Collect(object):
     def __init__(self, keys, offset_keys_dict=None, **kwargs):
@@ -853,6 +864,7 @@ class GridSample(object):
         return_min_coord=False,
         return_displacement=False,
         project_displacement=False,
+        prefix="",
     ):
         self.grid_size = grid_size
         self.hash = self.fnv_hash_vec if hash_type == "fnv" else self.ravel_hash_vec
@@ -863,10 +875,10 @@ class GridSample(object):
         self.return_min_coord = return_min_coord
         self.return_displacement = return_displacement
         self.project_displacement = project_displacement
-
+        self.prefix = prefix
     def __call__(self, data_dict):
-        assert "coord" in data_dict.keys()
-        scaled_coord = data_dict["coord"] / np.array(self.grid_size)
+        assert f"{self.prefix}coord" in data_dict.keys()
+        scaled_coord = data_dict[f"{self.prefix}coord"] / np.array(self.grid_size)
         grid_coord = np.floor(scaled_coord).astype(int)
         min_coord = grid_coord.min(0)
         grid_coord -= min_coord

@@ -199,7 +199,7 @@ class Sonata(PointModel):
         path="./ckpt/sonata.pth",
         if_loadhead=True,
     ):
-        checkpoint = torch.load(path, map_location=lambda storage, loc: storage.cuda())
+        checkpoint = torch.load(path, map_location=lambda storage, loc: storage.cuda(), weights_only=False,)
         name_test = [n for n, p in model.named_parameters()]
         weight = {}
         whether_weight = False
@@ -408,8 +408,15 @@ class Sonata(PointModel):
         # prepare global_point, mask_global_point, local_point
         with torch.no_grad():
             # global_point & masking
+            lidar_point = Point(
+                feat=data_dict["lidar_feat"],
+                coord=data_dict["lidar_coord"],
+                origin_coord=data_dict["lidar_coord"].clone(),
+                offset=data_dict["lidar_offset"],
+                grid_size=data_dict["lidar_grid_size"][0],
+            )
             global_point = Point(
-                feat=data_dict["global_feat_full"],
+                feat=data_dict["global_feat"],
                 coord=data_dict["global_coord"],
                 origin_coord=data_dict["global_origin_coord"],
                 offset=data_dict["global_offset"],
@@ -448,7 +455,7 @@ class Sonata(PointModel):
             # create result dictionary for return
             result_dict = dict(loss=[])
             # teacher backbone forward (shared with mask and unmask)
-            global_point_ = self.teacher.backbone(global_point)
+            global_point_ = self.teacher.backbone(lidar_point)
             global_point_ = self.up_cast(global_point_)
             if self.mask_loss_weight > 0 or self.roll_mask_loss_weight > 0:
                 global_point_.feat = self.teacher.mask_head(global_point_.feat)
@@ -527,19 +534,33 @@ class Sonata(PointModel):
             local_point_ = self.up_cast(local_point_)
             unmask_pred_sim = self.student.unmask_head(local_point_.feat)
             with torch.no_grad():
-                principal_view_mask = global_point_.batch % self.num_global_view == 0
-                principal_view_batch = (
-                    global_point_.batch[principal_view_mask] // self.num_global_view
-                )
+                # 1. Map Student batch indices to Teacher batch indices
+                # If Student has 2 views, its batch indices are [0,0,1,1] 
+                # but the Teacher only has batch [0,1].
+                # We find which batch item each student point belongs to:
+                student_batch_idx = local_point_.batch // self.num_local_view
+                
+                # 2. In your case, the Teacher IS the principal view (it's the only view)
+                # So we don't need to mask global_point_, we use all of it.
+                teacher_feat = global_point_.feat
+                teacher_coord = global_point_.origin_coord
+                teacher_offset = global_point_.offset
+
+                # 3. Match neighbors
+                # We match local_point_ (Student) against global_point_ (Teacher)
+                # We must ensure match_neighbour handles the batch mapping correctly.
                 match_index = self.match_neighbour(
                     local_point_.origin_coord,
-                    local_point_.offset[self.num_local_view - 1 :: self.num_local_view],
-                    global_point_.origin_coord[principal_view_mask],
-                    batch2offset(principal_view_batch),
+                    local_point_.offset, 
+                    teacher_coord,
+                    teacher_offset,
+                    # If your match_neighbour doesn't support cross-batch-size matching,
+                    # you may need to pass the student_batch_idx specifically.
                 )
-                # teacher forward
+
+                # 4. Teacher features for the matched points
                 unmask_target_sim = self.sinkhorn_knopp(
-                    global_point_.feat[principal_view_mask][match_index[:, 1]],
+                    teacher_feat[match_index[:, 1]],
                     self.teacher_temp,
                 )
             # loss

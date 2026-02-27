@@ -196,7 +196,7 @@ def obtain_sensor2top(
 
 
 def fill_trainval_infos(
-    data_path, nusc, train_scenes, radar_chan, test=False, max_sweeps=10, with_camera=False, with_lidar=True,
+    data_path, nusc, train_scenes, radar_chan, ref_chan,test=False, max_sweeps=10, with_camera=False,  with_lidar=True, map_to_lidar = True,
 ):
     train_nusc_infos = []
     val_nusc_infos = []
@@ -204,8 +204,8 @@ def fill_trainval_infos(
         total=len(nusc.sample), desc="create_info", dynamic_ncols=True
     )
 
-    ref_chan = radar_chan  # The radar channel from which we track back n sweeps to aggregate the point cloud.
-    chan = radar_chan  # The reference channel of the current sample_rec that the point clouds are mapped to.
+    ref_chan = ref_chan  # The reference channel from which we track back n sweeps to aggregate the point cloud.
+    chan = radar_chan  # The radar channel of the current sample_rec that the point clouds are mapped to.
     lidar_chan = nusc.lidar_chan
     for index, sample in enumerate(nusc.sample):
         progress_bar.update()
@@ -216,10 +216,18 @@ def fill_trainval_infos(
         if nusc.lidar_chan not in sample["data"] and with_lidar:
             continue
         ref_lidar_token = sample["data"].get(lidar_chan)
+        ref_lidar_rec = nusc.get("sample_data", ref_lidar_token)
+        ref_lidar_cs_rec = nusc.get(
+            "calibrated_sensor", ref_lidar_rec["calibrated_sensor_token"]
+        )
+        ref_lidar_pose_rec = nusc.get("ego_pose", ref_lidar_rec["ego_pose_token"])
+
         ref_sd_token = sample["data"].get(ref_chan, None)
         if ref_sd_token is None:
             continue
         ref_sd_rec = nusc.get("sample_data", ref_sd_token)
+        assert ref_sd_rec['sensor_modality'] == "radar", f"reference channel should be radar, but got {ref_sd_rec['sensor_modality']}"
+
         ref_cs_rec = nusc.get(
             "calibrated_sensor", ref_sd_rec["calibrated_sensor_token"]
         )
@@ -242,9 +250,27 @@ def fill_trainval_infos(
             Quaternion(ref_pose_rec["rotation"]),
             inverse=True,
         )
+        # Get lidar pose
+        global_from_car = transform_matrix(
+            ref_lidar_pose_rec["translation"],
+            Quaternion(ref_lidar_pose_rec["rotation"]),
+            inverse=False,
+        )
+
+        # Homogeneous transformation matrix from sensor coordinate frame to ego car frame.
+        car_from_lidar = transform_matrix(
+            ref_lidar_cs_rec["translation"],
+            Quaternion(ref_lidar_cs_rec["rotation"]),
+            inverse=False,
+        )
+        tm = reduce(
+            np.dot,
+            [ref_from_car, car_from_global, global_from_car, car_from_lidar],
+        )
         info = {
             "radar_path": Path(ref_radar_path).relative_to(data_path).__str__(),
             "lidar_path": Path(ref_lidar_path).relative_to(data_path).__str__(),
+            "lidar_to_ref": tm,
             "radar_token": ref_sd_token,
             "cam_front_path": Path(ref_cam_path).relative_to(data_path).__str__(),
             "cam_intrinsic": ref_cam_intrinsic,
@@ -256,14 +282,14 @@ def fill_trainval_infos(
         }
         if with_camera:
             info["cams"] = dict()
-            l2e_r = ref_cs_rec["rotation"]
-            l2e_t = (ref_cs_rec["translation"],)
-            e2g_r = ref_pose_rec["rotation"]
-            e2g_t = ref_pose_rec["translation"]
+            l2e_r = ref_lidar_cs_rec["rotation"] if map_to_lidar else ref_cs_rec["rotation"]
+            l2e_t = (ref_lidar_cs_rec["translation"],) if map_to_lidar else (ref_cs_rec["translation"],)
+            e2g_r = ref_lidar_pose_rec["rotation"] if map_to_lidar else ref_pose_rec["rotation"]
+            e2g_t = ref_lidar_pose_rec["translation"] if map_to_lidar else ref_pose_rec["translation"]
             l2e_r_mat = Quaternion(l2e_r).rotation_matrix
             e2g_r_mat = Quaternion(e2g_r).rotation_matrix
 
-            # obtain 6 image's information per frame
+            # obtain 6 image's information per frame 
         # obtain 6 image's information per frame
 
             for cam in available_cameras:
@@ -415,6 +441,11 @@ if __name__ == "__main__":
         required=True,
         help="Which radar channel to use.",
     )
+    parser.add_argument(
+        "--ref_chan",
+        required=True,
+        help="Which reference channel to use.",
+    )
     config = parser.parse_args()
 
     print(f"Loading nuScenes tables for version {config.dataset_version}...")
@@ -443,6 +474,7 @@ if __name__ == "__main__":
         nusc_trainval,
         train_scenes,
         radar_chan=config.radar_chan,
+        ref_chan=config.ref_chan,
         test=False,
         max_sweeps=config.max_sweeps,
         with_camera=config.with_camera,

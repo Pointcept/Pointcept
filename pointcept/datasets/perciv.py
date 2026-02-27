@@ -12,6 +12,8 @@ import pickle
 from PIL import Image
 import open3d as o3d
 import torch
+from matplotlib import pyplot as plt
+import cv2
 
 from .builder import DATASETS
 from .defaults import DefaultDataset, DefaultImagePointDataset
@@ -202,17 +204,10 @@ class PercivColorNormalDataset(PercivDataset):
 
 @DATASETS.register_module()
 class PercivImagePointDataset(DefaultImagePointDataset):
-    CAMERA_TYPES = [
-        "CAM_FRONT",
-        "CAM_FRONT_RIGHT",
-        "CAM_FRONT_LEFT",
-        "CAM_BACK",
-        "CAM_BACK_LEFT",
-        "CAM_BACK_RIGHT",
-    ]
-
     def __init__(
         self,
+        radar_mapping,
+        norm_params,
         if_img=False,
         if_sweep=False,
         sweeps_max=10,
@@ -220,16 +215,30 @@ class PercivImagePointDataset(DefaultImagePointDataset):
         sweep_gap=1,
         ignore_index=-1,
         img_num=4,
+        camera_types=[
+        "CAM_FRONT",
+        "CAM_FRONT_RIGHT",
+        "CAM_FRONT_LEFT",
+        "CAM_BACK",
+        "CAM_BACK_LEFT",
+        "CAM_BACK_RIGHT",
+    ],
+        debug = False,
         **kwargs,
     ):
         self.sweeps = sweeps
         self.sweep_gap = sweep_gap
         self.sweeps_max = sweeps_max
         self.if_sweep = if_sweep
-        self.if_img = if_img
-        self.ignore_index = ignore_index
-        self.learning_map = self.get_learning_map(ignore_index)
         self.img_ratio = img_num / (6 * sweeps)
+        self.radar_mapping = radar_mapping  
+        self.norm_params = norm_params
+        self.doppler_mean = self.norm_params["doppler"][0]
+        self.doppler_std = self.norm_params["doppler"][1]
+        self.rcs_mean = self.norm_params["rcs"][0]
+        self.rcs_std = self.norm_params["rcs"][1]
+        self.camera_types = camera_types
+        self.debug = debug
         super().__init__(ignore_index=ignore_index, **kwargs)
 
     @staticmethod
@@ -320,7 +329,7 @@ class PercivImagePointDataset(DefaultImagePointDataset):
 
     def get_data(self, idx):
         data = self.data_list[idx % len(self.data_list)]
-        lidar_path = os.path.join(self.data_root, "raw", data["lidar_path"])
+        lidar_path = os.path.join(self.data_root, data["lidar_path"])
         points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape(
             [-1, 5]
         )
@@ -334,11 +343,11 @@ class PercivImagePointDataset(DefaultImagePointDataset):
         correspondence_start = 0
         frame_pcd_offset = []
         lidar_colors = np.zeros((points.shape[0], 3), dtype=int)  # Default to black
-        for id, cam_name in enumerate(self.CAMERA_TYPES):
+        for id, cam_name in enumerate(self.camera_types):
             cam_info = data["cams"][cam_name]
             cam_intrinsic = cam_info["camera_intrinsics"]
             cam_image = Image.open(
-                os.path.join(self.data_root, "raw", data["cams"][cam_name]["data_path"])
+                os.path.join(self.data_root, data["cams"][cam_name]["data_path"])
             )
             cam_image_np = np.array(cam_image)
             sensor2lidar = np.eye(4)
@@ -375,7 +384,7 @@ class PercivImagePointDataset(DefaultImagePointDataset):
             for id, sweep in enumerate(
                 data["sweeps"][: (self.sweep_gap * self.sweeps) : self.sweep_gap]
             ):
-                lidar_path = os.path.join(self.data_root, "raw", sweep["lidar_path"])
+                lidar_path = os.path.join(self.data_root, sweep["lidar_path"])
                 points = np.fromfile(
                     str(lidar_path), dtype=np.float32, count=-1
                 ).reshape([-1, 5])
@@ -387,12 +396,12 @@ class PercivImagePointDataset(DefaultImagePointDataset):
                     if sweep["transform_matrix"] is not None
                     else np.eye(4)
                 )
-                for id, cam_name in enumerate(self.CAMERA_TYPES):
+                for id, cam_name in enumerate(self.camera_types):
                     cam_info = sweep["cams"][cam_name]
                     # cam_image_np = np.array(imgs[id])
                     cam_intrinsic = cam_info["camera_intrinsics"]
                     cam_image = Image.open(
-                        os.path.join(self.data_root, "raw", cam_info["data_path"])
+                        os.path.join(self.data_root, cam_info["data_path"])
                     )
                     cam_image_np = np.array(cam_image)
                     sensor2lidar = np.eye(4)
@@ -438,97 +447,112 @@ class PercivImagePointDataset(DefaultImagePointDataset):
         color = np.vstack(cam_colors)
         normal = np.vstack(cam_normals)
         strength = np.vstack(cam_strengths)
+
+        # 1. Create a mask where any color channel (R, G, or B) is NOT zero
+        # np.any(..., axis=1) checks if any value in the row is True
+        mask = np.any(color != 0, axis=1)
+
+        # 2. Apply the mask to all synchronized arrays
+        coord = coord[mask]
+        color = color[mask]
+        normal = normal[mask]
+        strength = strength[mask]
         frame_pcd_offset = np.array(frame_pcd_offset)
 
+        # default assumption is that ref is lidar. So points are now in lidar frame, not reference frame.
         car_from_ref = np.linalg.inv(data["ref_from_car"])
+        lidar_to_ref = data["lidar_to_ref"] if 'lidar_to_ref' in data.keys() else data["ref_to_lidar"] #legacy wrong naming
         coord_homo = np.hstack((coord, np.ones((coord.shape[0], 1))))
-        coord_homo = coord_homo @ car_from_ref.T
-        coord = coord_homo[:, :3]
+        # coord_homo = coord_homo @ car_from_ref.T #original
+        coord_homo = coord_homo @ lidar_to_ref.T
+        lidar_coord = coord_homo[:, :3]
 
-        img_assets = dict()
-        if self.if_img:
-            if len(imgs) > 0:
-                img_width, img_height = imgs[0].size
-                div_w = img_width // self.patch_w
-                div_h = img_height // self.patch_h
-                div_min = max(min(div_w, div_h), 1)
-                crop_img_width = div_min * self.patch_w
-                crop_img_height = div_min * self.patch_h
-                left = int((img_width - crop_img_width) / 2)
-                top = int((img_height - crop_img_height) / 2)
-                right = int((img_width + crop_img_width) / 2)
-                bottom = int((img_height + crop_img_height) / 2)
-                imgs = [img.crop((left, top, right, bottom)) for img in imgs]
-                imgs = [self.transform_img(img) for img in imgs]
-                imgs_list = torch.stack(imgs)
-                img_assets["images"] = imgs_list.float()
-            else:
-                img_assets["images"] = torch.empty(
-                    (
-                        0,
-                        3,
-                        self.patch_h * self.patch_size,
-                        self.patch_w * self.patch_size,
-                    )
-                )
-            img_assets["img_num"] = np.array(
-                [img_assets["images"].shape[0]], dtype=np.int32
-            )
+        radar_path = os.path.join(self.data_root, data["radar_path"])
+        points = RadarPointCloud.from_file(str(radar_path)).points.T
+        coord = points[:, :3]
 
-            correspondence_infos = np.ones(
-                (coord.shape[0], len(cam_correspondences), 2), dtype=np.int32
-            ) * (-1)
-            for id, correspondence_info in enumerate(cam_correspondences):
-                correspondence_info = self.resize_correspondence_info(
-                    correspondence_info,
-                    (self.patch_h * self.patch_size, self.patch_w * self.patch_size),
-                    (img_height, img_width),
-                    (left, top, right, bottom),
-                    self.patch_size,
-                )
-                correspondence_infos[correspondence_info[:, -1], id, :] = (
-                    correspondence_info[:, :-1]
-                )
-            img_assets["correspondence"] = correspondence_infos
-        if "gt_segment_path" in data.keys():
-            gt_segment_path = os.path.join(
-                self.data_root, "raw", data["gt_segment_path"]
-            )
-            segment = np.fromfile(
-                str(gt_segment_path), dtype=np.uint8, count=-1
-            ).reshape([-1])
-            segment = np.vectorize(self.learning_map.__getitem__)(segment).astype(
-                np.int64
-            )
-        else:
-            segment = np.ones((points.shape[0],), dtype=np.int64) * self.ignore_index
+        # 2. Extract raw features
+        raw_doppler = points[:, self.radar_mapping["doppler"]].reshape([-1, 1])
+        raw_rcs = points[:, self.radar_mapping["rcs"]].reshape([-1, 1])
+        
+        # 3. Apply Z-score normalization
+        # A small epsilon (1e-6) is added to the denominator to prevent division by zero
+        doppler = (raw_doppler - self.doppler_mean) / (self.doppler_std + 1e-6)
+        rcs = (raw_rcs - self.rcs_mean) / (self.rcs_std + 1e-6)
 
+        image_path = os.path.join(self.data_root, data.get("cam_front_path", ""))
         color = color.astype(np.float32)
         if self.if_sweep:
             data_dict = dict(
                 coord=coord,
+                doppler=doppler,
+                rcs=rcs,
+                lidar_coord=lidar_coord,
                 color=color,
                 normal=normal,
-                strength=strength,
-                segment=segment,
+                strength=strength, 
+                image_path=image_path,
                 frame_pcd_offset=frame_pcd_offset,
                 name=self.get_data_name(idx),
             )
         else:
             data_dict = dict(
                 coord=coord,
+                doppler=doppler,
+                rcs=rcs,
+                lidar_coord=lidar_coord,
                 color=color,
                 normal=normal,
-                strength=strength,
-                segment=segment,
+                strength=strength,            
+                image_path=image_path,
                 name=self.get_data_name(idx),
             )
-        data_dict.update(img_assets)
+
+        if self.debug:
+            self.plot_debug(data_dict)
         return data_dict
 
-    def get_data_name(self, idx):
-        return self.data_list[idx % len(self.data_list)]["lidar_token"]
+    def plot_debug(self, data_dict, save_dir="./debug_vis"):
+        os.makedirs(save_dir, exist_ok=True)
+        lidar_coord = data_dict["lidar_coord"]
+        color = data_dict["color"].astype(np.uint8)
+        coord_radar = data_dict["coord"]
+        raw_doppler = data_dict["doppler"]
+        
+        # Load image
+        img = cv2.cvtColor(cv2.imread(data_dict["image_path"]), cv2.COLOR_BGR2RGB) / 255    
+        
+        fig, axes = plt.subplots(1, 2, figsize=(20, 10),)
+        
+        # 1. Plot Image
+        axes[0].imshow(img)
+        axes[0].axis('off')
+        
+        # 2. Plot Point Cloud Scatter
+        axes[1].scatter(lidar_coord[:, 0], lidar_coord[:, 1], c=color / 255, s=0.1)
+        axes[1].scatter(coord_radar[:, 0], coord_radar[:, 1], c=raw_doppler, cmap='viridis', s=1)
+        # Ensure 1 unit on x equals 1 unit on y
+        axes[1].set_aspect('equal', adjustable='box')
+        
+        # Set limits to 50m in all directions (assuming 0,0 is center or start)
+        # If your data is centered at 0, use (-50, 50). 
+        # If it starts at 0, use (0, 50). Below assumes a -50 to 50 spread.
+        limit = 50
+        axes[1].set_xlim(-limit, limit)
+        axes[1].set_ylim(-limit, limit)
+        
+        axes[1].axis('off') 
+        
+        save_path = os.path.join(save_dir, f"{data_dict['name']}.png")
+        plt.savefig(save_path, dpi=120, bbox_inches='tight', facecolor=fig.get_facecolor())
+        plt.close()
 
+    def get_data_name(self, idx):
+        try:
+
+            return self.data_list[idx % len(self.data_list)]["radar_token"]
+        except:
+            return self.data_list[idx % len(self.data_list)]["token"]
     @staticmethod
     def get_normals(cam_center, coords):
         Cs = np.repeat(cam_center.reshape((1, -1)), coords.shape[0], axis=0)
@@ -543,41 +567,3 @@ class PercivImagePointDataset(DefaultImagePointDataset):
         normals[flip_mask] = -normals[flip_mask]
         normals = normals / np.linalg.norm(normals, axis=-1, keepdims=True)
         return normals
-
-    @staticmethod
-    def get_learning_map(ignore_index):
-        learning_map = {
-            0: ignore_index,
-            1: ignore_index,
-            2: 6,
-            3: 6,
-            4: 6,
-            5: ignore_index,
-            6: 6,
-            7: ignore_index,
-            8: ignore_index,
-            9: 0,
-            10: ignore_index,
-            11: ignore_index,
-            12: 7,
-            13: ignore_index,
-            14: 1,
-            15: 2,
-            16: 2,
-            17: 3,
-            18: 4,
-            19: ignore_index,
-            20: ignore_index,
-            21: 5,
-            22: 8,
-            23: 9,
-            24: 10,
-            25: 11,
-            26: 12,
-            27: 13,
-            28: 14,
-            29: ignore_index,
-            30: 15,
-            31: ignore_index,
-        }
-        return learning_map

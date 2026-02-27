@@ -12,10 +12,12 @@ import pickle
 from PIL import Image
 import open3d as o3d
 import torch
+from nuscenes.utils.data_classes import RadarPointCloud
 
 from .builder import DATASETS
 from .defaults import DefaultDataset, DefaultImagePointDataset
-
+from matplotlib import pyplot as plt
+import cv2
 os.environ["OMP_NUM_THREADS"] = "1"
 
 
@@ -188,6 +190,7 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
         "CAM_BACK_LEFT",
         "CAM_BACK_RIGHT",
     ],
+        debug = False,
         **kwargs,
     ):
         self.sweeps = sweeps
@@ -199,6 +202,7 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
         self.learning_map = self.get_learning_map(ignore_index)
         self.img_ratio = img_num / (6 * sweeps)
         self.camera_types = camera_types
+        self.debug = debug
         super().__init__(ignore_index=ignore_index, **kwargs)
 
     @staticmethod
@@ -407,12 +411,32 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
         color = np.vstack(cam_colors)
         normal = np.vstack(cam_normals)
         strength = np.vstack(cam_strengths)
+
+        # 1. Create a mask where any color channel (R, G, or B) is NOT zero
+        # np.any(..., axis=1) checks if any value in the row is True
+        mask = np.any(color != 0, axis=1)
+
+        # 2. Apply the mask to all synchronized arrays
+        coord = coord[mask]
+        color = color[mask]
+        normal = normal[mask]
+        strength = strength[mask]
         frame_pcd_offset = np.array(frame_pcd_offset)
 
+        # default assumption is that ref is lidar. So points are now in lidar frame, not reference frame.
         car_from_ref = np.linalg.inv(data["ref_from_car"])
+        lidar_to_ref = data["lidar_to_ref"] if 'lidar_to_ref' in data.keys() else data["ref_from_lidar"]
         coord_homo = np.hstack((coord, np.ones((coord.shape[0], 1))))
-        coord_homo = coord_homo @ car_from_ref.T
+        # coord_homo = coord_homo @ car_from_ref.T #original
+        coord_homo = coord_homo @ lidar_to_ref.T
         coord = coord_homo[:, :3]
+
+        radar_path = os.path.join(self.data_root, data["radar_path"])
+        points = RadarPointCloud.from_file(str(radar_path)).points.T
+
+        if self.debug:
+            coord_radar = points[:, :3]
+            raw_doppler = points[:, 3].reshape([-1, 1])
 
         img_assets = dict()
         if self.if_img:
@@ -471,7 +495,7 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
             )
         else:
             segment = np.ones((points.shape[0],), dtype=np.int64) * self.ignore_index
-
+        image_path = os.path.join(self.data_root, data.get("cam_front_path", ""))
         color = color.astype(np.float32)
         if self.if_sweep:
             data_dict = dict(
@@ -480,6 +504,7 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
                 normal=normal,
                 strength=strength,
                 segment=segment,
+                image_path=image_path,
                 frame_pcd_offset=frame_pcd_offset,
                 name=self.get_data_name(idx),
             )
@@ -490,10 +515,50 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
                 normal=normal,
                 strength=strength,
                 segment=segment,
+                image_path=image_path,
                 name=self.get_data_name(idx),
             )
         data_dict.update(img_assets)
+        if self.debug:
+            data_dict["coord_radar"] = coord_radar
+            data_dict["raw_doppler"] = raw_doppler
+            self.plot_debug(data_dict)
         return data_dict
+
+    def plot_debug(self, data_dict, save_dir="./debug_vis"):
+        os.makedirs(save_dir, exist_ok=True)
+        coord = data_dict["coord"]
+        color = data_dict["color"].astype(np.uint8)
+        coord_radar = data_dict["coord_radar"]
+        raw_doppler = data_dict["raw_doppler"]
+        
+        # Load image
+        img = cv2.cvtColor(cv2.imread(data_dict["image_path"]), cv2.COLOR_BGR2RGB) / 255    
+        
+        fig, axes = plt.subplots(1, 2, figsize=(20, 10),)
+        
+        # 1. Plot Image
+        axes[0].imshow(img)
+        axes[0].axis('off')
+        
+        # 2. Plot Point Cloud Scatter
+        axes[1].scatter(coord[:, 0], coord[:, 1], c=color / 255, s=0.1)
+        axes[1].scatter(coord_radar[:, 0], coord_radar[:, 1], c=raw_doppler, cmap='viridis', s=1)
+        # Ensure 1 unit on x equals 1 unit on y
+        axes[1].set_aspect('equal', adjustable='box')
+        
+        # Set limits to 50m in all directions (assuming 0,0 is center or start)
+        # If your data is centered at 0, use (-50, 50). 
+        # If it starts at 0, use (0, 50). Below assumes a -50 to 50 spread.
+        limit = 50
+        axes[1].set_xlim(-limit, limit)
+        axes[1].set_ylim(-limit, limit)
+        
+        axes[1].axis('off') 
+        
+        save_path = os.path.join(save_dir, f"{data_dict['name']}.png")
+        plt.savefig(save_path, dpi=120, bbox_inches='tight', facecolor=fig.get_facecolor())
+        plt.close()
 
     def get_data_name(self, idx):
         try:

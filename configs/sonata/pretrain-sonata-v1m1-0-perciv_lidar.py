@@ -6,8 +6,8 @@ Dataset: ScanNet v2, ScanNet++, S3DIS, HM3D, ArkitScene, Structured3D
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 8  # bs: total bs in all gpus
-num_worker = 16
+batch_size = 2  # bs: total bs in all gpus
+num_worker = 4
 mix_prob = 0
 clip_grad = 3.0
 empty_cache = False
@@ -111,7 +111,7 @@ scheduler = dict(
 # dataset settings
 # dataset settings
 transform = [
-    dict(type="GridSample", grid_size=0.02, hash_type="fnv", mode="train"),
+    dict(type="GridSample", grid_size=0.1, hash_type="fnv", mode="train"),
     dict(type="Copy", keys_dict={"coord": "origin_coord"}),
     dict(
         type="MultiViewGenerator",
@@ -165,10 +165,10 @@ transform = [
             # dict(type="ChromaticJitter", p=0.95, std=0.05),
             dict(type="NormalizeColor"),
         ],
-        max_size=65536,
+        max_size=10000,
     ),
     dict(type="ToTensor"),
-    dict(type="Update", keys_dict={"grid_size": 0.02}),
+    dict(type="Update", keys_dict={"grid_size": 0.1}),
     dict(
         type="Collect",
         keys=(
@@ -182,6 +182,7 @@ transform = [
             "local_offset",
             "grid_size",
             "name",
+            "image_path",
         ),
         offset_keys_dict=dict(),
         global_feat_keys=("global_coord", "global_color", "global_normal"),
@@ -201,8 +202,10 @@ data = dict(
                 sweeps=1,
                 img_num=1,
                 camera_types=["OAK_CAM_FRONT"],
+                debug = True,
                 transform=transform,
                 test_mode=False,
+                
                 loop=1,
             ),
             dict(
@@ -212,8 +215,10 @@ data = dict(
                 sweeps=1,
                 img_num=1,
                 camera_types=["OAK_CAM_FRONT"],
+                debug = True,
                 transform=transform,
                 test_mode=False,
+                
                 loop=1,
             ),
         ],
