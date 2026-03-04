@@ -33,7 +33,6 @@ from pointcept.utils.scheduler import build_scheduler
 from pointcept.utils.events import EventStorage, ExceptionWriter
 from pointcept.utils.registry import Registry
 
-
 TRAINERS = Registry("trainers")
 AMP_DTYPE = dict(
     float16=torch.float16,

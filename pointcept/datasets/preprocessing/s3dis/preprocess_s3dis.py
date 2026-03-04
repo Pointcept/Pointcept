@@ -105,7 +105,7 @@ def parse_room(
         room_mesh = trimesh.Trimesh(
             vertices=vertices, faces=faces, vertex_normals=vertex_normals
         )
-        (closest_points, distances, face_id) = room_mesh.nearest.on_surface(room_coords)
+        closest_points, distances, face_id = room_mesh.nearest.on_surface(room_coords)
         room_normals = room_mesh.face_normals[face_id]
 
     if align_angle:

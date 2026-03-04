@@ -471,7 +471,7 @@ class InsSegEvaluator(HookBase):
                         y_true_sorted_cumsum = np.cumsum(y_true_sorted)
 
                         # unique thresholds
-                        (thresholds, unique_indices) = np.unique(
+                        thresholds, unique_indices = np.unique(
                             y_score_sorted, return_index=True
                         )
                         num_prec_recall = len(unique_indices) + 1

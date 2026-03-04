@@ -8,7 +8,6 @@ from reader import reader
 from point_cloud_extractor import extractor
 from compute_full_overlapping import compute_full_overlapping
 
-
 frame_skip = 25
 
 
