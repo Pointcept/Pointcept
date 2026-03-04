@@ -6,7 +6,7 @@ Dataset: ScanNet v2, ScanNet++, S3DIS, HM3D, ArkitScene, Structured3D
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 4  # bs: total bs in all gpus
+batch_size = 8  # bs: total bs in all gpus
 num_worker = 8
 mix_prob = 0
 clip_grad = 3.0
@@ -76,7 +76,7 @@ model = dict(
     head_hidden_channels=4096,
     head_embed_channels=256,
     head_num_prototypes=4096,
-    num_global_view=2,
+    num_global_view=1,
     num_local_view=4,
     mask_size_start=0.025, #modified for radar
     mask_size_base=0.1, #modified for radar
@@ -89,13 +89,13 @@ model = dict(
     teacher_temp_base=0.07,
     teacher_temp_warmup_ratio=0.05,
     student_temp=0.1,
-    mask_loss_weight=4 / 8,
+    mask_loss_weight=8 / 8,
     roll_mask_loss_weight=0 / 8,
-    unmask_loss_weight=4 / 8,
+    unmask_loss_weight=0 / 8,
     momentum_base=0.994,
     momentum_final=1,
     match_max_k=8,
-    match_max_r=0.5,
+    match_max_r=0.32,
     up_cast_level=2,
     teacher_pretrained_path=weight,
 )
@@ -103,7 +103,7 @@ model = dict(
 # scheduler settings
 epoch = 20
 eval_epoch = 20
-base_lr = 0.004
+base_lr = 0.008
 lr_decay = 0.9  # layer-wise lr decay
 
 base_wd = 0.04  # wd scheduler enable in hooks
@@ -140,9 +140,9 @@ transform = [
     dict(
         type="MultiViewGenerator",
         view_keys=("coord", "origin_coord", "doppler", "rcs"),
-        global_view_num=2,
+        global_view_num=1,
         global_view_scale=(0.4, 1.0),
-        local_view_num=4,
+        local_view_num=1,
         local_view_scale=(0.1, 0.4),
         global_shared_transform=[
         #     dict(
@@ -261,7 +261,7 @@ data = dict(
                 sweeps=1,
                 img_num=1,
                 camera_types=["OAK_CAM_FRONT"],
-                debug = True,
+                debug = False,
                 transform=transform,
                 test_mode=False,
                 loop=1,
@@ -275,7 +275,7 @@ data = dict(
                 sweeps=1,
                 img_num=1,
                 camera_types=["OAK_CAM_FRONT"],
-                debug = True,
+                debug = False,
                 transform=transform,
                 test_mode=False,
                 loop=1,

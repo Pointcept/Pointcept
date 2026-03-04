@@ -68,7 +68,7 @@ class OnlineCluster(nn.Module):
         return similarity
 
 
-@MODELS.register_module("Sonata-v1m1-temp")
+@MODELS.register_module("Sonata-v1m2-temp")
 class Sonata(PointModel):
     def __init__(
         self,
@@ -80,7 +80,7 @@ class Sonata(PointModel):
         teacher_custom=None,
         num_global_view=2,
         num_local_view=4,
-        mask_sweep_start=1,
+        mask_sweep_start=0,
         mask_sweep_base=3,
         mask_sweep_warmup_ratio=0.05,
         teacher_temp_start=0.04,
@@ -90,7 +90,7 @@ class Sonata(PointModel):
         mask_loss_weight=2 / 8,
         roll_mask_loss_weight=2 / 8,
         unmask_loss_weight=4 / 8,
-        momentum_base=0.996,
+        momentum_base=0.999,
         momentum_final=1,
         match_max_k=8,
         match_max_r=0.08,
@@ -161,9 +161,12 @@ class Sonata(PointModel):
         )
         if self.mask_loss_weight > 0 or self.roll_mask_loss_weight > 0:
             student_model_dict["mask_head"] = head()
+            # teacher share only one head and EMA update by student.mask_head (global)
             teacher_model_dict["mask_head"] = head()
+
         if self.unmask_loss_weight > 0:
             student_model_dict["unmask_head"] = head()
+            # dummy head for EMA update implementation
             teacher_model_dict["unmask_head"] = head()
 
         self.student = nn.ModuleDict(student_model_dict)
@@ -399,13 +402,15 @@ class Sonata(PointModel):
             # teacher backbone forward (shared with mask and unmask)
             global_point_ = self.teacher.backbone(global_point)
             global_point_ = self.up_cast(global_point_)
-
-            global_feat = global_point_.feat
+            # teacher head forward
+            # only use one shared head for both mask and unmask
+            # priority: mask (global) > unmask (local)
+            if self.mask_loss_weight > 0 or self.roll_mask_loss_weight > 0:
+                global_point_.feat = self.teacher.mask_head(global_point_.feat)
+            else:
+                global_point_.feat = self.teacher.unmask_head(global_point_.feat)
 
         if self.mask_loss_weight > 0 or self.roll_mask_loss_weight > 0:
-            # teacher head forward
-            with torch.no_grad():
-                global_point_.feat = self.teacher.mask_head(global_feat)
             # student forward
             mask_global_point_ = self.student.backbone(mask_global_point)
             mask_global_point_ = self.up_cast(mask_global_point_)
@@ -485,9 +490,6 @@ class Sonata(PointModel):
                 result_dict["roll_mask_loss"] = roll_mask_loss
                 result_dict["loss"].append(roll_mask_loss * self.roll_mask_loss_weight)
         if self.unmask_loss_weight > 0:
-            # teacher head forward
-            with torch.no_grad():
-                global_point_.feat = self.teacher.unmask_head(global_feat)
             # student forward
             local_point_ = self.student.backbone(local_point)
             local_point_ = self.up_cast(local_point_)

@@ -70,25 +70,77 @@ class PCAVisualizationHook(HookBase):
                 del self.trainer.comm_info.get("input_dict")["visualize"]
 
     @torch.no_grad()
+    def project_points_to_image(
+        self,
+        point_coords,  # (N, 3)
+        image,         # (H, W, 3)
+        cam_intrinsic, 
+        points_to_cam, 
+        point_colors,  # (N, 3)
+    ):
+        # 1. Type and Device Safety
+        def to_f32_np(x):
+            if torch.is_tensor(x):
+                return x.detach().cpu().numpy().astype(np.float32)
+            return np.array(x).astype(np.float32)
+
+        point_coords = to_f32_np(point_coords)
+        cam_intrinsic = to_f32_np(cam_intrinsic)
+        points_to_cam = to_f32_np(points_to_cam)
+        point_colors = to_f32_np(point_colors)
+
+        # 2. Transform to Camera Frame
+        ones = np.ones((point_coords.shape[0], 1), dtype=np.float32)
+        points_hom = np.concatenate([point_coords, ones], axis=1)
+        points_cam = (points_to_cam @ points_hom.T).T  # (N, 4)
+
+        # 3. Filter: Keep only points in front of camera
+        z_mask = points_cam[:, 2] > 0.1
+        pts_cam_fwd = points_cam[z_mask]
+        colors_fwd = point_colors[z_mask]
+
+        # 4. Project to 2D
+        pts_2d = (cam_intrinsic @ pts_cam_fwd[:, :3].T).T
+        u_v = pts_2d[:, :2] / pts_2d[:, 2:3]
+
+        # 5. Filter: Keep only points inside image boundaries
+        H, W = image.shape[:2]
+        in_view_mask = (u_v[:, 0] >= 0) & (u_v[:, 0] < W) & \
+                       (u_v[:, 1] >= 0) & (u_v[:, 1] < H)
+        
+        final_uv = u_v[in_view_mask]
+        final_colors = colors_fwd[in_view_mask]
+        final_depths = pts_cam_fwd[in_view_mask, 2]
+
+        # --- Depth-Based Size Calculation ---
+        # Strategy: Size = Base_Size / Depth. 
+        # We clip it to prevent points extremely close to the lens from covering the whole screen.
+        base_size = 300.0  # Adjust this to change overall point "heaviness"
+        sizes = np.clip(base_size / (final_depths + 1e-5), 2, 80)
+
+        # 6. Depth Sorting (Closer points on top)
+        sort_idx = np.argsort(-final_depths)
+        
+        return final_uv[sort_idx], final_colors[sort_idx], sizes[sort_idx]
+    
+    @torch.no_grad()
     def _plot_debug_frame(self, curr_iter, output_dict):
-        # 1. Extraction: Get Student and Teacher data
-        # Use .float() to convert BFloat16 to Float32 before calling .cpu().numpy()
+        # 1. Extraction
         s_feat = output_dict["student_feat"].float().cpu().numpy()
         s_coord = output_dict["student_feat_coord"].float().cpu().numpy()
         t_feat = output_dict["teacher_feat"].float().cpu().numpy()
         t_coord = output_dict["teacher_feat_coord"].float().cpu().numpy()
     
-        input_dict = self.trainer.comm_info.get("input_dict")       
+        input_dict = self.trainer.comm_info.get("input_dict")
+        cam_info = input_dict.get("cam_info", {})
         num_clusters = 8
 
         # --- Feature Processing Function ---
         def process_features(feat):
-            # PCA Projection
             pca = PCA(n_components=3)
             rgb = pca.fit_transform(feat)
             rgb = (rgb - rgb.min(0)) / (rgb.max(0) - rgb.min(0) + 1e-8)
             
-            # K-Means
             kmeans = KMeans(n_clusters=num_clusters, n_init='auto', random_state=42)
             clusters = kmeans.fit_predict(feat)
             return rgb, clusters
@@ -96,35 +148,44 @@ class PCAVisualizationHook(HookBase):
         s_rgb, s_clusters = process_features(s_feat)
         t_rgb, t_clusters = process_features(t_feat)
 
-        # 2. Image Context
-        img_paths = input_dict.get("image_path", [])
+        # 2. Image and Projection Setup
+        img_path = cam_info.get("image_path", [None])[0]
         img = None
-        if len(img_paths) > 0 and os.path.exists(img_paths[0]):
-            img = cv2.cvtColor(cv2.imread(img_paths[0]), cv2.COLOR_BGR2RGB)
+        if img_path and os.path.exists(img_path):
+            img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
+            
+        # Get projection matrices of first batch item
+        intrinsic = cam_info.get("cam_intrinsic")[:3,:3]
+        ref2cam = cam_info.get("ref2cam")[:4,:4]
 
-        # 3. Create 2x3 Grid (Row 0: Student | Row 1: Teacher)
-        # Col 0: Camera | Col 1: PCA | Col 2: K-Means
+        # 3. Create 2x3 Grid (Col 0: Projected PCA | Col 1: BEV PCA | Col 2: BEV K-Means)
         fig, axes = plt.subplots(2, 3, figsize=(30, 18), facecolor='black')
         
-        # --- Helper for plotting columns ---
         def plot_row(row_idx, coord, rgb, clusters, label_prefix):
-            # Column 0: Camera (Plot on both rows for alignment or leave bottom empty)
-            if img is not None:
+            # --- Column 0: Camera Overlay ---
+            if img is not None and intrinsic is not None:
                 axes[row_idx, 0].imshow(img)
-                axes[row_idx, 0].set_title(f"{label_prefix} Camera Ref", color='white', fontsize=15)
+                
+                # We now pass the colors in directly to get sorted, filtered pairs back
+                uv, colors, sizes = self.project_points_to_image(
+                    coord, img, intrinsic, ref2cam, rgb
+                )
+                
+                if len(uv) > 0:
+                    axes[row_idx, 0].scatter(
+                        uv[:, 0], uv[:, 1], 
+                        c=colors, s=sizes, alpha=0.8, edgecolors='none'
+                    )
+                axes[row_idx, 0].set_title(f"{label_prefix} Image Projection", color='white')
             axes[row_idx, 0].axis('off')
 
-            # Column 1: PCA BEV
-            axes[row_idx, 1].scatter(-coord[:, 1], coord[:, 0], c=rgb, s=8, alpha=0.8)
-            self._format_bev_ax(axes[row_idx, 1], curr_iter, f"{label_prefix} PCA (RGB)")
-
-            # Column 2: K-Means BEV
+            # --- Column 1: BEV ---
+            axes[row_idx, 1].scatter(-coord[:, 1], coord[:, 0], c=rgb, s=10, alpha=0.8)
+            self._format_bev_ax(axes[row_idx, 1], curr_iter, f"{label_prefix} PCA BEV")
+            # --- Column 2: K-Means BEV ---
             axes[row_idx, 2].scatter(-coord[:, 1], coord[:, 0], c=clusters, s=8, cmap='tab10', alpha=0.8)
             self._format_bev_ax(axes[row_idx, 2], curr_iter, f"{label_prefix} K-Means (K={num_clusters})")
-
-        # Plot Student Row
-        plot_row(0, s_coord, s_rgb, s_clusters, "STUDENT")
-        # Plot Teacher Row
+        plot_row(0, s_coord, s_rgb,s_clusters, "STUDENT")
         plot_row(1, t_coord, t_rgb, t_clusters, "TEACHER")
 
         # 4. Save and Report

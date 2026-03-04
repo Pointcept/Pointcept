@@ -99,14 +99,12 @@ class PercivDataset(DefaultDataset):
 
 @DATASETS.register_module()
 class PercivMultisweepDataset(PercivDataset):
-    def __init__(self, radar_mapping, norm_params, sweeps=5, max_sweeps=10, ignore_index=-1, add_time_diff_dim='index', **kwargs):
+    def __init__(self, radar_mapping, norm_params, sweeps=5, max_sweeps=10, ignore_index=-1, add_time_diff_dim='index', cam_chan='OAK_CAM_FRONT', **kwargs):
         super().__init__(radar_mapping=radar_mapping, norm_params=norm_params, ignore_index=ignore_index, **kwargs)        
         self.add_time_diff_dim = add_time_diff_dim
         self.sweeps = sweeps
         self.max_sweeps = max_sweeps
-
-
-
+        self.cam_chan = cam_chan
     def get_data(self, idx):
         data = self.data_list[idx % len(self.data_list)]
         sweeps = data['sweeps']
@@ -149,14 +147,28 @@ class PercivMultisweepDataset(PercivDataset):
         doppler = (raw_doppler - self.doppler_mean) / (self.doppler_std + 1e-6)
         rcs = (raw_rcs - self.rcs_mean) / (self.rcs_std + 1e-6)
         
+        # some camera infos for debug and visualization
+        cam_info = {}
         image_path = os.path.join(self.data_root, data.get("cam_front_path", ""))
-        
+        lidar_to_ref = data["lidar_to_ref"] if 'lidar_to_ref' in data.keys() else data["ref_to_lidar"] #legacy wrong naming
+        ref_to_lidar = np.linalg.inv(lidar_to_ref)
+        cam_info = data["cams"][self.cam_chan]
+        cam_intrinsic = cam_info["camera_intrinsics"]
+        cam2lidar = np.eye(4)
+        cam2lidar[:3, :3] = cam_info["sensor2lidar_rotation"]
+        cam2lidar[:3, 3] = cam_info["sensor2lidar_translation"]
+        lidar2cam = np.linalg.inv(cam2lidar)
+        ref2cam = lidar2cam @ ref_to_lidar
+        cam_info = dict(            
+            image_path=image_path,
+            ref2cam=ref2cam,
+            cam_intrinsic=cam_intrinsic,)
         data_dict = dict(
             coord=coord,
             doppler=doppler,
             rcs=rcs,
             time =time,
-            image_path=image_path,
+            cam_info=cam_info,
             name=self.get_data_name(idx),
         )
         return data_dict

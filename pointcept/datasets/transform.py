@@ -1083,7 +1083,145 @@ class ContrastiveViewsGenerator(object):
         for key, value in view2_dict.items():
             data_dict["view2_" + key] = value
         return data_dict
+    
+@TRANSFORMS.register_module()
+class RadarMultiViewGenerator(object):
+    def __init__(
+        self,
+        global_view_num=2,
+        global_view_scale=(0.6, 1.0), 
+        local_view_num=4,
+        local_view_scale=(0.2, 0.4),  
+        fov_range=(-90, 90),          # Configurable FOV in degrees
+        global_shared_transform=None,
+        global_transform=None,
+        local_transform=None,
+        max_size=65536,
+        view_keys=("coord", "origin_coord", "doppler", "rcs", "time"),
+        static_view_keys=("name", "img_num"),
+    ):
+        self.global_view_num = global_view_num
+        self.global_view_scale = global_view_scale
+        self.local_view_num = local_view_num
+        self.local_view_scale = local_view_scale
+        self.fov_range = fov_range
+        
+        self.global_shared_transform = Compose(global_shared_transform)
+        self.global_transform = Compose(global_transform)
+        self.local_transform = Compose(local_transform)
+        
+        self.max_size = max_size
+        self.view_keys = view_keys
+        self.static_view_keys = static_view_keys
 
+    def get_view(self, point, azimuth_center, angular_width):
+        """
+        Samples an angular section starting from (0,0,0).
+        """
+        coord = point["coord"]
+        # 1. Calculate azimuth for all points (in degrees)
+        # Use y, x to get 0 degrees at the front (x-axis)
+        azimuths = np.degrees(np.arctan2(coord[:, 1], coord[:, 0]))
+        
+        # 2. Define the angular bounds
+        half_width = angular_width / 2.0
+        lower_bound = azimuth_center - half_width
+        upper_bound = azimuth_center + half_width
+        
+        # 3. Create the angular mask
+        # Handles wrapping if necessary, though (-90, 90) won't wrap
+        mask = (azimuths >= lower_bound) & (azimuths <= upper_bound)
+        index = np.where(mask)
+
+        # 4. Cap point count to prevent OOM/instability
+        if len(index) > self.max_size:
+            index = np.random.choice(index, self.max_size, replace=False)
+        
+        view = dict(index=index)
+        for key in point.keys():
+            if key in self.view_keys:
+                view[key] = point[key][index]
+            if key in self.static_view_keys:
+                view[key] = point[key]
+        
+        if "index_valid_keys" in point.keys():
+            view["index_valid_keys"] = point["index_valid_keys"]
+        return view
+
+    def __call__(self, data_dict):
+        point = self.global_shared_transform(copy.deepcopy(data_dict))
+        total_fov = self.fov_range[1] - self.fov_range[0]
+
+        # Generate Global Views
+        global_views = []
+        # Track the bounds of the first global view for local view generation
+        major_min, major_max = None, None 
+
+        for i in range(self.global_view_num):
+            scale = np.random.uniform(*self.global_view_scale)
+            angular_width = total_fov * scale
+            
+            margin = angular_width / 2
+            az_center = np.random.uniform(self.fov_range[0] + margin, self.fov_range[1] - margin)
+            
+            # Capture the boundaries of the first global view
+            if i == 0:
+                major_min = az_center - margin
+                major_max = az_center + margin
+
+            global_views.append(self.get_view(point, az_center, angular_width))
+
+        # Generate Local Views (restricted within the FIRST global view boundaries)
+        local_views = []
+        for _ in range(self.local_view_num):
+            l_scale = np.random.uniform(*self.local_view_scale)
+            l_width = total_fov * l_scale
+            l_margin = l_width / 2
+            
+            # Ensure the local view stays within the major_min and major_max
+            # The center can be anywhere as long as [center-margin, center+margin] 
+            # is inside [major_min, major_max]
+            l_center = np.random.uniform(major_min + l_margin, major_max - l_margin)
+            
+            local_views.append(self.get_view(point, l_center, l_width))
+
+        # --- Concatenation and Augmentation logic remains the same ---
+        # Augmentation and concatenation
+        view_dict = {}
+        for global_view in global_views:
+            global_view.pop("index")
+            global_view = self.global_transform(global_view)
+            for key in self.view_keys:
+                if f"global_{key}" in view_dict.keys():
+                    view_dict[f"global_{key}"].append(global_view[key])
+                else:
+                    view_dict[f"global_{key}"] = [global_view[key]]
+        view_dict["global_offset"] = np.cumsum(
+            [data.shape[0] for data in view_dict["global_coord"]]
+        )
+        for local_view in local_views:
+            local_view.pop("index")
+            local_view = self.local_transform(local_view)
+            for key in self.view_keys:
+                if f"local_{key}" in view_dict.keys():
+                    view_dict[f"local_{key}"].append(local_view[key])
+                else:
+                    view_dict[f"local_{key}"] = [local_view[key]]
+        view_dict["local_offset"] = np.cumsum(
+            [data.shape[0] for data in view_dict["local_coord"]]
+        )
+
+        # Merge views back into data_dict
+        for key in view_dict.keys():
+            if "offset" not in key:
+                if key in self.static_view_keys:
+                    view_dict[key] = view_dict[key]
+                else:
+                    view_dict[key] = np.concatenate(view_dict[key], axis=0)
+                    
+        data_dict.update(view_dict)
+        return data_dict
+    
 @TRANSFORMS.register_module()
 class MultiTemporalViewGenerator(object):
     def __init__(

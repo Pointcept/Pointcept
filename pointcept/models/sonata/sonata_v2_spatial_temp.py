@@ -1,7 +1,7 @@
 """
-Sonata V1m3 Distill
+Sonata v1m1 Base
 
-Author: Yujia Zhang (yujia.zhang.cs@gmail.com)
+Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
@@ -68,26 +68,30 @@ class OnlineCluster(nn.Module):
         return similarity
 
 
-@MODELS.register_module("Sonata-v1m3")
+@MODELS.register_module("Sonata-v2-spatial-temp")
 class Sonata(PointModel):
     def __init__(
         self,
-        backbone_s,
-        backbone_t,
-        head_in_channels_s,
-        head_in_channels_t,
+        backbone,
+        head_in_channels,
         head_hidden_channels=4096,
         head_embed_channels=512,
         head_num_prototypes=4096,
         teacher_custom=None,
         num_global_view=2,
         num_local_view=4,
+        # Original Spatial Parameters
+        spatial_mask=True,
         mask_size_start=0.1,
         mask_size_base=0.4,
         mask_size_warmup_ratio=0.05,
         mask_ratio_start=0.3,
         mask_ratio_base=0.7,
         mask_ratio_warmup_ratio=0.05,
+        # New Temporal Parameters
+        mask_sweep_start=0,          # Start masking only time=0
+        mask_sweep_base=3,           # Progress to masking time 0, 1, 2, 3
+        mask_sweep_warmup_ratio=0.1, # Softened ramp to prevent 120k crash
         mask_jitter=None,
         teacher_temp_start=0.04,
         teacher_temp_base=0.07,
@@ -101,7 +105,6 @@ class Sonata(PointModel):
         match_max_k=8,
         match_max_r=0.08,
         up_cast_level=2,
-        teacher_pretrained_path=None,
     ):
         super(Sonata, self).__init__()
         self.mask_loss_weight = mask_loss_weight
@@ -111,7 +114,8 @@ class Sonata(PointModel):
         self.num_global_view = num_global_view
         self.num_local_view = num_local_view
 
-        # masking and scheduler
+        # Schedulers
+        self.spatial_mask = spatial_mask
         self.mask_size = mask_size_start
         self.mask_size_start = mask_size_start
         self.mask_size_base = mask_size_base
@@ -124,9 +128,15 @@ class Sonata(PointModel):
         self.mask_ratio_warmup_ratio = mask_ratio_warmup_ratio
         self.mask_ratio_scheduler = None
 
+        self.mask_sweep = mask_sweep_start
+        self.mask_sweep_start = mask_sweep_start
+        self.mask_sweep_base = mask_sweep_base
+        self.mask_sweep_warmup_ratio = mask_sweep_warmup_ratio
+        self.mask_sweep_scheduler = None
+
         self.mask_jitter = mask_jitter
 
-        # temperature and scheduler
+        # Temperatures
         self.teacher_temp = teacher_temp_start
         self.teacher_temp_start = teacher_temp_start
         self.teacher_temp_base = teacher_temp_base
@@ -134,103 +144,54 @@ class Sonata(PointModel):
         self.teacher_temp_scheduler = None
         self.student_temp = student_temp
 
-        # momentum and scheduler
+        # Momentum
         self.momentum = momentum_base
         self.momentum_base = momentum_base
         self.momentum_final = momentum_final
         self.momentum_scheduler = None
 
-        # dynamic matching
+        # Dynamic matching
         self.match_max_k = match_max_k
         self.match_max_r = match_max_r
-
-        # up cast level
         self.up_cast_level = up_cast_level
 
-        # one of unmask, mask, roll mask loss enable
-        assert unmask_loss_weight + mask_loss_weight + roll_mask_loss_weight > 0
-        # roll mask loss need more than one global view
-        assert num_global_view > 1 or roll_mask_loss_weight == 0
-        # current roll mask only support two global views
-        assert num_global_view == 1 or num_global_view == 2
-
+        # Model Dicts
         student_model_dict = dict()
         teacher_model_dict = dict()
         if teacher_custom is None:
             teacher_custom = {}
-        student_backbone = build_model(backbone_s)
-        # turn off parameters like drop path for teacher model
-        backbone_t.update(teacher_custom)
-
-        teacher_backbone = build_model(backbone_t)
+        student_backbone = build_model(backbone)
+        backbone.update(teacher_custom)
+        teacher_backbone = build_model(backbone)
         student_model_dict["backbone"] = student_backbone
         teacher_model_dict["backbone"] = teacher_backbone
 
-        head_t = partial(
+        head = partial(
             OnlineCluster,
-            in_channels=head_in_channels_t,
-            hidden_channels=head_hidden_channels,
-            embed_channels=head_embed_channels,
-            num_prototypes=head_num_prototypes,
-        )
-        head_s = partial(
-            OnlineCluster,
-            in_channels=head_in_channels_s,
+            in_channels=head_in_channels,
             hidden_channels=head_hidden_channels,
             embed_channels=head_embed_channels,
             num_prototypes=head_num_prototypes,
         )
         if self.mask_loss_weight > 0 or self.roll_mask_loss_weight > 0:
-            student_model_dict["mask_head"] = head_s()
-            teacher_model_dict["mask_head"] = head_t()
+            student_model_dict["mask_head"] = head()
+            teacher_model_dict["mask_head"] = head()
         if self.unmask_loss_weight > 0:
-            student_model_dict["unmask_head"] = head_s()
-            teacher_model_dict["unmask_head"] = head_t()
+            student_model_dict["unmask_head"] = head()
+            teacher_model_dict["unmask_head"] = head()
 
         self.student = nn.ModuleDict(student_model_dict)
         self.teacher = nn.ModuleDict(teacher_model_dict)
-        self.teacher = self.load_sonata(self.teacher, path=teacher_pretrained_path)
+        for k, v in self.student.items():
+            self.teacher[k].load_state_dict(self.student[k].state_dict())
         for p in self.teacher.parameters():
             p.requires_grad = False
 
-    def load_sonata(
-        self,
-        model,
-        path="./ckpt/sonata.pth",
-        if_loadhead=True,
-    ):
-        checkpoint = torch.load(path, map_location=lambda storage, loc: storage.cuda(), weights_only=False,)
-        name_test = [n for n, p in model.named_parameters()]
-        weight = {}
-        whether_weight = False
-        if "state_dict" in checkpoint.keys():
-            checkpoint = checkpoint["state_dict"]
-            for key, value in checkpoint.items():
-                if if_loadhead:
-                    if "module.student." in key:
-                        whether_weight = True
-                        key = key.replace("module.student.", "module.")
-                        key = key[7:]  # module.xxx.xxx -> xxx.xxx
-                        weight[key] = value
-                else:
-                    if "module.student.backbone." in key:
-                        whether_weight = True
-                        key = key.replace("module.student.backbone.", "module.")
-                        key = key[7:]  # module.xxx.xxx -> xxx.xxx
-                        weight[key] = value
-        if whether_weight:
-            load_state_info = model.load_state_dict(weight, strict=False)
-        else:
-            load_state_info = model.load_state_dict(checkpoint)
-        print(f"Missing keys: {load_state_info[0]}")
-        print(f"Unexpected keys: {load_state_info[1]}")
-        return model
-
     def before_train(self):
-        # make ModelHook after CheckPointLoader
         total_steps = self.trainer.cfg.scheduler.total_steps
         curr_step = self.trainer.start_epoch * len(self.trainer.train_loader)
-        # mask size scheduler
+        
+        # Spatial Patch Size
         self.mask_size_scheduler = CosineScheduler(
             start_value=self.mask_size_start,
             base_value=self.mask_size_base,
@@ -240,7 +201,7 @@ class Sonata(PointModel):
         )
         self.mask_size_scheduler.iter = curr_step
 
-        # mask ratio scheduler
+        # Spatial Mask Ratio
         self.mask_ratio_scheduler = CosineScheduler(
             start_value=self.mask_ratio_start,
             base_value=self.mask_ratio_base,
@@ -250,7 +211,17 @@ class Sonata(PointModel):
         )
         self.mask_ratio_scheduler.iter = curr_step
 
-        # teacher temperature scheduler
+        # NEW: Temporal Sweep Threshold
+        self.mask_sweep_scheduler = CosineScheduler(
+            start_value=self.mask_sweep_start,
+            base_value=self.mask_sweep_base,
+            final_value=self.mask_sweep_base,
+            warmup_iters=int(total_steps * self.mask_sweep_warmup_ratio),
+            total_iters=total_steps,
+        )
+        self.mask_sweep_scheduler.iter = curr_step
+
+        # Teacher Temperature
         self.teacher_temp_scheduler = CosineScheduler(
             start_value=self.teacher_temp_start,
             base_value=self.teacher_temp_base,
@@ -260,7 +231,7 @@ class Sonata(PointModel):
         )
         self.teacher_temp_scheduler.iter = curr_step
 
-        # momentum scheduler
+        # Momentum
         self.momentum_scheduler = CosineScheduler(
             base_value=self.momentum_base,
             final_value=self.momentum_final,
@@ -269,36 +240,26 @@ class Sonata(PointModel):
         self.momentum_scheduler.iter = curr_step
 
     def before_step(self):
-        # update parameters from schedulers
         self.mask_size = self.mask_size_scheduler.step()
         self.mask_ratio = self.mask_ratio_scheduler.step()
+        self.mask_sweep = self.mask_sweep_scheduler.step()
         self.teacher_temp = self.teacher_temp_scheduler.step()
         self.momentum = self.momentum_scheduler.step()
 
         if self.trainer.writer is not None:
-            self.trainer.writer.add_scalar(
-                "params/mask_size",
-                self.mask_size,
-                self.mask_size_scheduler.iter,
-            )
-            self.trainer.writer.add_scalar(
-                "params/mask_ratio",
-                self.mask_ratio,
-                self.mask_ratio_scheduler.iter,
-            )
-            self.trainer.writer.add_scalar(
-                "params/teacher_temp",
-                self.teacher_temp,
-                self.teacher_temp_scheduler.iter,
-            )
-            self.trainer.writer.add_scalar(
-                "params/momentum",
-                self.momentum,
-                self.momentum_scheduler.iter,
-            )
+            it = self.mask_ratio_scheduler.iter
+            self.trainer.writer.add_scalar("params/mask_sweep", self.mask_sweep, it)
+            self.trainer.writer.add_scalar("params/mask_ratio", self.mask_ratio, it)
+            self.trainer.writer.add_scalar("params/teacher_temp", self.teacher_temp, it)
 
     def after_step(self):
-        pass
+        # EMA update teacher
+        with torch.no_grad():
+            m = self.momentum
+            student_param_list = list(self.student.parameters())
+            teacher_param_list = list(self.teacher.parameters())
+            torch._foreach_mul_(teacher_param_list, m)
+            torch._foreach_add_(teacher_param_list, student_param_list, alpha=1 - m)
 
     @staticmethod
     def sinkhorn_knopp(feat, temp, num_iter=3):
@@ -326,24 +287,39 @@ class Sonata(PointModel):
         q *= n  # the columns must sum to 1 so that Q is an assignment
         return q.t()
 
-    def generate_mask(self, coord, offset):
+    def generate_mask(self, coord, time, offset):
+        """
+        HYBRID MASK: Temporal Threshold + Spatial Patching
+        """
         batch = offset2batch(offset)
         mask_size = self.mask_size
         mask_ratio = self.mask_ratio
+        mask_sweep_thresh = int(self.mask_sweep)
 
-        # Grouping points with grid patch
-        min_coord = torch_scatter.segment_coo(coord, batch, reduce="min")
-        grid_coord = ((coord - min_coord[batch]) // mask_size).int()
-        grid_coord = torch.cat([batch.unsqueeze(-1), grid_coord], dim=-1)
-        unique, point_cluster, counts = torch.unique(
-            grid_coord, dim=0, sorted=True, return_inverse=True, return_counts=True
-        )
-        patch_num = unique.shape[0]
-        mask_patch_num = int(patch_num * mask_ratio)
-        patch_index = torch.randperm(patch_num, device=coord.device)
-        mask_patch_index = patch_index[:mask_patch_num]
-        point_mask = torch.isin(point_cluster, mask_patch_index)
-        return point_mask, point_cluster
+        # 1. Temporal Mask (E.g. mask current/recent frames 0, 1, 2)
+        # Assuming time=0 is newest, time=N is oldest.
+        point_time = time.squeeze().long()
+        temporal_mask = (point_time <= mask_sweep_thresh)
+
+        if self.spatial_mask:
+            # 2. Spatial Grid Mask
+            min_coord = torch_scatter.segment_coo(coord, batch, reduce="min")
+            grid_coord = ((coord - min_coord[batch]) // mask_size).int()
+            grid_coord = torch.cat([batch.unsqueeze(-1), grid_coord], dim=-1)
+            unique, point_cluster = torch.unique(grid_coord, dim=0, sorted=True, return_inverse=True)
+            
+            patch_num = unique.shape
+            mask_patch_num = int(patch_num * mask_ratio)
+            patch_index = torch.randperm(patch_num, device=coord.device)
+            mask_patch_index = patch_index[:mask_patch_num]
+            spatial_mask = torch.isin(point_cluster, mask_patch_index)
+            
+            # 3. Combine: Point is masked if its sweep is masked OR its spatial patch is masked
+            final_mask = temporal_mask | spatial_mask
+        else:
+            final_mask = temporal_mask
+            point_cluster = None
+        return final_mask, point_cluster
 
     @torch.no_grad()
     def match_neighbour(
@@ -407,24 +383,17 @@ class Sonata(PointModel):
         should_visualize = data_dict.get("visualize", False)
         # prepare global_point, mask_global_point, local_point
         with torch.no_grad():
-            # global_point & masking
-            lidar_point = Point(
-                feat=data_dict["lidar_feat"],
-                coord=data_dict["lidar_coord"],
-                origin_coord=data_dict["lidar_coord"].clone(),
-                offset=data_dict["lidar_offset"],
-                grid_size=data_dict["lidar_grid_size"][0],
-            )
             global_point = Point(
                 feat=data_dict["global_feat"],
                 coord=data_dict["global_coord"],
+                time=data_dict["global_time"],
                 origin_coord=data_dict["global_origin_coord"],
                 offset=data_dict["global_offset"],
                 grid_size=data_dict["grid_size"][0],
             )
-            global_mask, global_cluster = self.generate_mask(
-                global_point.coord, global_point.offset
-            )
+            # Pass time to hybrid generator
+            global_mask, _ = self.generate_mask(global_point.coord, global_point.time, global_point.offset)
+
             mask_global_coord = global_point.coord.clone().detach()
             if self.mask_jitter is not None:
                 mask_global_coord[global_mask] += torch.clip(
@@ -455,8 +424,11 @@ class Sonata(PointModel):
             # create result dictionary for return
             result_dict = dict(loss=[])
             # teacher backbone forward (shared with mask and unmask)
-            global_point_ = self.teacher.backbone(lidar_point)
+            global_point_ = self.teacher.backbone(global_point)
             global_point_ = self.up_cast(global_point_)
+            # teacher head forward
+            # only use one shared head for both mask and unmask
+            # priority: mask (global) > unmask (local)
             if self.mask_loss_weight > 0 or self.roll_mask_loss_weight > 0:
                 global_point_.feat = self.teacher.mask_head(global_point_.feat)
             else:
@@ -469,14 +441,16 @@ class Sonata(PointModel):
             if should_visualize:
                 # We only care about the first cloud in the batch (batch index 0)
                 # mask_global_point_.batch is a tensor of shape [N] containing batch indices
-                first_batch_teacher_mask = (global_point_.batch == 0)
-                first_batch__student_mask = (mask_global_point_.batch == 0)
+                first_batch_mask = (mask_global_point_.batch == 0)
+                
                 # Slice the tensors to only include the first cloud
-                result_dict["student_feat"] = mask_global_point_.feat[first_batch__student_mask].detach()
-                result_dict["student_feat_coord"] = mask_global_point_.origin_coord[first_batch__student_mask].detach()
+                result_dict["student_feat"] = mask_global_point_.feat[first_batch_mask].detach()
+                result_dict["student_feat_coord"] = mask_global_point_.origin_coord[first_batch_mask].detach()
 
-                result_dict["teacher_feat"] = global_point_.feat[first_batch_teacher_mask].detach()
-                result_dict["teacher_feat_coord"] = global_point_.origin_coord[first_batch_teacher_mask].detach()
+                # Slice the tensors to only include the first cloud
+                first_batch_mask = (global_point_.batch == 0)
+                result_dict["teacher_feat"] = global_point_.feat[first_batch_mask].detach()
+                result_dict["teacher_feat_coord"] = global_point_.origin_coord[first_batch_mask].detach()
             mask_pred_sim = self.student.mask_head(mask_global_point_.feat)
 
             if self.mask_loss_weight > 0:
@@ -506,7 +480,6 @@ class Sonata(PointModel):
                     index=mask_global_point_.batch[match_index[:, 0]],
                     reduce="mean",
                 ).mean()
-                result_dict["global_match_num"] = torch.tensor(match_index.shape[0], device=match_index.device)
                 result_dict["mask_loss"] = mask_loss
                 result_dict["loss"].append(mask_loss * self.mask_loss_weight)
 
@@ -546,33 +519,19 @@ class Sonata(PointModel):
             local_point_ = self.up_cast(local_point_)
             unmask_pred_sim = self.student.unmask_head(local_point_.feat)
             with torch.no_grad():
-                # 1. Map Student batch indices to Teacher batch indices
-                # If Student has 2 views, its batch indices are [0,0,1,1] 
-                # but the Teacher only has batch [0,1].
-                # We find which batch item each student point belongs to:
-                student_batch_idx = local_point_.batch // self.num_local_view
-                
-                # 2. In your case, the Teacher IS the principal view (it's the only view)
-                # So we don't need to mask global_point_, we use all of it.
-                teacher_feat = global_point_.feat
-                teacher_coord = global_point_.origin_coord
-                teacher_offset = global_point_.offset
-
-                # 3. Match neighbors
-                # We match local_point_ (Student) against global_point_ (Teacher)
-                # We must ensure match_neighbour handles the batch mapping correctly.
+                principal_view_mask = global_point_.batch % self.num_global_view == 0
+                principal_view_batch = (
+                    global_point_.batch[principal_view_mask] // self.num_global_view
+                )
                 match_index = self.match_neighbour(
                     local_point_.origin_coord,
-                    local_point_.offset, 
-                    teacher_coord,
-                    teacher_offset,
-                    # If your match_neighbour doesn't support cross-batch-size matching,
-                    # you may need to pass the student_batch_idx specifically.
+                    local_point_.offset[self.num_local_view - 1 :: self.num_local_view],
+                    global_point_.origin_coord[principal_view_mask],
+                    batch2offset(principal_view_batch),
                 )
-
-                # 4. Teacher features for the matched points
+                # teacher forward
                 unmask_target_sim = self.sinkhorn_knopp(
-                    teacher_feat[match_index[:, 1]],
+                    global_point_.feat[principal_view_mask][match_index[:, 1]],
                     self.teacher_temp,
                 )
             # loss
