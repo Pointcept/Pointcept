@@ -8,6 +8,7 @@ Please cite our work if the code is helpful to you.
 import os
 import glob
 import json
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -30,6 +31,8 @@ INTERPOLATION_MODE = {
     "bicubic": InterpolationMode.BICUBIC,
     "nearest": InterpolationMode.NEAREST,
 }
+
+COORD_ASSET_NAME = "coord.npy"
 
 
 @DATASETS.register_module()
@@ -56,7 +59,7 @@ class DefaultDataset(Dataset):
         loop=1,
     ):
         super(DefaultDataset, self).__init__()
-        self.data_root = data_root
+        self.data_root = Path(data_root)
         self.split = split
         self.transform = Compose(transform)
         self.cache = cache
@@ -78,9 +81,7 @@ class DefaultDataset(Dataset):
         self.data_list = self.get_data_list()
         logger = get_root_logger()
         logger.info(
-            "Totally {} x {} samples in {} {} set.".format(
-                len(self.data_list), self.loop, os.path.basename(self.data_root), split
-            )
+            f"Total {len(self.data_list)} x {self.loop} samples in {self.data_root} {split} set."
         )
 
     def get_data_list(self):
@@ -93,13 +94,16 @@ class DefaultDataset(Dataset):
 
         data_list = []
         for split in split_list:
-            if os.path.isfile(os.path.join(self.data_root, split)):
-                with open(os.path.join(self.data_root, split)) as f:
+            split_path = self.data_root / split
+            if split_path.suffix == ".json" and split_path.is_file():
+                with open(split_path) as f:
                     data_list += [
-                        os.path.join(self.data_root, data) for data in json.load(f)
+                        self.data_root / data for data in json.load(f)
                     ]
             else:
-                data_list += glob.glob(os.path.join(self.data_root, split, "*"))
+                data_list += [
+                    c.parent for c in split_path.rglob(COORD_ASSET_NAME)
+                ]
         return data_list
 
     def get_data(self, idx):
@@ -111,13 +115,11 @@ class DefaultDataset(Dataset):
             return shared_dict(cache_name)
 
         data_dict = {}
-        assets = os.listdir(data_path)
+        assets = data_path.glob("*.npy")
         for asset in assets:
-            if not asset.endswith(".npy"):
+            if asset.stem not in self.VALID_ASSETS:
                 continue
-            if asset[:-4] not in self.VALID_ASSETS:
-                continue
-            data_dict[asset[:-4]] = np.load(os.path.join(data_path, asset))
+            data_dict[asset.stem] = np.load(asset)
         data_dict["name"] = name
         data_dict["split"] = split
 
@@ -146,12 +148,11 @@ class DefaultDataset(Dataset):
         return data_dict
 
     def get_data_name(self, idx):
-        return os.path.basename(self.data_list[idx % len(self.data_list)])
+        return self.data_list[idx % len(self.data_list)].name
 
     def get_split_name(self, idx):
-        return os.path.basename(
-            os.path.dirname(self.data_list[idx % len(self.data_list)])
-        )
+        data_path = self.data_list[idx % len(self.data_list)]
+        return data_path.relative_to(self.data_root).parts[0]
 
     def prepare_train_data(self, idx):
         # load data
