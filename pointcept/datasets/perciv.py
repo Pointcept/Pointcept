@@ -8,11 +8,13 @@ Please cite our work if the code is helpful to you.
 import os
 import numpy as np
 from collections.abc import Sequence
+from typing import List
 import pickle
 from PIL import Image
 import open3d as o3d
 import torch
 from matplotlib import pyplot as plt
+import matplotlib.patches as patches
 import cv2
 
 from .builder import DATASETS
@@ -20,6 +22,71 @@ from .defaults import DefaultDataset, DefaultImagePointDataset
 from nuscenes.utils.data_classes import RadarPointCloud
 os.environ["OMP_NUM_THREADS"] = "1"
 
+name_to_label = {
+    "car":1,
+    "bicycle":2,
+    "pedestrian":3,
+}
+
+def label_points_from_boxes(points: np.ndarray, boxes: List, box_rotations: List, box_labels: List, default_label: int = 0):
+    """
+    Efficiently assigns labels to points using a spatial pre-filter.
+    
+    :param points: <np.float: N, 3>. Point cloud coordinates.
+    :param boxes: List of Box objects.
+    :param default_label: Label for points outside any box.
+    :return: <np.int: N>. Label array.
+    """
+    num_points = points.shape[0]
+    point_labels = np.full((num_points,), default_label, dtype=np.int64)
+    
+    # Pre-calculate squared distances to avoid expensive sqrt() calls
+    # for points that are clearly far away.
+    for box, box_rotation, box_label in zip(boxes, box_rotations, box_labels):
+        # 1. Quick Spatial Culling (Bounding Sphere check)
+        # The circumradius is the distance from center to any corner: 
+        # R = sqrt((w/2)^2 + (l/2)^2 + (h/2)^2)
+        l,w, h = box[3:6]
+        max_radius_sq = (w/2)**2 + (l/2)**2 + (h/2)**2
+        
+        # Translate points relative to center
+        translated_points = points - box[0:3]
+        
+        # Squared Euclidean distance from center for all points
+        dist_sq = np.sum(translated_points**2, axis=1)
+        
+        # Create a mask for points that are "near enough" to potentially be inside
+        near_mask = dist_sq <= max_radius_sq
+        
+        if not np.any(near_mask):
+            continue
+            
+        # 2. Precise Orientation Check
+        # Only perform rotation on the subset of points within the sphere
+        points_to_check = translated_points[near_mask]
+        
+        # Rotate points into box local frame
+        # We use box.rotation_matrix.T because we are rotating the coordinate system
+        local_points = np.dot(points_to_check, box_rotation)
+        
+        # Local Box dimensions check:
+        # Based on the Box class: wlh = [width, length, height]
+        # Conventionally: x=length, y=width, z=height
+        in_box_mask = (
+            (np.abs(local_points[:, 0]) <= l / 2) & 
+            (np.abs(local_points[:, 1]) <= w / 2) & 
+            (np.abs(local_points[:, 2]) <= h / 2)
+        )
+        
+        # 3. Apply Labels
+        # We need to map the 'in_box_mask' back to the original point indices
+        # We use np.where to find the indices of the 'near_mask' and then slice them
+        near_indices = np.where(near_mask)[0]
+        final_indices = near_indices[in_box_mask]
+        
+        point_labels[final_indices] = name_to_label[box_label]
+        
+    return point_labels
 
 @DATASETS.register_module()
 class PercivDataset(DefaultDataset):
@@ -99,12 +166,14 @@ class PercivDataset(DefaultDataset):
 
 @DATASETS.register_module()
 class PercivMultisweepDataset(PercivDataset):
-    def __init__(self, radar_mapping, norm_params, sweeps=5, max_sweeps=10, ignore_index=-1, add_time_diff_dim='index', cam_chan='OAK_CAM_FRONT', **kwargs):
+    def __init__(self, radar_mapping, norm_params, sweeps=5, max_sweeps=10, ignore_index=-1, add_time_diff_dim='index', cam_chan='OAK_CAM_FRONT', debug=False, **kwargs):
         super().__init__(radar_mapping=radar_mapping, norm_params=norm_params, ignore_index=ignore_index, **kwargs)        
         self.add_time_diff_dim = add_time_diff_dim
         self.sweeps = sweeps
         self.max_sweeps = max_sweeps
         self.cam_chan = cam_chan
+        self.debug = debug
+
     def get_data(self, idx):
         data = self.data_list[idx % len(self.data_list)]
         sweeps = data['sweeps']
@@ -147,6 +216,8 @@ class PercivMultisweepDataset(PercivDataset):
         doppler = (raw_doppler - self.doppler_mean) / (self.doppler_std + 1e-6)
         rcs = (raw_rcs - self.rcs_mean) / (self.rcs_std + 1e-6)
         
+        segment = label_points_from_boxes(coord, data["gt_boxes"], data["gt_boxes_rotation_matrices"], data["gt_names"], default_label=0)
+
         # some camera infos for debug and visualization
         cam_info = {}
         image_path = os.path.join(self.data_root, data.get("cam_front_path", ""))
@@ -168,11 +239,130 @@ class PercivMultisweepDataset(PercivDataset):
             doppler=doppler,
             rcs=rcs,
             time =time,
+            segment=segment,
             cam_info=cam_info,
             name=self.get_data_name(idx),
         )
-        return data_dict
 
+        if self.debug:
+            self.plot_debug(data_dict, data["gt_boxes"])
+        return data_dict
+    
+    def plot_debug(self, data_dict, gt_boxes,save_dir="./debug_vis"):
+        os.makedirs(save_dir, exist_ok=True)
+        
+        # 1. Extract Data
+        coord_radar = data_dict["coord"]  # [N, 3]
+        segment = data_dict["segment"]    # [N] Class labels
+        
+        # Extract box information from the data_dict
+        # (Assuming these were passed in the data_dict during the return in your previous code)
+        # Load image
+        img_path = data_dict["cam_info"]["image_path"]
+        img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
+        
+        fig, axes = plt.subplots(1, 2, figsize=(22, 10), facecolor='white')
+        
+        # --- 1. Plot Camera Image ---
+        axes[0].imshow(img)
+        axes[0].set_title(f"Camera View: {data_dict['name']}", fontsize=15)
+        axes[0].axis('off')
+        
+        # --- 2. Plot Radar BEV ---
+        # Define our class mapping
+        # 0: Background, 1: Car (Blue), 2: Cyclist (Red), 3: Pedestrian (Green)
+        class_config = {
+            1: {'color': 'blue',  'label': 'Car',        'size': 25},
+            2: {'color': 'red',   'label': 'Cyclist',    'size': 25},
+            3: {'color': 'green', 'label': 'Pedestrian', 'size': 25},
+        }
+
+        # 1. Plot Unlabelled / Background points (Class 0)
+        bg_mask = (segment == 0)
+        axes[1].scatter(
+            coord_radar[bg_mask, 0], 
+            coord_radar[bg_mask, 1], 
+            c='gray', 
+            s=5,           # Smaller size
+            alpha=0.4,     # Slightly transparent
+            label='Background',
+            edgecolors='none',
+            zorder=2
+        )
+
+        # 2. Plot specific classes with distinct colors
+        for class_id, config in class_config.items():
+            class_mask = (segment == class_id)
+            if np.any(class_mask):
+                axes[1].scatter(
+                    coord_radar[class_mask, 0], 
+                    coord_radar[class_mask, 1], 
+                    c=config['color'], 
+                    s=config['size'],
+                    label=config['label'],
+                    edgecolors='black',
+                    linewidths=0.5,
+                    zorder=3      # Plot on top of background
+                )
+
+        # Add a legend instead of a colorbar for better clarity
+        axes[1].legend(loc='upper right', scatterpoints=1, fontsize='small', framealpha=0.8)
+
+        # --- 3. Plot Bounding Boxes ---
+        # If gt_boxes is [x, y, z, l, w, h, yaw]
+        for box in gt_boxes:
+            cx, cy, cz, l, w, h, yaw = box[:7]
+            
+            # Calculate the four corners of the box in BEV (X-Y plane)
+            # 1. Box corners in local frame (centered at 0,0)
+            # x points forward (length), y points left (width)
+            local_corners = np.array([
+                [ l/2,  w/2],  # Front Left
+                [ l/2, -w/2],  # Front Right
+                [-l/2, -w/2],  # Rear Right
+                [-l/2,  w/2]   # Rear Left
+            ])
+            
+            # 2. Rotate corners by yaw
+            rot_mat = np.array([
+                [np.cos(yaw), -np.sin(yaw)],
+                [np.sin(yaw),  np.cos(yaw)]
+            ])
+            rotated_corners = (rot_mat @ local_corners.T).T
+            
+            # 3. Translate to world/lidar center
+            final_corners = rotated_corners + np.array([cx, cy])
+            
+            # Create Polygon patch
+            rect = patches.Polygon(
+                final_corners, 
+                closed=True, 
+                linewidth=2, 
+                edgecolor='red', 
+                facecolor='none', 
+                alpha=0.8,
+                zorder=4
+            )
+            axes[1].add_patch(rect)
+            
+            # Optional: Add an arrow pointing in the 'forward' direction (heading)
+            axes[1].arrow(cx, cy, np.cos(yaw) * (l/2), np.sin(yaw) * (l/2), 
+                        color='red', width=0.1, head_width=0.5)
+
+        # --- Formatting ---
+        axes[1].set_aspect('equal', adjustable='box')
+        limit = 60 # Slightly larger to see boxes at the edge
+        axes[1].set_xlim(-limit, limit)
+        axes[1].set_ylim(-limit, limit)
+        axes[1].grid(True, linestyle='--', alpha=0.5)
+        axes[1].set_title("Radar BEV (Colored by Class)", fontsize=15)
+        axes[1].set_xlabel("X (Forward) [m]")
+        axes[1].set_ylabel("Y (Left) [m]")
+        
+        save_path = os.path.join(save_dir, f"{data_dict['name']}_radar_vis.png")
+        plt.tight_layout()
+        plt.savefig(save_path, dpi=150)
+        plt.close()
 
 
 @DATASETS.register_module()

@@ -6,7 +6,7 @@ Dataset: ScanNet v2, ScanNet++, S3DIS, HM3D, ArkitScene, Structured3D
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 4  # bs: total bs in all gpus
+batch_size = 1  # bs: total bs in all gpus
 num_worker = 8
 mix_prob = 0
 clip_grad = 3.0
@@ -56,7 +56,7 @@ model = dict(
     head_embed_channels=256,
     head_num_prototypes=4096,
     num_global_view=2,
-    num_local_view=8,
+    num_local_view=4,
     # Original Spatial Parameters
     spatial_mask=False,
     mask_size_start=0.1,
@@ -124,8 +124,8 @@ transform = [
         view_keys=("coord", "origin_coord", "doppler", "rcs", "time"),
         global_view_num=2,
         global_view_scale=(0.6, 1.0), 
-        local_view_num=8,
-        local_view_scale=(0.2, 0.4),  
+        local_view_num=4,
+        local_view_scale=(0.1, 0.4),  
         fov_range=(-90, 90),          # Configurable FOV in degrees
         global_shared_transform=[],
         global_transform=[
@@ -207,6 +207,7 @@ data = dict(
                 norm_params = zf_norm_ps2,
                 sweeps=5,
                 max_sweeps=10,
+                debug=False,
                 transform=transform,
                 test_mode=False,
                 loop=1,
@@ -219,6 +220,7 @@ data = dict(
                 norm_params = zf_norm_magna,
                 sweeps=5,
                 max_sweeps=10,
+                debug=False,
                 transform=transform,
                 test_mode=False,
                 loop=1,

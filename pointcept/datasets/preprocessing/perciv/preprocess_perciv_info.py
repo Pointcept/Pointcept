@@ -389,14 +389,16 @@ def fill_trainval_infos(
             rots = np.array([quaternion_yaw(b.orientation) for b in ref_boxes]).reshape(
                 -1, 1
             )
+            rotation_matrices = np.array([b.rotation_matrix for b in ref_boxes]).reshape(-1, 3, 3)
             names = np.array([b.name for b in ref_boxes])
             tokens = np.array([b.token for b in ref_boxes])
             gt_boxes = np.concatenate([locs, dims, rots, velocity[:, :2]], axis=1)
-
+            
             assert len(annotations) == len(gt_boxes) == len(velocity)
 
             info["gt_boxes"] = gt_boxes[mask, :]
             info["gt_boxes_velocity"] = velocity[mask, :]
+            info["gt_boxes_rotation_matrices"] = rotation_matrices[mask]
             info["gt_names"] = np.array(
                 [map_name_from_general_to_detection[name] for name in names]
             )[mask]

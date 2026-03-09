@@ -1134,8 +1134,8 @@ class RadarMultiViewGenerator(object):
         index = np.where(mask)
 
         # 4. Cap point count to prevent OOM/instability
-        if len(index) > self.max_size:
-            index = np.random.choice(index, self.max_size, replace=False)
+        if len(index[0]) > self.max_size:
+            index = np.random.choice(index[0], self.max_size, replace=False)
         
         view = dict(index=index)
         for key in point.keys():
