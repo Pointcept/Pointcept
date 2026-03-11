@@ -103,7 +103,7 @@ def default_argument_parser(epilog=None):
     parser.add_argument(
         "--options", nargs="+", action=DictAction, help="custom options"
     )
-    parser.add_argument("--input-model", type=str, default="", help="Path or ID of the input model")
+    parser.add_argument("--inputmodel", type=str, default="", help="Path or ID of the input model")
     return parser
 
 

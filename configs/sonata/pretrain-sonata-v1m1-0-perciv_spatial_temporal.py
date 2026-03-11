@@ -6,7 +6,7 @@ Dataset: ScanNet v2, ScanNet++, S3DIS, HM3D, ArkitScene, Structured3D
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 1  # bs: total bs in all gpus
+batch_size = 2  # bs: total bs in all gpus
 num_worker = 8
 mix_prob = 0
 clip_grad = 3.0
@@ -15,7 +15,6 @@ enable_amp = True
 amp_dtype = "bfloat16"
 evaluate = False
 find_unused_parameters = False
-weight ='/media/Datasets/checkpoints/pretrain-sonata-v1m1-0-base.pth'
 
 # model settings
 model = dict(
@@ -77,7 +76,7 @@ model = dict(
     mask_loss_weight=2 / 8,
     roll_mask_loss_weight=2 / 8,
     unmask_loss_weight=4 / 8,
-    momentum_base=0.994,
+    momentum_base=0.998,
     momentum_final=1,
     match_max_k=8,
     match_max_r=0.32,
@@ -85,9 +84,9 @@ model = dict(
 )
 
 # scheduler settings
-epoch = 20
-eval_epoch = 20
-base_lr = 0.004
+epoch = 5
+eval_epoch = 5
+base_lr = 0.002
 lr_decay = 0.9  # layer-wise lr decay
 
 base_wd = 0.04  # wd scheduler enable in hooks
@@ -117,7 +116,7 @@ scheduler = dict(
 # dataset settings
 transform = [
     dict(type="Update", keys_dict={"index_valid_keys": ["coord", "doppler", "rcs", "time"]}),
-    dict(type="GridSample", grid_size=0.1, hash_type="fnv", mode="train"),
+    dict(type="GridSample", grid_size=0.01, hash_type="fnv", mode="train"),
     dict(type="Copy", keys_dict={"coord": "origin_coord"}),
     dict(
         type="RadarMultiViewGenerator",
@@ -139,10 +138,10 @@ transform = [
             dict(type="RandomJitter", sigma=0.0025, clip=0.01),
 
         ],
-        max_size=2048,
+        max_size=4096,
     ),
     dict(type="ToTensor"),
-    dict(type="Update", keys_dict={"grid_size": 0.1}),
+    dict(type="Update", keys_dict={"grid_size": 0.01}),
     dict(
         type="Collect",
         keys=(

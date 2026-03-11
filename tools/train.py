@@ -56,10 +56,10 @@ def main():
         description="Configuration for pretraining.",
     )
     cfg = default_config_parser(config_path, args.options)
-
-    if getattr(args, "input_model", None):
-        print("Loading model from input model: ", args.input_model)
-        original_model = InputModel(model_id=args.input_model)
+    print(args)
+    if args.inputmodel:
+        print("Loading model from input model: ", args.inputmodel)
+        original_model = InputModel(model_id=args.inputmodel)
         task.connect(original_model)
         checkpoint_path = original_model.get_weights(
             raise_on_error=False, force_download=False, extract_archive=False

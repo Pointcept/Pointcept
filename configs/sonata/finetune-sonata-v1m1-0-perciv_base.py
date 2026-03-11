@@ -5,7 +5,7 @@ num_worker = 16
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
-# weight ='/media/Datasets/checkpoints/pretrain-sonata-v1m1-0-base.pth'# model settings
+weight ='/media/Datasets/checkpoints/pretrain-sonata-v1m1-0-base.pth'# model settings
 ignore_index = 0
 model = dict(
     type="DefaultSegmentorV2",
@@ -13,7 +13,7 @@ model = dict(
     backbone_out_channels=1232,
     backbone=dict(
         type="PT-v3m2",
-        in_channels=6,
+        in_channels=9,
         order=("z", "z-trans", "hilbert", "hilbert-trans"),
         stride=(2, 2, 2, 2),
         enc_depths=(3, 3, 3, 12, 3),
@@ -45,8 +45,8 @@ model = dict(
 )
 
 # scheduler settings
-epoch = 2
-eval_epoch = 2
+epoch = 4
+eval_epoch = 4
 optimizer = dict(type="AdamW", lr=0.002, weight_decay=0.005)
 scheduler = dict(
     type="OneCycleLR",
@@ -107,7 +107,7 @@ data = dict(
         sweeps=5,
         max_sweeps=10,
         transform=[
-            dict(type="Update", keys_dict={"index_valid_keys": ["coord", "doppler", "rcs", "time", "segment"]}),
+            dict(type="Update", keys_dict={"index_valid_keys": ["coord", "color", "normal", "segment"]}),
             dict(type="RandomScale", scale=[0.2, 0.2]),
             # dict(type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=0.2),
             # dict(type="RandomRotateTargetAngle", angle=(1/2, 1, 3/2), center=[0, 0, 0], axis="z", p=0.75),
@@ -132,7 +132,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("coord", "doppler", "rcs", "time"),
+                feat_keys=("coord", "color", "normal"),
             ),
         ],
         test_mode=False,
@@ -147,7 +147,7 @@ data = dict(
         max_sweeps=10,
         data_root=data_root,
         transform=[
-            dict(type="Update", keys_dict={"index_valid_keys": ["coord", "doppler", "rcs", "time", "segment"]}),
+            dict(type="Update", keys_dict={"index_valid_keys": ["coord", "color", "normal", "segment"]}),
             dict(type="RandomScale", scale=[0.2, 0.2]),
             dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             # dict(type="PointClip", point_cloud_range=(-51.2, -51.2, -4, 51.2, 51.2, 2.4)),
@@ -163,7 +163,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment", "origin_segment", "inverse"),
-                feat_keys=("coord", "doppler", "rcs", "time"),
+                feat_keys=("coord", "color", "normal"),
             ),
         ],
         test_mode=False,
@@ -178,7 +178,7 @@ data = dict(
         sweeps=5,
         max_sweeps=10,
         transform=[
-            dict(type="Update", keys_dict={"index_valid_keys": ["coord", "doppler", "rcs", "time", "segment"]}),
+            dict(type="Update", keys_dict={"index_valid_keys": ["coord", "color", "normal", "segment"]}),
             dict(type="RandomScale", scale=[0.2, 0.2]),
             dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             dict(
@@ -204,7 +204,7 @@ data = dict(
                 dict(
                     type="Collect",
                     keys=("coord", "grid_coord", "index"),
-                    feat_keys=("coord", "doppler", "rcs", "time"),
+                    feat_keys=("coord", "color", "normal"),
                 ),
             ],
             aug_transform=[

@@ -239,6 +239,14 @@ class LovaszLoss(_Loss):
         self.loss_weight = loss_weight
 
     def forward(self, y_pred, y_true):
+        # Create a mask for valid (non-ignored) labels
+        mask = (y_true != self.ignore_index)
+        
+        # Check if there are any valid points at all
+        if not mask.any():
+            # Return a 0 scalar loss that still requires_grad 
+            # to keep the optimizer happy
+            return y_pred.sum() * 0.0
         if self.mode in {BINARY_MODE, MULTILABEL_MODE}:
             loss = _lovasz_hinge(
                 y_pred, y_true, per_image=self.per_image, ignore=self.ignore_index

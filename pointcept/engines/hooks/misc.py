@@ -415,7 +415,7 @@ class CheckpointSaver(HookBase):
                 print(f"Uploaded weights from {filename} to clearml (model ID: {om.id})")
 
                 # Upload training configuration
-                om.update_design(config_dict=self.trainer.cfg)
+                # om.update_design(config_dict=self.trainer.cfg)
             if self.save_freq and (self.trainer.epoch + 1) % self.save_freq == 0:
                 shutil.copyfile(
                     filename,

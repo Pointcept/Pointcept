@@ -34,8 +34,18 @@ class CrossEntropyLoss(nn.Module):
             reduction=reduction,
             label_smoothing=label_smoothing,
         )
+        self.ignore_index = ignore_index
 
     def forward(self, pred, target):
+
+        # Create a mask for valid (non-ignored) labels
+        mask = (target != self.ignore_index)
+        
+        # Check if there are any valid points at all
+        if not mask.any():
+            # Return a 0 scalar loss that still requires_grad 
+            # to keep the optimizer happy
+            return pred.sum() * 0.0
         return self.loss(pred, target) * self.loss_weight
 
 

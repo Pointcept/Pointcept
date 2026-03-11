@@ -236,6 +236,8 @@ class PercivMultisweepDataset(PercivDataset):
             cam_intrinsic=cam_intrinsic,)
         data_dict = dict(
             coord=coord,
+            color=np.zeros_like(coord),  # placeholder for color
+            normal=np.zeros_like(coord),  # placeholder for normal
             doppler=doppler,
             rcs=rcs,
             time =time,
