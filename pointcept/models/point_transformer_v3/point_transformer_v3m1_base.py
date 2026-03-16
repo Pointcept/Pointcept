@@ -12,7 +12,10 @@ import torch
 import torch.nn as nn
 import spconv.pytorch as spconv
 import torch_scatter
-from timm.layers import DropPath
+try:
+    from timm.layers import DropPath
+except ModuleNotFoundError:
+    from timm.models.layers import DropPath
 
 try:
     import flash_attn

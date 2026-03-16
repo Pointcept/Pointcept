@@ -1,8 +1,8 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 2  # bs: total bs in all gpus (SpUNet uses less memory)
-num_worker = 1
+batch_size = 8  # bs: total bs in all gpus (SpUNet uses less memory)
+num_worker = 8
 mix_prob = 0.8
 empty_cache = False
 enable_amp = True
@@ -27,7 +27,9 @@ model = dict(
         channels=(32, 64, 128, 256, 256, 128, 96, 96),
         layers=(2, 3, 4, 6, 2, 2, 2, 2),
     ),
-    criteria=[dict(type="CrossEntropyLoss", loss_weight=1.0, ignore_index=-1)],
+    # weight: [soil, stem, leaf] - 基于 log(median_freq/freq) 计算
+    # 类别分布: soil 51.48%, stem 4.41%, leaf 44.11%
+    criteria=[dict(type="CrossEntropyLoss", weight=[1.0, 2.5, 1.1], loss_weight=1.0, ignore_index=-1)],
 )
 
 # scheduler settings
@@ -44,7 +46,7 @@ scheduler = dict(
 
 # dataset settings
 dataset_type = "TomatoDataset"
-data_root = "datasets/tomato_20480"
+data_root = "datasets/tomato_20480/"
 
 data = dict(
     num_classes=num_classes,
@@ -66,14 +68,14 @@ data = dict(
             dict(type="RandomScale", scale=[0.9, 1.1]),
             dict(type="RandomFlip", p=0.5),
             dict(type="RandomJitter", sigma=0.005, clip=0.02),
-            dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
+            # dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
             # 注意：以下颜色增强已禁用，因为数据集没有真正的颜色信息
             # dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
             # dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
             # dict(type="ChromaticJitter", p=0.95, std=0.05),
             dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.05,
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
@@ -100,7 +102,7 @@ data = dict(
             dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.05,
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
@@ -129,7 +131,7 @@ data = dict(
         test_cfg=dict(
             voxelize=dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.05,
                 hash_type="fnv",
                 mode="test",
                 return_grid_coord=True,

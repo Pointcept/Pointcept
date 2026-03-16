@@ -13,7 +13,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributed as dist
 import torch_scatter
-from timm.layers import trunc_normal_
+try:
+    from timm.layers import trunc_normal_
+except ModuleNotFoundError:
+    from timm.models.layers import trunc_normal_
 
 import pointops
 from pointcept.models.utils.structure import Point

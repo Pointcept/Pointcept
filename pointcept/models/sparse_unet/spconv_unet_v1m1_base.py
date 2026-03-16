@@ -14,7 +14,10 @@ import torch.nn as nn
 import spconv.pytorch as spconv
 from torch_geometric.utils import scatter
 
-from timm.layers import trunc_normal_
+try:
+    from timm.layers import trunc_normal_
+except ModuleNotFoundError:
+    from timm.models.layers import trunc_normal_
 
 from pointcept.models.builder import MODELS
 from pointcept.models.utils import offset2batch

@@ -11,6 +11,7 @@ from .hm3d import HM3DDataset
 from .structure3d import Structured3DDataset
 from .aeo import AEODataset
 from .tomato import TomatoDataset
+from .tomato_gs2pc import TomatoGS2PCDataset
 
 # outdoor scene
 from .semantic_kitti import SemanticKITTIDataset

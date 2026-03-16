@@ -15,3 +15,4 @@ outputs/
 */.DS_Store
 **/*.out
 Dockerfile
+*.pth
