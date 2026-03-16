@@ -37,6 +37,7 @@ configs=(
   "ms_skipgate_se:configs/tomato_gs2pc/semseg-spunet-v1m1-5-tomato-gs2pc-200k-ms-skipgate-se.py"
   "boundary:configs/tomato_gs2pc/semseg-spunet-v1m1-6-tomato-gs2pc-200k-boundary.py"
   "organ_expert_fused:configs/tomato_gs2pc/semseg-spunet-v1m1-2-tomato-gs2pc-200k-organ-expert-fused.py"
+  "organ_expert_fused_boundary:configs/tomato_gs2pc/semseg-spunet-v1m1-7-tomato-gs2pc-200k-organ-expert-fused-boundary.py"
 )
 
 echo "Output root: $OUT_ROOT"
@@ -48,6 +49,10 @@ for seed in $SEEDS_STR; do
     name="${item%%:*}"
     cfg="${item#*:}"
     save_path="${OUT_ROOT}/${name}_seed${seed}"
+    if [[ "${FORCE:-0}" != "1" && -f "${save_path}/train.log" ]]; then
+      echo "=== Skipping existing: ${name} seed=${seed} (set FORCE=1 to rerun) ==="
+      continue
+    fi
     echo "=== Running: ${name} seed=${seed} -> ${save_path} ==="
     python tools/train.py \
       --config-file "$cfg" \

@@ -126,6 +126,8 @@ class OrganAwareResidualSegmentor(nn.Module):
         fused_loss_weight=1.0,
         expert_loss_weight=1.0,
         gate_loss_weight=1.0,
+        boundary_k=0,
+        boundary_loss_weight=0.0,
         residual_scale=1.0,
         residual_mode="interpolate",
         center_expert_residual=True,
@@ -152,12 +154,33 @@ class OrganAwareResidualSegmentor(nn.Module):
         self.fused_loss_weight = fused_loss_weight
         self.expert_loss_weight = expert_loss_weight
         self.gate_loss_weight = gate_loss_weight
+        self.boundary_k = boundary_k
+        self.boundary_loss_weight = boundary_loss_weight
         self.residual_scale = residual_scale
         self.residual_mode = residual_mode
         self.center_expert_residual = center_expert_residual
 
         self.expert_head = nn.Linear(backbone_out_channels, len(self.organ_class_ids))
         self.gate_head = nn.Linear(backbone_out_channels, 2)
+
+    def _get_boundary_mask(self, coord, segment, offset):
+        if self.boundary_k <= 0:
+            return torch.zeros_like(segment, dtype=torch.bool)
+        batch = offset2batch(offset)
+        edge_index = torch_cluster.knn_graph(
+            coord, k=self.boundary_k, batch=batch, loop=False
+        )
+        src, dst = edge_index[0], edge_index[1]
+        valid = (segment[src] != self.ignore_index) & (segment[dst] != self.ignore_index)
+        diff = valid & (segment[src] != segment[dst])
+        boundary = torch_scatter.scatter(
+            diff.to(torch.int8),
+            dst,
+            dim=0,
+            dim_size=segment.shape[0],
+            reduce="max",
+        ).bool()
+        return boundary
 
     def _build_expert_target(self, segment):
         target = torch.full_like(segment, self.ignore_index)
@@ -234,11 +257,30 @@ class OrganAwareResidualSegmentor(nn.Module):
             )
             gate_loss = self._compute_loss(self.gate_criteria, gate_logits, gate_target)
             fused_loss = self._compute_loss(self.main_criteria, fused_logits, segment)
+
+            boundary_loss = fused_logits.sum() * 0
+            if (
+                self.training
+                and self.boundary_loss_weight > 0
+                and "coord" in input_dict.keys()
+                and "offset" in input_dict.keys()
+            ):
+                boundary_mask = self._get_boundary_mask(
+                    input_dict["coord"], segment, input_dict["offset"]
+                )
+                if torch.any(boundary_mask):
+                    boundary_loss = F.cross_entropy(
+                        fused_logits[boundary_mask],
+                        segment[boundary_mask],
+                        ignore_index=self.ignore_index,
+                    )
+
             loss = (
                 self.main_loss_weight * main_loss
                 + self.fused_loss_weight * fused_loss
                 + self.expert_loss_weight * expert_loss
                 + self.gate_loss_weight * gate_loss
+                + self.boundary_loss_weight * boundary_loss
             )
 
             if self.training:
@@ -248,6 +290,7 @@ class OrganAwareResidualSegmentor(nn.Module):
                     fused_loss=fused_loss,
                     expert_loss=expert_loss,
                     gate_loss=gate_loss,
+                    boundary_loss=boundary_loss,
                 )
 
             return dict(loss=fused_loss, seg_logits=fused_logits)
