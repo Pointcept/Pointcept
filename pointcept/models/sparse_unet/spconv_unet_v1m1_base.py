@@ -88,6 +88,87 @@ class BasicBlock(spconv.SparseModule):
         return out
 
 
+class SparseIdentity(spconv.SparseModule):
+    def forward(self, x):
+        return x
+
+
+class MultiScaleSubMBlock(spconv.SparseModule):
+    def __init__(
+        self,
+        channels,
+        norm_fn,
+        indice_key,
+        dilation=2,
+        with_residual=True,
+    ):
+        super().__init__()
+        self.with_residual = with_residual
+        self.branch_k3 = spconv.SparseSequential(
+            spconv.SubMConv3d(
+                channels,
+                channels,
+                kernel_size=3,
+                padding=1,
+                bias=False,
+                indice_key=f"{indice_key}_k3",
+            ),
+            norm_fn(channels),
+            nn.ReLU(),
+        )
+        self.branch_dilated = spconv.SparseSequential(
+            spconv.SubMConv3d(
+                channels,
+                channels,
+                kernel_size=3,
+                dilation=dilation,
+                padding=dilation,
+                bias=False,
+                indice_key=f"{indice_key}_d{dilation}",
+            ),
+            norm_fn(channels),
+            nn.ReLU(),
+        )
+        self.fuse = spconv.SparseSequential(
+            spconv.SubMConv3d(
+                channels * 2,
+                channels,
+                kernel_size=1,
+                bias=False,
+                indice_key=f"{indice_key}_fuse",
+            ),
+            norm_fn(channels),
+            nn.ReLU(),
+        )
+
+    def forward(self, x):
+        out_k3 = self.branch_k3(x)
+        out_d = self.branch_dilated(x)
+        x_cat = x.replace_feature(torch.cat((out_k3.features, out_d.features), dim=1))
+        out = self.fuse(x_cat)
+        if self.with_residual:
+            out = out.replace_feature(out.features + x.features)
+        return out
+
+
+class SparseSEBlock(spconv.SparseModule):
+    def __init__(self, channels, reduction=16):
+        super().__init__()
+        hidden = max(channels // reduction, 1)
+        self.fc1 = nn.Linear(channels, hidden, bias=True)
+        self.relu = nn.ReLU(inplace=True)
+        self.fc2 = nn.Linear(hidden, channels, bias=True)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        batch = x.indices[:, 0].long()
+        pooled = scatter(x.features, batch, reduce="mean", dim=0)
+        weight = self.fc2(self.relu(self.fc1(pooled)))
+        weight = self.sigmoid(weight)
+        x = x.replace_feature(x.features * weight[batch])
+        return x
+
+
 @MODELS.register_module("SpUNet-v1m1")
 class SpUNetBase(nn.Module):
     def __init__(
@@ -98,6 +179,12 @@ class SpUNetBase(nn.Module):
         channels=(32, 64, 128, 256, 256, 128, 96, 96),
         layers=(2, 3, 4, 6, 2, 2, 2, 2),
         enc_mode=False,
+        return_feature=False,
+        ms_stages=(),
+        ms_dilation=2,
+        se_stages=(),
+        se_reduction=16,
+        skip_gate=False,
     ):
         super().__init__()
         assert len(layers) % 2 == 0
@@ -109,6 +196,12 @@ class SpUNetBase(nn.Module):
         self.layers = layers
         self.num_stages = len(layers) // 2
         self.enc_mode = enc_mode
+        self.return_feature = return_feature
+        self.ms_stages = set(ms_stages)
+        self.ms_dilation = ms_dilation
+        self.se_stages = set(se_stages)
+        self.se_reduction = se_reduction
+        self.skip_gate = skip_gate
 
         norm_fn = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
         block = BasicBlock
@@ -131,7 +224,10 @@ class SpUNetBase(nn.Module):
         self.down = nn.ModuleList()
         self.up = nn.ModuleList()
         self.enc = nn.ModuleList()
+        self.enc_ms = nn.ModuleList()
+        self.enc_se = nn.ModuleList()
         self.dec = nn.ModuleList() if not self.enc_mode else None
+        self.skip_gates = nn.ModuleList() if (not self.enc_mode) else None
 
         for s in range(self.num_stages):
             # encode num_stages
@@ -168,6 +264,21 @@ class SpUNetBase(nn.Module):
                         ]
                     )
                 )
+            )
+            self.enc_ms.append(
+                MultiScaleSubMBlock(
+                    channels=channels[s],
+                    norm_fn=norm_fn,
+                    indice_key=f"ms_enc{s + 1}",
+                    dilation=self.ms_dilation,
+                )
+                if s in self.ms_stages
+                else SparseIdentity()
+            )
+            self.enc_se.append(
+                SparseSEBlock(channels=channels[s], reduction=self.se_reduction)
+                if s in self.se_stages
+                else SparseIdentity()
             )
             if not self.enc_mode:
                 # decode num_stages
@@ -214,16 +325,28 @@ class SpUNetBase(nn.Module):
                         )
                     )
                 )
+                self.skip_gates.append(
+                    nn.Sequential(
+                        nn.Linear(dec_channels + enc_channels, enc_channels, bias=True),
+                        nn.Sigmoid(),
+                    )
+                    if self.skip_gate
+                    else nn.Identity()
+                )
 
             enc_channels = channels[s]
             dec_channels = channels[len(channels) - s - 2]
 
-        final_in_channels = (
+        self.final_in_channels = (
             channels[-1] if not self.enc_mode else channels[self.num_stages - 1]
         )
         self.final = (
             spconv.SubMConv3d(
-                final_in_channels, num_classes, kernel_size=1, padding=1, bias=True
+                self.final_in_channels,
+                num_classes,
+                kernel_size=1,
+                padding=1,
+                bias=True,
             )
             if num_classes > 0
             else spconv.Identity()
@@ -265,6 +388,8 @@ class SpUNetBase(nn.Module):
         for s in range(self.num_stages):
             x = self.down[s](x)
             x = self.enc[s](x)
+            x = self.enc_ms[s](x)
+            x = self.enc_se[s](x)
             skips.append(x)
         x = skips.pop(-1)
         if not self.enc_mode:
@@ -272,15 +397,24 @@ class SpUNetBase(nn.Module):
             for s in reversed(range(self.num_stages)):
                 x = self.up[s](x)
                 skip = skips.pop(-1)
-                x = x.replace_feature(torch.cat((x.features, skip.features), dim=1))
+                skip_feat = skip.features
+                if self.skip_gate:
+                    gate_in = torch.cat((x.features, skip_feat), dim=1)
+                    skip_feat = skip_feat * self.skip_gates[s](gate_in)
+                x = x.replace_feature(torch.cat((x.features, skip_feat), dim=1))
                 x = self.dec[s](x)
 
+        feat = x.features
         x = self.final(x)
+        seg_logits = x.features
         if self.enc_mode:
-            x = x.replace_feature(
-                scatter(x.features, x.indices[:, 0].long(), reduce="mean", dim=0)
+            feat = scatter(feat, x.indices[:, 0].long(), reduce="mean", dim=0)
+            seg_logits = scatter(
+                seg_logits, x.indices[:, 0].long(), reduce="mean", dim=0
             )
-        return x.features
+        if self.return_feature:
+            return dict(seg_logits=seg_logits, feat=feat)
+        return seg_logits
 
 
 @MODELS.register_module()

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch_scatter
 import torch_cluster
 from peft import LoraConfig, get_peft_model
@@ -35,6 +36,223 @@ class DefaultSegmentor(nn.Module):
         # test
         else:
             return dict(seg_logits=seg_logits)
+
+
+@MODELS.register_module("BoundaryAwareSegmentor")
+class BoundaryAwareSegmentor(nn.Module):
+    def __init__(
+        self,
+        backbone=None,
+        criteria=None,
+        boundary_k=16,
+        boundary_loss_weight=1.0,
+        ignore_index=-1,
+    ):
+        super().__init__()
+        self.backbone = build_model(backbone)
+        self.criteria = build_criteria(criteria)
+        self.boundary_k = boundary_k
+        self.boundary_loss_weight = boundary_loss_weight
+        self.ignore_index = ignore_index
+
+    def _get_boundary_mask(self, coord, segment, offset):
+        if self.boundary_k <= 0:
+            return torch.zeros_like(segment, dtype=torch.bool)
+        batch = offset2batch(offset)
+        edge_index = torch_cluster.knn_graph(
+            coord, k=self.boundary_k, batch=batch, loop=False
+        )
+        src, dst = edge_index[0], edge_index[1]
+        valid = (segment[src] != self.ignore_index) & (segment[dst] != self.ignore_index)
+        diff = valid & (segment[src] != segment[dst])
+        boundary = torch_scatter.scatter(
+            diff.to(torch.int8),
+            dst,
+            dim=0,
+            dim_size=segment.shape[0],
+            reduce="max",
+        ).bool()
+        return boundary
+
+    def forward(self, input_dict):
+        if "condition" in input_dict.keys():
+            input_dict["condition"] = input_dict["condition"][0]
+
+        seg_logits = self.backbone(input_dict)
+
+        if "segment" in input_dict.keys():
+            target = input_dict["segment"]
+            main_loss = self.criteria(seg_logits, target)
+
+            boundary_loss = seg_logits.sum() * 0
+            if (
+                self.training
+                and self.boundary_loss_weight > 0
+                and "coord" in input_dict.keys()
+                and "offset" in input_dict.keys()
+            ):
+                boundary_mask = self._get_boundary_mask(
+                    input_dict["coord"], target, input_dict["offset"]
+                )
+                if torch.any(boundary_mask):
+                    boundary_loss = F.cross_entropy(
+                        seg_logits[boundary_mask],
+                        target[boundary_mask],
+                        ignore_index=self.ignore_index,
+                    )
+
+            loss = main_loss + self.boundary_loss_weight * boundary_loss
+
+            if self.training:
+                return dict(loss=loss, main_loss=main_loss, boundary_loss=boundary_loss)
+            return dict(loss=loss, seg_logits=seg_logits)
+
+        return dict(seg_logits=seg_logits)
+
+
+@MODELS.register_module("OrganAwareResidualSegmentor")
+class OrganAwareResidualSegmentor(nn.Module):
+    def __init__(
+        self,
+        backbone_out_channels,
+        organ_class_ids,
+        backbone=None,
+        criteria=None,
+        expert_criteria=None,
+        gate_criteria=None,
+        ignore_index=-1,
+        gate_ignore_class_ids=(),
+        main_loss_weight=1.0,
+        fused_loss_weight=1.0,
+        expert_loss_weight=1.0,
+        gate_loss_weight=1.0,
+        residual_scale=1.0,
+        residual_mode="interpolate",
+        center_expert_residual=True,
+    ):
+        super().__init__()
+        if criteria is None:
+            raise ValueError("OrganAwareResidualSegmentor requires `criteria`.")
+        if len(organ_class_ids) == 0:
+            raise ValueError("`organ_class_ids` must contain at least one class id.")
+        self.backbone = build_model(backbone)
+        self.main_criteria = build_criteria(criteria)
+        self.expert_criteria = build_criteria(
+            expert_criteria if expert_criteria is not None else criteria
+        )
+        self.gate_criteria = build_criteria(
+            gate_criteria
+            if gate_criteria is not None
+            else [dict(type="CrossEntropyLoss", ignore_index=ignore_index)]
+        )
+        self.organ_class_ids = list(organ_class_ids)
+        self.gate_ignore_class_ids = set(gate_ignore_class_ids)
+        self.ignore_index = ignore_index
+        self.main_loss_weight = main_loss_weight
+        self.fused_loss_weight = fused_loss_weight
+        self.expert_loss_weight = expert_loss_weight
+        self.gate_loss_weight = gate_loss_weight
+        self.residual_scale = residual_scale
+        self.residual_mode = residual_mode
+        self.center_expert_residual = center_expert_residual
+
+        self.expert_head = nn.Linear(backbone_out_channels, len(self.organ_class_ids))
+        self.gate_head = nn.Linear(backbone_out_channels, 2)
+
+    def _build_expert_target(self, segment):
+        target = torch.full_like(segment, self.ignore_index)
+        for local_id, class_id in enumerate(self.organ_class_ids):
+            target[segment == class_id] = local_id
+        return target
+
+    def _build_gate_target(self, segment):
+        target = torch.full_like(segment, self.ignore_index)
+        valid_mask = segment != self.ignore_index
+        target[valid_mask] = 0
+        for class_id in self.organ_class_ids:
+            target[segment == class_id] = 1
+        for class_id in self.gate_ignore_class_ids:
+            target[segment == class_id] = self.ignore_index
+        return target
+
+    def _compute_loss(self, criteria, logits, target):
+        if not torch.any(target != self.ignore_index):
+            return logits.sum() * 0
+        return criteria(logits, target)
+
+    def _fuse_logits(self, main_logits, expert_logits, gate_logits):
+        target_dtype = main_logits.dtype
+        gate_prob = F.softmax(gate_logits, dim=1)[:, 1].unsqueeze(1).to(target_dtype)
+        organ_main_logits = main_logits[:, self.organ_class_ids]
+        expert_logits = expert_logits.to(target_dtype)
+        if self.residual_mode == "interpolate":
+            expert_residual = expert_logits - organ_main_logits
+        elif self.residual_mode == "centered_logit":
+            expert_residual = expert_logits
+            if self.center_expert_residual:
+                expert_residual = expert_residual - expert_residual.mean(
+                    dim=1, keepdim=True
+                )
+        else:
+            raise ValueError(f"Unsupported residual_mode: {self.residual_mode}")
+        fused_logits = main_logits.clone()
+        update = (
+            organ_main_logits + gate_prob * expert_residual * self.residual_scale
+        ).to(fused_logits.dtype)
+        fused_logits[:, self.organ_class_ids] = update
+        return fused_logits
+
+    def forward(self, input_dict):
+        if "condition" in input_dict.keys():
+            input_dict["condition"] = input_dict["condition"][0]
+
+        backbone_output = self.backbone(input_dict)
+        if not isinstance(backbone_output, dict):
+            raise TypeError(
+                "OrganAwareResidualSegmentor requires backbone to return a dict "
+                "with 'seg_logits' and 'feat'."
+            )
+        if "seg_logits" not in backbone_output or "feat" not in backbone_output:
+            raise KeyError(
+                "Backbone output must contain both 'seg_logits' and 'feat' keys."
+            )
+
+        main_logits = backbone_output["seg_logits"]
+        feat = backbone_output["feat"]
+        expert_logits = self.expert_head(feat)
+        gate_logits = self.gate_head(feat)
+        fused_logits = self._fuse_logits(main_logits, expert_logits, gate_logits)
+
+        if "segment" in input_dict.keys():
+            segment = input_dict["segment"]
+            expert_target = self._build_expert_target(segment)
+            gate_target = self._build_gate_target(segment)
+
+            main_loss = self._compute_loss(self.main_criteria, main_logits, segment)
+            expert_loss = self._compute_loss(
+                self.expert_criteria, expert_logits, expert_target
+            )
+            gate_loss = self._compute_loss(self.gate_criteria, gate_logits, gate_target)
+            fused_loss = self._compute_loss(self.main_criteria, fused_logits, segment)
+            loss = (
+                self.main_loss_weight * main_loss
+                + self.fused_loss_weight * fused_loss
+                + self.expert_loss_weight * expert_loss
+                + self.gate_loss_weight * gate_loss
+            )
+
+            if self.training:
+                return dict(
+                    loss=loss,
+                    main_loss=main_loss,
+                    fused_loss=fused_loss,
+                    expert_loss=expert_loss,
+                    gate_loss=gate_loss,
+                )
+
+            return dict(loss=fused_loss, seg_logits=fused_logits)
+
+        return dict(seg_logits=fused_logits)
 
 
 @MODELS.register_module()
