@@ -121,9 +121,7 @@ class ClsEvaluator(HookBase):
             self.trainer.writer.add_scalar("val/mPrecision", m_precision, current_epoch)
             self.trainer.writer.add_scalar("val/allAcc", all_acc, current_epoch)
             
-            #Adjust the alignment between the WandB activation judgement and the step count
-            if getattr(self.trainer.cfg, 'enable_wandb', False):
-                global_step = wandb.run.step if wandb.run else None
+            if hasattr(self.trainer.cfg, 'enable_wandb') and self.trainer.cfg.enable_wandb:
                 wandb.log(
                     {
                         "Epoch": current_epoch,
@@ -134,7 +132,7 @@ class ClsEvaluator(HookBase):
                         "val/mPrecision": m_precision,
                         "val/allAcc": all_acc,
                     },
-                    step=global_step,
+                    step=wandb.run.step,
                 )
         self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
         self.trainer.comm_info["current_metric_value"] = all_acc
@@ -151,10 +149,6 @@ class SemSegEvaluator(HookBase):
     def __init__(self, write_cls_metrics=False):
         # write_cls_metrics=True: Record per-class metrics to TensorBoard/WandB
         self.write_cls_metrics = write_cls_metrics
-
-    def before_train(self):
-        if self.trainer.writer is not None and self.trainer.cfg.enable_wandb:
-            wandb.define_metric("val/*", step_metric="Epoch")
 
     def after_epoch(self):
         if self.trainer.cfg.evaluate:
@@ -174,10 +168,26 @@ class SemSegEvaluator(HookBase):
             pred = output.max(1)[1]
             segment = input_dict["segment"]
             
-            if "inverse" in input_dict.keys():
-                assert "origin_segment" in input_dict.keys()
-                pred = pred[input_dict["inverse"]]
+            # Map back to original coordinate if needed (e.g., S3DIS/ScanNet)
+            if "origin_coord" in input_dict.keys():
+                idx, _ = pointops.knn_query(
+                    1,
+                    input_dict["coord"].float(),
+                    input_dict["offset"].int(),
+                    input_dict["origin_coord"].float(),
+                    input_dict["origin_offset"].int(),
+                )
+                pred = pred[idx.flatten().long()]
                 segment = input_dict["origin_segment"]
+            
+            # Handle inverse mapping if needed
+            if "inverse" in input_dict.keys():
+                if "origin_segment" in input_dict:
+                    pred = pred[input_dict["inverse"]]
+                    segment = input_dict["origin_segment"]
+                elif pred.shape[0] != segment.shape[0]:
+                     pred = pred[input_dict["inverse"]]
+
             intersection, union, target = intersection_and_union_gpu(
                 pred,
                 segment,
@@ -188,7 +198,6 @@ class SemSegEvaluator(HookBase):
                 dist.all_reduce(intersection), dist.all_reduce(union), dist.all_reduce(
                     target
                 )
-            
             intersection, union, target = (
                 intersection.cpu().numpy(),
                 union.cpu().numpy(),
@@ -209,7 +218,7 @@ class SemSegEvaluator(HookBase):
             self.trainer.logger.info(
                 info
                 + "Loss {loss:.4f} ".format(
-                    iter=i+1, max_iter=len(self.trainer.val_loader), loss=loss.item()
+                    loss=loss.item()
                 )
             )
             
@@ -234,7 +243,9 @@ class SemSegEvaluator(HookBase):
         m_precision = np.mean(precision_class)
         macro_f1 = np.mean(f1_class)
         
-        all_acc = sum(intersection) / (sum(target) + epsilon)
+        total_tp = sum(intersection)
+        total_target = sum(target)
+        all_acc = total_tp / (total_target + epsilon)
 
         # 3. Log Output - Global (Order: mIoU, macroF1, mAcc, mPrecision, allAcc)
         self.trainer.logger.info(
@@ -267,9 +278,7 @@ class SemSegEvaluator(HookBase):
             self.trainer.writer.add_scalar("val/mPrecision", m_precision, current_epoch)
             self.trainer.writer.add_scalar("val/allAcc", all_acc, current_epoch)
             
-            #Adjust the alignment between the WandB activation judgement and the step count
-            if getattr(self.trainer.cfg, 'enable_wandb', False):
-                global_step = wandb.run.step if wandb.run else None
+            if hasattr(self.trainer.cfg, 'enable_wandb') and self.trainer.cfg.enable_wandb:
                 wandb.log({
                     "val/loss": loss_avg,
                     "val/mIoU": m_iou,
@@ -278,7 +287,7 @@ class SemSegEvaluator(HookBase):
                     "val/mPrecision": m_precision,
                     "val/allAcc": all_acc,
                     "Epoch": current_epoch
-                }, step=global_step)
+                }, step=wandb.run.step if hasattr(wandb.run, 'step') else None)
             
             if self.write_cls_metrics:
                 for i in range(self.trainer.cfg.data.num_classes):
@@ -286,14 +295,12 @@ class SemSegEvaluator(HookBase):
                     self.trainer.writer.add_scalar(f"val/cls_{i}-{name}_IoU", iou_class[i], current_epoch)
                     self.trainer.writer.add_scalar(f"val/cls_{i}-{name}_F1", f1_class[i], current_epoch)
                     
-                    #Adjust the alignment between the WandB activation judgement and the step count
-                    if getattr(self.trainer.cfg, 'enable_wandb', False):
-                        global_step = wandb.run.step if wandb.run else None
+                    if hasattr(self.trainer.cfg, 'enable_wandb') and self.trainer.cfg.enable_wandb:
                         wandb.log({
                              f"val/cls_{i}-{name}_IoU": iou_class[i],
                              f"val/cls_{i}-{name}_F1": f1_class[i],
                              "Epoch": current_epoch
-                        }, step=global_step)
+                        }, step=wandb.run.step if hasattr(wandb.run, 'step') else None)
         
         self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
         self.trainer.comm_info["current_metric_value"] = m_iou  # save for saver
@@ -689,17 +696,17 @@ class InsSegEvaluator(HookBase):
                 self.trainer.writer.add_scalar("val/mAP", all_ap, current_epoch)
                 self.trainer.writer.add_scalar("val/AP50", all_ap_50, current_epoch)
                 self.trainer.writer.add_scalar("val/AP25", all_ap_25, current_epoch)
-                
-                #Adjust the alignment between the WandB activation judgement and the step count
-                if getattr(self.trainer.cfg, 'enable_wandb', False):
-                    global_step = wandb.run.step if wandb.run else None
-                    wandb.log({
-                        "Epoch": current_epoch,
-                        "val/loss": loss_avg,
-                        "val/mAP": all_ap,
-                        "val/AP50": all_ap_50,
-                        "val/AP25": all_ap_25,
-                    }, step=global_step)
+                if self.trainer.cfg.enable_wandb:
+                    wandb.log(
+                        {
+                            "Epoch": current_epoch,
+                            "val/loss": loss_avg,
+                            "val/mAP": all_ap,
+                            "val/AP50": all_ap_50,
+                            "val/AP25": all_ap_25,
+                        },
+                        step=wandb.run.step,
+                    )
             self.trainer.logger.info(
                 "<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<"
             )
