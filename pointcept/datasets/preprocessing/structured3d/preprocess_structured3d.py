@@ -17,7 +17,6 @@ import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 
-
 VALID_CLASS_IDS_25 = (
     1,
     2,

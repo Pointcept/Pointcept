@@ -13,7 +13,12 @@
 [![Formatter](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml/badge.svg)](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml)
 
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
-- 🚀 **Concerto: Joint 2D-3D Self-Supervised Learning Emerges Spatial Representations**  
+- 🚀 **Utonia: Toward One Encoder for All Point Clouds**  
+*Yujia Zhang, Xiaoyang Wu, Yunhan Yang, Xianzhe Fan, Han Li, Yuechen Zhang, Zehao Huang, Naiyan Wang, Hengshuang Zhao*  
+[ Pretrain ] [Utonia] - [ [Project](https://pointcept.github.io/Utonia/) ] [ [Bib](https://pointcept.github.io/Utonia/#citation) ] [ [HF Demo](https://huggingface.co/spaces/pointcept-bot/Utonia) ] [ [Inference](https://github.com/Pointcept/Utonia) ] [ [Weight](https://huggingface.co/Pointcept/Utonia) ] &rarr; [here](https://github.com/Pointcept/Utonia)
+
+
+- **Concerto: Joint 2D-3D Self-Supervised Learning Emerges Spatial Representations**  
 *Yujia Zhang, Xiaoyang Wu, Yixing Lao, Chengyao Wang, Zhuotao Tian, Naiyan Wang, Hengshuang Zhao*   
 Conference on Neural Information Processing Systems (**NeurIPS**) 2025  
 [ Pretrain ] [Concerto] - [ [Project](https://pointcept.github.io/Concerto/) ] [ [Bib](https://xywu.me/research/concerto/bib.txt) ] [ [HF Demo](https://huggingface.co/spaces/Pointcept/Concerto) ] [ [Inference](https://github.com/Pointcept/Concerto) ] [ [Weight](https://huggingface.co/Pointcept/Concerto) ] &rarr; [here](#concerto)
