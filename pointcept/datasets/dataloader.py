@@ -1,7 +1,10 @@
 from functools import partial
 import weakref
 import torch
+import math
 import torch.utils.data
+import torch.distributed as dist
+from torch.utils.data import Sampler
 
 import pointcept.utils.comm as comm
 from pointcept.datasets.utils import point_collate_fn
@@ -110,3 +113,93 @@ class MultiDatasetDataloader:
             + seed
         )
         set_seed(worker_seed)
+
+
+class DistributedImbalancedSampler(Sampler):
+    def __init__(
+        self,
+        dataset,
+        sampled_dataset_index,
+        sampled_dataset_limit,
+        num_replicas=None,
+        rank=None,
+        shuffle=True,
+        seed=0,
+    ):
+        if num_replicas is None:
+            if not dist.is_available():
+                num_replicas = 1
+                rank = 0
+            else:
+                try:
+                    num_replicas = dist.get_world_size()
+                    rank = dist.get_rank()
+                except:
+                    num_replicas = 1
+                    rank = 0
+
+        self.dataset = dataset
+        self.num_replicas = num_replicas
+        self.rank = rank
+        self.epoch = 0
+        self.seed = seed
+        self.sampled_dataset_index = sampled_dataset_index
+        self.sampled_dataset_limit = sampled_dataset_limit
+        self.shuffle = shuffle
+
+        self.lengths = [len(d) for d in dataset.datasets]
+        self.offsets = [0] + list(
+            torch.cumsum(torch.tensor(self.lengths), 0)[:-1].numpy()
+        )
+        self.total_size_per_epoch = (
+            sum(self.lengths)
+            - self.lengths[self.sampled_dataset_index]
+            + self.sampled_dataset_limit
+        )
+        self.num_samples = math.ceil(self.total_size_per_epoch / self.num_replicas)
+        self.total_size = self.num_samples * self.num_replicas
+
+    def __iter__(self):
+        g = torch.Generator()
+        g.manual_seed(self.seed + self.epoch)
+
+        indices = []
+        for i, length in enumerate(self.lengths):
+            if i == self.sampled_dataset_index:
+                sub_indices = (
+                    torch.randperm(length, generator=g)[: self.sampled_dataset_limit]
+                    + self.offsets[i]
+                )
+                indices.append(sub_indices)
+            else:
+                sub_indices = torch.arange(length) + self.offsets[i]
+                indices.append(sub_indices)
+
+        final_indices = torch.cat(indices)
+
+        if self.shuffle:
+            final_indices = final_indices[
+                torch.randperm(len(final_indices), generator=g)
+            ]
+
+        final_indices = final_indices.tolist()
+        padding_size = self.total_size - len(final_indices)
+        if padding_size <= len(final_indices):
+            final_indices += final_indices[:padding_size]
+        else:
+            final_indices += (
+                final_indices * math.ceil(padding_size / len(final_indices))
+            )[:padding_size]
+
+        assert len(final_indices) == self.total_size
+
+        offset = self.num_samples * self.rank
+        subsample_indices = final_indices[offset : offset + self.num_samples]
+
+        return iter(subsample_indices)
+
+    def __len__(self):
+        return self.num_samples
+
+    def set_epoch(self, epoch):
+        self.epoch = epoch

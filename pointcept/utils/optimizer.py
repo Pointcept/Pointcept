@@ -1,7 +1,7 @@
 """
 Optimizer
 
-Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
+Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com), Yujia Zhang (yujia.zhang.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
@@ -9,6 +9,7 @@ import copy
 import torch
 from pointcept.utils.logger import get_root_logger
 from pointcept.utils.registry import Registry
+from .muon_kimi import *
 
 OPTIMIZERS = Registry("optimizers")
 
@@ -16,6 +17,7 @@ OPTIMIZERS = Registry("optimizers")
 OPTIMIZERS.register_module(module=torch.optim.SGD, name="SGD")
 OPTIMIZERS.register_module(module=torch.optim.Adam, name="Adam")
 OPTIMIZERS.register_module(module=torch.optim.AdamW, name="AdamW")
+OPTIMIZERS.register_module(module=MuonKIMI, name="Muon_KIMI")
 
 
 def build_optimizer(cfg, model, param_dicts=None):
@@ -32,6 +34,8 @@ def build_optimizer(cfg, model, param_dicts=None):
                 param_group["momentum"] = param_dicts[i].momentum
             if "weight_decay" in param_dicts[i].keys():
                 param_group["weight_decay"] = param_dicts[i].weight_decay
+            if "force_adamw" in param_dicts[i].keys():
+                param_group["force_adamw"] = param_dicts[i].force_adamw
             cfg.params.append(param_group)
 
         for n, p in model.named_parameters():

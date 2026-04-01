@@ -1,0 +1,195 @@
+{
+    "Bottle": [
+        "lid"
+    ],
+    "Box": [
+        "lid"
+    ],
+    "Bucket": [
+        "handle"
+    ],
+    "Camera": [
+        "button",
+        "lens"
+    ],
+    "Cart": [
+        "wheel"
+    ],
+    "Chair": [
+        "arm",
+        "back",
+        "leg",
+        "seat",
+        "wheel"
+    ],
+    "Clock": [
+        "hand"
+    ],
+    "CoffeeMachine": [
+        "button",
+        "container",
+        "knob",
+        "lid"
+    ],
+    "Dishwasher": [
+        "door",
+        "handle"
+    ],
+    "Dispenser": [
+        "head",
+        "lid"
+    ],
+    "Display": [
+        "base",
+        "screen",
+        "support"
+    ],
+    "Door": [
+        "frame",
+        "door",
+        "handle"
+    ],
+    "Eyeglasses": [
+        "body",
+        "leg"
+    ],
+    "Faucet": [
+        "spout",
+        "switch"
+    ],
+    "FoldingChair": [
+        "seat"
+    ],
+    "Globe": [
+        "sphere"
+    ],
+    "Kettle": [
+        "lid",
+        "handle",
+        "spout"
+    ],
+    "Keyboard": [
+        "cord",
+        "key"
+    ],
+    "KitchenPot": [
+        "lid",
+        "handle"
+    ],
+    "Knife": [
+        "blade"
+    ],
+    "Lamp": [
+        "base",
+        "body",
+        "bulb",
+        "shade"
+    ],
+    "Laptop": [
+        "keyboard",
+        "screen",
+        "shaft",
+        "touchpad",
+        "camera"
+    ],
+    "Lighter": [
+        "lid",
+        "wheel",
+        "button"
+    ],
+    "Microwave": [
+        "display",
+        "door",
+        "handle",
+        "button"
+    ],
+    "Mouse": [
+        "button",
+        "cord",
+        "wheel"
+    ],
+    "Oven": [
+        "door",
+        "knob"
+    ],
+    "Pen": [
+        "cap",
+        "button"
+    ],
+    "Phone": [
+        "lid",
+        "button"
+    ],
+    "Pliers": [
+        "leg"
+    ],
+    "Printer": [
+        "button"
+    ],
+    "Refrigerator": [
+        "door",
+        "handle"
+    ],
+    "Remote": [
+        "button"
+    ],
+    "Safe": [
+        "door",
+        "switch",
+        "button"
+    ],
+    "Scissors": [
+        "blade",
+        "handle",
+        "screw"
+    ],
+    "Stapler": [
+        "body",
+        "lid"
+    ],
+    "StorageFurniture": [
+        "door",
+        "drawer",
+        "handle"
+    ],
+    "Suitcase": [
+        "handle",
+        "wheel"
+    ],
+    "Switch": [
+        "switch"
+    ],
+    "Table": [
+        "door",
+        "drawer",
+        "leg",
+        "tabletop",
+        "wheel",
+        "handle"
+    ],
+    "Toaster": [
+        "button",
+        "slider"
+    ],
+    "Toilet": [
+        "lid",
+        "seat",
+        "button"
+    ],
+    "TrashCan": [
+        "footpedal",
+        "lid",
+        "door"
+    ],
+    "USB": [
+        "cap",
+        "rotation"
+    ],
+    "WashingMachine": [
+        "door",
+        "button"
+    ],
+    "Window": [
+        "window"
+    ]
+}
