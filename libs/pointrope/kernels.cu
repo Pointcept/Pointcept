@@ -1,9 +1,9 @@
-"""
+/*
 CUDA implementation of PointROPE
 
 Author: Yuanwen Yue (yuayue@ethz.ch)
 Please cite our work if the code is helpful to you.
-"""
+*/
 
 #include <torch/extension.h>
 #include <cuda.h>

@@ -11,8 +11,12 @@ import torch
 import torch.nn as nn
 import spconv.pytorch as spconv
 import torch_scatter
-import flash_attn
 from timm.layers import DropPath
+
+try:
+    import flash_attn
+except ImportError:
+    flash_attn = None
 
 from pointcept.models.builder import MODELS
 from pointcept.models.utils.misc import offset2bincount
@@ -48,8 +52,10 @@ try:
             self.F0 = F0
 
         def forward(self, tokens, positions):
-            PointROPE_func.apply(tokens.transpose(1, 2), positions, self.base, self.F0)
-            return tokens
+            tokens = tokens.transpose(1, 2).contiguous()
+            positions = positions.contiguous()
+            tokens = PointROPE_func.apply(tokens, positions, self.base, self.F0)
+            return tokens.transpose(1, 2).contiguous()
 
 except Exception as e:
     print(
@@ -243,6 +249,12 @@ class PointROPEAttention(PointModule):
             ],
             dim=1,
         )  # [N, 3, H, head_dim]
+
+        if flash_attn is None:
+            raise ImportError(
+                "LitePT forward requires flash_attn, but it is not installed. "
+                "Please install flash_attn to run LitePT attention."
+            )
 
         feat = flash_attn.flash_attn_varlen_qkvpacked_func(
             qkv_rotated,
