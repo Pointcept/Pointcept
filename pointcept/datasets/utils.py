@@ -12,6 +12,9 @@ import torch
 from torch.utils.data.dataloader import default_collate
 import torch.nn.functional as F
 
+from torch_scatter import scatter_min
+from pointcept.models.utils import offset2batch
+
 
 def collate_fn(batch):
     """
@@ -90,6 +93,18 @@ def point_collate_fn(batch, mix_prob=0):
                 [batch[offset_asset][1:-1:2], batch[offset_asset][-1].unsqueeze(0)],
                 dim=0,
             )
+
+        # Recompute grid_coord after mixing, because each scene's grid_coord was
+        # independently shifted before mixing and is no longer consistent with
+        # the merged coord. Only done when grid_size is available (e.g. LitePT
+        # configs); other configs are unaffected.
+        if "grid_coord" in batch and "grid_size" in batch:
+            batch_idx = offset2batch(batch["offset"])
+            scaled_coord = batch["coord"] / batch["grid_size"][0]
+            grid_coord = torch.floor(scaled_coord).to(torch.int64)
+            min_coord, _ = scatter_min(grid_coord, batch_idx, dim=0)
+            batch["grid_coord"] = grid_coord - min_coord[batch_idx]
+
         if "img_num" in batch.keys():
             n = batch["img_num"].shape[0]
             num_pairs = n // 2
