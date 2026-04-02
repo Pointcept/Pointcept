@@ -70,7 +70,7 @@ RUN pip install git+https://github.com/openai/CLIP.git
 RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install -U git+https://github.com/microsoft/Swin3D.git -v --no-build-isolation
 
 # Build FlashAttention2
-RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install git+https://github.com/Dao-AILab/flash-attention.git --no-build-isolation
+RUN TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0" pip install git+https://github.com/Dao-AILab/flash-attention.git@v2.8.3 --no-build-isolation
 
 # Build pointops
 RUN git clone https://github.com/Pointcept/Pointcept.git
