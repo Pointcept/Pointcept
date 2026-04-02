@@ -41,11 +41,11 @@ def intersection_and_union(output, target, K, ignore_index=-1):
     assert output.shape == target.shape
     output = output.reshape(output.size).copy()
     target = target.reshape(target.size)
-    
+
     # Keep only points whose label is not ignore_index.
-    mask = (target != ignore_index)
+    mask = target != ignore_index
     output, target = output[mask], target[mask]
-    
+
     intersection = output[np.where(output == target)[0]]
     area_intersection, _ = np.histogram(intersection, bins=np.arange(K + 1))
     area_output, _ = np.histogram(output, bins=np.arange(K + 1))
