@@ -528,7 +528,7 @@ If you find _Utonia_ useful to your research, please consider citing our line of
 ```
 
 ## License
-- Concerto code is based on Sonata, which is released by Meta under the [Apache 2.0 license](https://github.com/facebookresearch/sonata/blob/main/LICENSE),
-- Concerto weight is released under the [CC-BY-NC 4.0 license](https://creativecommons.org/licenses/by-nc/4.0/deed.en)
+- Utonia code is based on Sonata, which is released by Meta under the [Apache 2.0 license](https://github.com/facebookresearch/sonata/blob/main/LICENSE),
+- Utonia weight is released under the [CC-BY-NC 4.0 license](https://creativecommons.org/licenses/by-nc/4.0/deed.en)
 (restricted by NC of datasets like HM3D, ArkitScenes).
 - For commercial usage, please removing datasets restrict by non-commercial license.
