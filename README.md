@@ -15,7 +15,7 @@
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
 - 🚀 **Utonia: Toward One Encoder for All Point Clouds**  
 *Yujia Zhang, Xiaoyang Wu, Yunhan Yang, Xianzhe Fan, Han Li, Yuechen Zhang, Zehao Huang, Naiyan Wang, Hengshuang Zhao*  
-[ Pretrain ] [Utonia] - [ [Project](https://pointcept.github.io/Utonia/) ] [ [Bib](https://pointcept.github.io/Utonia/#citation) ] [ [HF Demo](https://huggingface.co/spaces/pointcept-bot/Utonia) ] [ [Inference](https://github.com/Pointcept/Utonia) ] [ [Weight](https://huggingface.co/Pointcept/Utonia) ] &rarr; [here](https://github.com/Pointcept/Utonia)
+[ Pretrain ] [Utonia] - [ [Project](https://pointcept.github.io/Utonia/) ] [ [Bib](https://pointcept.github.io/Utonia/#citation) ] [ [HF Demo](https://huggingface.co/spaces/pointcept-bot/Utonia) ] [ [Inference](https://github.com/Pointcept/Utonia) ] [ [Weight](https://huggingface.co/Pointcept/Utonia) ] &rarr; [here](#utonia)
 
 
 - **Concerto: Joint 2D-3D Self-Supervised Learning Emerges Spatial Representations**  
@@ -95,7 +95,7 @@ Pre-training:
 [Masked Scene Contrast](https://arxiv.org/abs/2303.14191) ([here](#masked-scene-contrast-msc)),
 [Point Prompt Training](https://arxiv.org/abs/2308.09718) ([here](#point-prompt-training-ppt)),
 [Sonata](https://arxiv.org/abs/2503.16429) ([here](#sonata)),
-[Concerto](https://arxiv.org/abs/2510.23607) ([here](#concerto));  
+[Concerto](https://arxiv.org/abs/2510.23607) ([here](#concerto)),
 [Utonia](https://arxiv.org/abs/2603.03283) ([here](#utonia));  
 Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
