@@ -1,7 +1,8 @@
 name: pointcept-torch2.5.0-cu12.4
 channels:
+  - pyg
   - pytorch
-  - nvidia/label/cuda-12.4.1
+  - nvidia/label/cuda-12.4.4
   - nvidia
   - bioconda
   - conda-forge
@@ -37,12 +38,12 @@ dependencies:
   - matplotlib
   - black
   - open3d
+  - peft
   - pip:
-    - --find-links https://data.pyg.org/whl/torch-2.5.0+cu124.html
-    - torch-cluster
-    - torch-scatter
-    - torch-sparse
-    - torch-geometric
+    - torch-cluster -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
+    - torch-scatter -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
+    - torch-sparse -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
+    - torch_geometric
     - spconv-cu124
     - peft #for lora finetune
     - git+https://github.com/octree-nn/ocnn-pytorch.git

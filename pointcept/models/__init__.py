@@ -27,3 +27,4 @@ from .masked_scene_contrast import *
 from .point_prompt_training import *
 from .sonata import *
 from .concerto import *
+from .utonia import *

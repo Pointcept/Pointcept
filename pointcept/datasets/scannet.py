@@ -75,7 +75,6 @@ class ScanNetDataset(DefaultDataset):
         data_dict["coord"] = data_dict["coord"].astype(np.float32)
         data_dict["color"] = data_dict["color"].astype(np.float32)
         data_dict["normal"] = data_dict["normal"].astype(np.float32)
-
         if "segment20" in data_dict.keys():
             data_dict["segment"] = (
                 data_dict.pop("segment20").reshape([-1]).astype(np.int32)

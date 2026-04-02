@@ -8,7 +8,6 @@ Please cite our work if the code is helpful to you.
 import os
 import glob
 import json
-
 import numpy as np
 import torch
 from copy import deepcopy
@@ -17,7 +16,6 @@ from collections.abc import Sequence
 from torchvision.transforms import InterpolationMode
 from PIL import Image
 from torchvision.transforms import transforms as T
-import torch.nn.functional as F
 
 from pointcept.utils.logger import get_root_logger
 from pointcept.utils.cache import shared_dict
@@ -66,7 +64,6 @@ class DefaultDataset(Dataset):
         )  # force make loop = 1 while in test mode
         self.test_mode = test_mode
         self.test_cfg = test_cfg if test_mode else None
-
         if test_mode:
             self.test_voxelize = TRANSFORMS.build(self.test_cfg.voxelize)
             self.test_crop = (
@@ -208,7 +205,11 @@ class DefaultImagePointDataset(Dataset):
         "coord",
         "color",
         "normal",
+        "superpoint",
+        "pose",
         "segment",
+        "instance",
+        "strength",
     ]
 
     def __init__(
@@ -225,8 +226,10 @@ class DefaultImagePointDataset(Dataset):
         crop_w=1120,
         patch_size=14,
         interpolation="bilinear",
+        if_img=True,
     ):
         super(DefaultImagePointDataset, self).__init__()
+        self.if_img = if_img
         self.data_root = data_root
         self.split = split
         self.transform = Compose(transform)
@@ -292,11 +295,11 @@ class DefaultImagePointDataset(Dataset):
         correspondence = correspondence[mask_crop]
         correspondence[:, 1] -= top
         correspondence[:, 0] -= left
-        correspondence[:, 1] = (correspondence[:, 1] * h / crop_h // _alignment).astype(
-            np.int32
+        correspondence[:, 1] = (correspondence[:, 1] * h / crop_h / _alignment).astype(
+            np.float32
         )
-        correspondence[:, 0] = (correspondence[:, 0] * w / crop_w // _alignment).astype(
-            np.int32
+        correspondence[:, 0] = (correspondence[:, 0] * w / crop_w / _alignment).astype(
+            np.float32
         )
         correspondence = correspondence[:, [1, 0, 2]]
         correspondence = np.unique(correspondence, axis=0)
@@ -346,48 +349,57 @@ class DefaultImagePointDataset(Dataset):
             if asset[:-4] not in self.PC_VALID_ASSETS:
                 continue
             data_dict[asset[:-4]] = np.load(os.path.join(pointclouds_path, asset))
-        imgs_path = data_path["images"]
-        imgs = [Image.open(asset) for asset in imgs_path]
-        img_width, img_height = imgs[0].size
-        div_w = img_width // self.patch_w
-        div_h = img_height // self.patch_h
-        div_min = max(min(div_w, div_h), 1)
-        crop_img_width = div_min * self.patch_w
-        crop_img_height = div_min * self.patch_h
-        left = int((img_width - crop_img_width) / 2)
-        top = int((img_height - crop_img_height) / 2)
-        right = int((img_width + crop_img_width) / 2)
-        bottom = int((img_height + crop_img_height) / 2)
-        imgs = [img.crop((left, top, right, bottom)) for img in imgs]
-        imgs = [self.transform_img(img) for img in imgs]
-        if len(imgs) > 0:
-            imgs_list = torch.stack(imgs)
-            data_dict["images"] = imgs_list.float()
-        else:
-            data_dict["images"] = torch.empty(
-                (0, 3, self.patch_h * self.patch_size, self.patch_w * self.patch_size)
+        if self.if_img:
+            imgs_path = data_path["images"]
+            imgs = [Image.open(asset) for asset in imgs_path]
+            if len(imgs) > 0:
+                img_width, img_height = imgs[0].size
+                div_w = img_width // self.patch_w
+                div_h = img_height // self.patch_h
+                div_min = max(min(div_w, div_h), 1)
+                crop_img_width = div_min * self.patch_w
+                crop_img_height = div_min * self.patch_h
+                left = int((img_width - crop_img_width) / 2)
+                top = int((img_height - crop_img_height) / 2)
+                right = int((img_width + crop_img_width) / 2)
+                bottom = int((img_height + crop_img_height) / 2)
+                imgs = [img.crop((left, top, right, bottom)) for img in imgs]
+                imgs = [self.transform_img(img) for img in imgs]
+                imgs_list = torch.stack(imgs)
+                data_dict["images"] = imgs_list.float()
+            else:
+                data_dict["images"] = torch.empty(
+                    (
+                        0,
+                        3,
+                        self.patch_h * self.patch_size,
+                        self.patch_w * self.patch_size,
+                    )
+                )
+            data_dict["img_num"] = np.array(
+                [data_dict["images"].shape[0]], dtype=np.int32
             )
-        data_dict["img_num"] = np.array([data_dict["images"].shape[0]], dtype=np.int32)
 
-        correspondences_path = data_path["correspondences"]
-        correspondence_infos = np.ones(
-            (data_dict["coord"].shape[0], len(correspondences_path), 2), dtype=np.int32
-        ) * (-1)
-        for asset_id, asset in enumerate(correspondences_path):
-            correspondence_info = np.load(asset).astype(np.int32)
-            if np.array_equal(correspondence_info, -np.ones((1, 3))):
-                continue
-            correspondence_info = self.resize_correspondence_info(
-                correspondence_info,
-                (self.patch_h * self.patch_size, self.patch_w * self.patch_size),
-                (img_height, img_width),
-                (left, top, right, bottom),
-                self.patch_size,
-            )
-            correspondence_infos[correspondence_info[:, -1], asset_id, :] = (
-                correspondence_info[:, :-1]
-            )
-        data_dict["correspondence"] = correspondence_infos  # .reshape(-1, 2)
+            correspondences_path = data_path["correspondences"]
+            correspondence_infos = np.ones(
+                (data_dict["coord"].shape[0], len(correspondences_path), 2),
+                dtype=np.float32,
+            ) * (-1)
+            for asset_id, asset in enumerate(correspondences_path):
+                correspondence_info = np.load(asset).astype(np.float32)
+                if np.array_equal(correspondence_info, -np.ones((1, 3))):
+                    continue
+                correspondence_info = self.resize_correspondence_info(
+                    correspondence_info,
+                    (self.patch_h * self.patch_size, self.patch_w * self.patch_size),
+                    (img_height, img_width),
+                    (left, top, right, bottom),
+                    self.patch_size,
+                )
+                correspondence_infos[
+                    correspondence_info[:, -1].astype(np.int32), asset_id, :
+                ] = correspondence_info[:, :-1]
+            data_dict["correspondence"] = correspondence_infos  # .reshape(-1, 2)
 
         if "coord" in data_dict.keys():
             data_dict["coord"] = data_dict["coord"].astype(np.float32)
@@ -460,6 +472,168 @@ class DefaultImagePointDataset(Dataset):
 
     def __len__(self):
         return len(self.data_list) * self.loop
+
+
+@DATASETS.register_module()
+class DefaultMultiViewImagePointDataset(DefaultImagePointDataset):
+    def __init__(self, depth_scale=1000.0, if_img=True, **kwargs):
+        self.depth_scale = depth_scale
+        self.if_img = if_img
+        super().__init__(if_img=if_img, **kwargs)
+
+    def get_data_list(self):
+        split_list = {}
+        if isinstance(self.split, str):
+            splits_to_load = [self.split]
+        elif isinstance(self.split, Sequence):
+            splits_to_load = self.split
+        else:
+            raise NotImplementedError
+
+        data_list = {}
+        for split in splits_to_load:
+            data_path = os.path.join(self.data_root, "splits", f"{split}.json")
+            if not os.path.exists(data_path):
+                raise FileNotFoundError(f"Split file not found: {data_path}")
+
+            with open(data_path, "r", encoding="utf-8") as file:
+                data_split_dict = json.load(file)
+                data_list.update(data_split_dict)
+            split_list[split] = list(data_split_dict.keys())
+        return data_list, split_list
+
+    @staticmethod
+    def get_normals(center, coords):
+        normals = coords - center[None, :]
+        normals = normals / np.linalg.norm(normals, axis=-1, keepdims=True)
+        return normals
+
+    def get_data(self, idx):
+        name = self.get_data_name(idx)
+        split = self.get_split_name(idx)
+        data_info = self.data_list[name]
+
+        all_points_world, all_colors, camera_params = [], [], []
+        correspondences = []
+        coord_num = 0
+        for i in range(len(data_info["images"])):
+            rgb_path = data_info["images"][i]
+            depth_path = data_info["depths"][i]
+            pose_path = data_info["Ts"][i]
+            intr_path = data_info["Ks"][i]
+
+            try:
+                with Image.open(rgb_path) as img:
+                    color_img = np.array(img)
+                with Image.open(depth_path) as img:
+                    depth_img = np.array(img)
+                cam_pose_world = np.load(pose_path)
+                cam_intr = np.load(intr_path)
+                camera_params.append({"pose": cam_pose_world, "intr": cam_intr})
+            except FileNotFoundError:
+                continue
+
+            depth_m = depth_img.astype(np.float32) / self.depth_scale
+            h, w = depth_m.shape
+            fx, fy, cx, cy = (
+                cam_intr[0, 0],
+                cam_intr[1, 1],
+                cam_intr[0, 2],
+                cam_intr[1, 2],
+            )
+            v, u = np.indices((h, w))
+            valid_mask = (depth_m > 0) & (depth_m < 0.8)
+            z_cam = depth_m[valid_mask]
+            x_cam, y_cam = (u[valid_mask] - cx) * z_cam / fx, (
+                v[valid_mask] - cy
+            ) * z_cam / fy
+            points_cam = np.vstack((x_cam, y_cam, z_cam)).T
+            points_world = (
+                cam_pose_world
+                @ np.hstack([points_cam, np.ones((points_cam.shape[0], 1))]).T
+            ).T[:, :3]
+            all_points_world.append(points_world)
+            all_colors.append(color_img[valid_mask])
+
+            pixel = np.vstack([u[valid_mask], v[valid_mask]]).T
+            pixel = np.concatenate([pixel, np.arange(pixel.shape[0])[:, None]], axis=1)
+            pixel[:, 2] += coord_num
+            coord_num += points_world.shape[0]
+            correspondences.append(pixel)
+        coord = (
+            np.concatenate(all_points_world, axis=0)
+            if all_points_world
+            else np.zeros((0, 3))
+        )
+        coord[:, 2] = -coord[:, 2]
+        color = np.concatenate(all_colors, axis=0) if all_colors else np.zeros((0, 3))
+        normal = self.get_normals(np.array([0, 0, 0]), coord)
+
+        if self.if_img:
+            imgs_path = data_info["images"]
+            imgs = [Image.open(asset) for asset in imgs_path]
+            img_width, img_height = imgs[0].size
+            div_w = img_width // self.patch_w
+            div_h = img_height // self.patch_h
+            div_min = max(min(div_w, div_h), 1)
+            crop_img_width = div_min * self.patch_w
+            crop_img_height = div_min * self.patch_h
+            left = int((img_width - crop_img_width) / 2)
+            top = int((img_height - crop_img_height) / 2)
+            right = int((img_width + crop_img_width) / 2)
+            bottom = int((img_height + crop_img_height) / 2)
+            imgs = [img.crop((left, top, right, bottom)) for img in imgs]
+            imgs = [self.transform_img(img) for img in imgs]
+            if len(imgs) > 0:
+                imgs_list = torch.stack(imgs)
+                imgs_tensor = imgs_list.float()
+            else:
+                imgs_tensor = torch.empty(
+                    (
+                        0,
+                        3,
+                        self.patch_h * self.patch_size,
+                        self.patch_w * self.patch_size,
+                    )
+                )
+            img_num = np.array([imgs_tensor.shape[0]], dtype=np.int32)
+
+            num_points, num_imgs = coord.shape[0], len(imgs)
+            correspondence_infos = (
+                np.ones((num_points, num_imgs, 2), dtype=np.float32) * -1
+            )
+
+            for asset_id, correspondence_info in enumerate(correspondences):
+                correspondence_info = self.resize_correspondence_info(
+                    correspondence_info,
+                    (self.patch_h * self.patch_size, self.patch_w * self.patch_size),
+                    (img_height, img_width),
+                    (left, top, right, bottom),
+                    self.patch_size,
+                )
+                correspondence_infos[
+                    correspondence_info[:, -1].astype(np.int32), asset_id, :
+                ] = correspondence_info[:, :-1]
+
+            data_dict = {
+                "name": name,
+                "split": split,
+                "coord": coord.astype(np.float32),
+                "color": color.astype(np.float32),
+                "normal": normal.astype(np.float32),
+                "images": imgs_tensor,
+                "img_num": img_num,
+                "correspondence": correspondence_infos,
+            }
+        else:
+            data_dict = {
+                "name": name,
+                "split": split,
+                "coord": coord.astype(np.float32),
+                "color": color.astype(np.float32),
+                "normal": normal.astype(np.float32),
+            }
+        return data_dict
 
 
 @DATASETS.register_module()

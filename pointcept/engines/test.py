@@ -1,7 +1,7 @@
 """
 Tester
 
-Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
+Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com), Yujia Zhang (yujia.zhang.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
@@ -33,7 +33,6 @@ try:
     import pointops
 except:
     pointops = None
-
 
 TESTERS = Registry("testers")
 
@@ -612,9 +611,17 @@ class ClsTester(TesterBase):
         intersection_meter = AverageMeter()
         union_meter = AverageMeter()
         target_meter = AverageMeter()
+        record = {}
         self.model.eval()
 
         for i, input_dict in enumerate(self.test_loader):
+            data_name = input_dict.get("name", None)
+            if data_name is None:
+                raise RuntimeError(
+                    "ClsTester requires sample `name` for deduplicated evaluation."
+                )
+            if isinstance(data_name, str):
+                data_name = [data_name]
             for key in input_dict.keys():
                 if isinstance(input_dict[key], torch.Tensor):
                     input_dict[key] = input_dict[key].cuda(non_blocking=True)
@@ -624,13 +631,29 @@ class ClsTester(TesterBase):
             output = output_dict["cls_logits"]
             pred = output.max(1)[1]
             label = input_dict["category"]
+            if len(data_name) != pred.shape[0]:
+                raise RuntimeError(
+                    "Number of sample names does not match batch size in ClsTester."
+                )
+            for b, name in enumerate(data_name):
+                sample_pred = pred[b : b + 1].reshape(-1)
+                sample_label = label[b : b + 1].reshape(-1)
+                sample_intersection, sample_union, sample_target = (
+                    intersection_and_union_gpu(
+                        sample_pred,
+                        sample_label,
+                        self.cfg.data.num_classes,
+                        self.cfg.data.ignore_index,
+                    )
+                )
+                record[name] = dict(
+                    intersection=sample_intersection.cpu().numpy(),
+                    union=sample_union.cpu().numpy(),
+                    target=sample_target.cpu().numpy(),
+                )
             intersection, union, target = intersection_and_union_gpu(
                 pred, label, self.cfg.data.num_classes, self.cfg.data.ignore_index
             )
-            if comm.get_world_size() > 1:
-                dist.all_reduce(intersection), dist.all_reduce(union), dist.all_reduce(
-                    target
-                )
             intersection, union, target = (
                 intersection.cpu().numpy(),
                 union.cpu().numpy(),
@@ -654,26 +677,42 @@ class ClsTester(TesterBase):
                 )
             )
 
-        iou_class = intersection_meter.sum / (union_meter.sum + 1e-10)
-        accuracy_class = intersection_meter.sum / (target_meter.sum + 1e-10)
-        mIoU = np.mean(iou_class)
-        mAcc = np.mean(accuracy_class)
-        allAcc = sum(intersection_meter.sum) / (sum(target_meter.sum) + 1e-10)
-        logger.info(
-            "Val result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}.".format(
-                mIoU, mAcc, allAcc
-            )
-        )
+        logger.info("Syncing ...")
+        comm.synchronize()
+        record_sync = comm.gather(record, dst=0)
 
-        for i in range(self.cfg.data.num_classes):
+        if comm.is_main_process():
+            record = {}
+            for _ in range(len(record_sync)):
+                r = record_sync.pop()
+                record.update(r)
+                del r
+            intersection = np.sum(
+                [meters["intersection"] for _, meters in record.items()], axis=0
+            )
+            union = np.sum([meters["union"] for _, meters in record.items()], axis=0)
+            target = np.sum([meters["target"] for _, meters in record.items()], axis=0)
+
+            iou_class = intersection / (union + 1e-10)
+            accuracy_class = intersection / (target + 1e-10)
+            mIoU = np.mean(iou_class)
+            mAcc = np.mean(accuracy_class)
+            allAcc = sum(intersection) / (sum(target) + 1e-10)
             logger.info(
-                "Class_{idx} - {name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}".format(
-                    idx=i,
-                    name=self.cfg.data.names[i],
-                    iou=iou_class[i],
-                    accuracy=accuracy_class[i],
+                "Val result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}.".format(
+                    mIoU, mAcc, allAcc
                 )
             )
+
+            for i in range(self.cfg.data.num_classes):
+                logger.info(
+                    "Class_{idx} - {name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}".format(
+                        idx=i,
+                        name=self.cfg.data.names[i],
+                        iou=iou_class[i],
+                        accuracy=accuracy_class[i],
+                    )
+                )
         logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
 
     @staticmethod
@@ -799,98 +838,321 @@ class ClsVotingTester(TesterBase):
 
 
 @TESTERS.register_module()
-class PartSegTester(TesterBase):
+class ShapeNetPartSegTester(TesterBase):
     def test(self):
-        test_dataset = self.test_loader.dataset
         logger = get_root_logger()
         logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
 
         batch_time = AverageMeter()
 
         num_categories = len(self.test_loader.dataset.categories)
-        iou_category, iou_count = np.zeros(num_categories), np.zeros(num_categories)
+        record = {}
         self.model.eval()
 
-        save_path = os.path.join(
-            self.cfg.save_path, "result", "test_epoch{}".format(self.cfg.test_epoch)
-        )
+        save_path = os.path.join(self.cfg.save_path, "result")
         make_dirs(save_path)
 
-        for idx in range(len(test_dataset)):
-            end = time.time()
-            data_name = test_dataset.get_data_name(idx)
-
-            data_dict_list, label = test_dataset[idx]
-            pred = torch.zeros((label.size, self.cfg.data.num_classes)).cuda()
-            batch_num = int(np.ceil(len(data_dict_list) / self.cfg.batch_size_test))
-            for i in range(batch_num):
-                s_i, e_i = i * self.cfg.batch_size_test, min(
-                    (i + 1) * self.cfg.batch_size_test, len(data_dict_list)
-                )
-                input_dict = collate_fn(data_dict_list[s_i:e_i])
-                for key in input_dict.keys():
-                    if isinstance(input_dict[key], torch.Tensor):
-                        input_dict[key] = input_dict[key].cuda(non_blocking=True)
-                with torch.no_grad():
-                    pred_part = self.model(input_dict)["cls_logits"]
-                    pred_part = F.softmax(pred_part, -1)
-                if self.cfg.empty_cache:
-                    torch.cuda.empty_cache()
-                pred_part = pred_part.reshape(-1, label.size, self.cfg.data.num_classes)
-                pred = pred + pred_part.total(dim=0)
+        comm.synchronize()
+        for idx, data_dict in enumerate(self.test_loader):
+            start = time.time()
+            data_dict = data_dict[0]  # current assume batch size is 1
+            fragment_list = data_dict.pop("fragment_list")
+            segment = data_dict.pop("segment")
+            data_name = data_dict.pop("name")
+            pred_save_path = os.path.join(save_path, "{}_pred.npy".format(data_name))
+            if os.path.isfile(pred_save_path):
                 logger.info(
-                    "Test: {} {}/{}, Batch: {batch_idx}/{batch_num}".format(
-                        data_name,
-                        idx + 1,
-                        len(test_dataset),
-                        batch_idx=i,
-                        batch_num=batch_num,
+                    "{}/{}: {}, loaded pred and label.".format(
+                        idx + 1, len(self.test_loader), data_name
                     )
                 )
-            pred = pred.max(1)[1].data.cpu().numpy()
+                pred = np.load(pred_save_path)
+                pred = torch.from_numpy(pred).cuda()
+                if "origin_segment" in data_dict.keys():
+                    segment = data_dict["origin_segment"]
+            else:
+                pred = torch.zeros((segment.size, self.cfg.data.num_classes)).cuda()
+                for i in range(len(fragment_list)):
+                    fragment_batch_size = 1
+                    s_i, e_i = i * fragment_batch_size, min(
+                        (i + 1) * fragment_batch_size, len(fragment_list)
+                    )
+                    input_dict = collate_fn(fragment_list[s_i:e_i])
+                    for key in input_dict.keys():
+                        if isinstance(input_dict[key], torch.Tensor):
+                            input_dict[key] = input_dict[key].cuda(non_blocking=True)
+                    idx_part = input_dict["index"]
+                    with torch.no_grad():
+                        pred_part = self.model(input_dict)["seg_logits"]  # (n, k)
+                        pred_part = F.softmax(pred_part, -1)
+                        if self.cfg.empty_cache:
+                            torch.cuda.empty_cache()
+                        bs = 0
+                        for be in input_dict["offset"]:
+                            pred[idx_part[bs:be], :] += pred_part[bs:be]
+                            bs = be
+                    logger.info(
+                        "Test: {}/{}-{data_name}, Batch: {batch_idx}/{batch_num}".format(
+                            idx + 1,
+                            len(self.test_loader),
+                            data_name=data_name,
+                            batch_idx=i + 1,
+                            batch_num=len(fragment_list),
+                        )
+                    )
+                pred = pred.max(1)[1].data
+                pred_np = pred.cpu().numpy()
+                if "origin_segment" in data_dict.keys():
+                    assert "inverse" in data_dict.keys()
+                    pred = pred[data_dict["inverse"]]
+                    segment = data_dict["origin_segment"]
+                np.save(pred_save_path, pred_np)
 
-            category_index = data_dict_list[0]["cls_token"]
+            category_index = fragment_list[0]["cls_token"]
             category = self.test_loader.dataset.categories[category_index]
             parts_idx = self.test_loader.dataset.category2part[category]
-            parts_iou = np.zeros(len(parts_idx))
+            parts_iou = torch.zeros(len(parts_idx), device="cuda")
+
+            segment = torch.from_numpy(segment).cuda()
             for j, part in enumerate(parts_idx):
-                if (np.sum(label == part) == 0) and (np.sum(pred == part) == 0):
+                if (torch.sum(segment == part) == 0) and (torch.sum(pred == part) == 0):
                     parts_iou[j] = 1.0
                 else:
-                    i = (label == part) & (pred == part)
-                    u = (label == part) | (pred == part)
-                    parts_iou[j] = np.sum(i) / (np.sum(u) + 1e-10)
-            iou_category[category_index] += parts_iou.mean()
-            iou_count[category_index] += 1
+                    i = (segment == part) & (pred == part)
+                    u = (segment == part) | (pred == part)
+                    parts_iou[j] = torch.sum(i) / (torch.sum(u) + 1e-10)
+            parts_iou_mean = parts_iou.mean().item()
+            record[data_name] = dict(
+                category_index=int(category_index),
+                parts_iou_mean=parts_iou_mean,
+            )
 
-            batch_time.update(time.time() - end)
+            batch_time.update(time.time() - start)
             logger.info(
                 "Test: {} [{}/{}] "
                 "Batch {batch_time.val:.3f} "
-                "({batch_time.avg:.3f}) ".format(
-                    data_name, idx + 1, len(self.test_loader), batch_time=batch_time
+                "({batch_time.avg:.3f}) "
+                "Mean IoU {iou:.3f}".format(
+                    data_name,
+                    idx + 1,
+                    len(self.test_loader),
+                    batch_time=batch_time,
+                    iou=parts_iou_mean,
                 )
             )
+        logger.info("Syncing ...")
+        comm.synchronize()
+        record_sync = comm.gather(record, dst=0)
 
-        ins_mIoU = iou_category.sum() / (iou_count.sum() + 1e-10)
-        cat_mIoU = (iou_category / (iou_count + 1e-10)).mean()
-        logger.info(
-            "Val result: ins.mIoU/cat.mIoU {:.4f}/{:.4f}.".format(ins_mIoU, cat_mIoU)
-        )
-        for i in range(num_categories):
+        if comm.is_main_process():
+            record = {}
+            for _ in range(len(record_sync)):
+                r = record_sync.pop()
+                record.update(r)
+                del r
+
+            iou_category = np.zeros(num_categories, dtype=np.float64)
+            iou_count = np.zeros(num_categories, dtype=np.float64)
+            for _, meters in record.items():
+                category_index = meters["category_index"]
+                iou_category[category_index] += meters["parts_iou_mean"]
+                iou_count[category_index] += 1
+
+            ins_mIoU = iou_category.sum() / (iou_count.sum() + 1e-10)
+            iou_per_cat = iou_category / (iou_count + 1e-10)
+            cat_mIoU = (
+                np.mean(iou_per_cat[iou_count > 0])
+                if np.any(iou_count > 0)
+                else float("nan")
+            )
             logger.info(
-                "Class_{idx}-{name} Result: iou_cat/num_sample {iou_cat:.4f}/{iou_count:.4f}".format(
-                    idx=i,
-                    name=self.test_loader.dataset.categories[i],
-                    iou_cat=iou_category[i] / (iou_count[i] + 1e-10),
-                    iou_count=int(iou_count[i]),
+                "Val result: ins.mIoU/cat.mIoU {:.4f}/{:.4f}.".format(
+                    ins_mIoU, cat_mIoU
                 )
             )
+            for i in range(num_categories):
+                if iou_count[i] == 0:
+                    continue
+                logger.info(
+                    "Class_{idx}-{name} Result: iou_cat/num_sample {iou_cat:.4f}/{iou_count:.4f}".format(
+                        idx=i,
+                        name=self.test_loader.dataset.categories[i],
+                        iou_cat=iou_category[i] / (iou_count[i] + 1e-10),
+                        iou_count=int(iou_count[i]),
+                    )
+                )
         logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
 
     @staticmethod
     def collate_fn(batch):
-        return collate_fn(batch)
+        return batch
+
+
+@TESTERS.register_module()
+class PartNetEPartSegTester(TesterBase):
+    def test(self):
+        logger = get_root_logger()
+        logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
+
+        batch_time = AverageMeter()
+
+        self.model.eval()
+
+        save_path = os.path.join(self.cfg.save_path, "result")
+        make_dirs(save_path)
+
+        record = {}
+        num_parts_total = sum(self.test_loader.dataset.num_parts)
+        local_total_iou_parts = np.zeros(num_parts_total, dtype=np.float64)
+        local_total_iou_count = np.zeros(num_parts_total, dtype=np.float64)
+
+        comm.synchronize()
+        for idx, data_dict in enumerate(self.test_loader):
+            start = time.time()
+            data_dict = data_dict[0]  # current assume batch size is 1
+            fragment_list = data_dict.pop("fragment_list")
+            segment = data_dict.pop("segment")
+            data_name = data_dict.pop("name")
+            pred_save_path = os.path.join(save_path, "{}_pred.npy".format(data_name))
+            cls_token = fragment_list[0]["cls_token"]
+            category = self.test_loader.dataset.categories[cls_token]
+            parts_idx = self.test_loader.dataset.category2part[category]
+            if os.path.isfile(pred_save_path):
+                logger.info(
+                    "{}/{}: {}, loaded pred and label.".format(
+                        idx + 1, len(self.test_loader), data_name
+                    )
+                )
+                pred = np.load(pred_save_path)
+                pred = torch.from_numpy(pred).cuda()
+                if "origin_segment" in data_dict.keys():
+                    segment = data_dict["origin_segment"]
+            else:
+                pred = torch.zeros((segment.size, self.cfg.data.num_classes)).cuda()
+                for i in range(len(fragment_list)):
+                    fragment_batch_size = 1
+                    s_i, e_i = i * fragment_batch_size, min(
+                        (i + 1) * fragment_batch_size, len(fragment_list)
+                    )
+                    input_dict = collate_fn(fragment_list[s_i:e_i])
+                    for key in input_dict.keys():
+                        if isinstance(input_dict[key], torch.Tensor):
+                            input_dict[key] = input_dict[key].cuda(non_blocking=True)
+                    idx_part = input_dict["index"]
+                    with torch.no_grad():
+                        pred_part = self.model(input_dict)["seg_logits"]  # (n, k)
+                        pred_part = F.softmax(pred_part, -1)
+                        if self.cfg.empty_cache:
+                            torch.cuda.empty_cache()
+                        bs = 0
+                        for be in input_dict["offset"]:
+                            pred[idx_part[bs:be], :] += pred_part[bs:be]
+                            bs = be
+                    logger.info(
+                        "Test: {}/{}-{data_name}, Batch: {batch_idx}/{batch_num}".format(
+                            idx + 1,
+                            len(self.test_loader),
+                            data_name=data_name,
+                            batch_idx=i + 1,
+                            batch_num=len(fragment_list),
+                        )
+                    )
+                pred = pred.max(1)[1].data
+                pred_np = pred.cpu().numpy()
+                if "origin_segment" in data_dict.keys():
+                    assert "inverse" in data_dict.keys()
+                    pred = pred[data_dict["inverse"]]
+                    segment = data_dict["origin_segment"]
+                np.save(pred_save_path, pred_np)
+
+            segment = torch.from_numpy(segment).cuda()
+            sample_part_record = {}
+            for k, part_id in enumerate(parts_idx):
+                if k == 0:
+                    continue
+                if (segment == part_id).sum() == 0:
+                    continue
+                if (torch.sum(segment == part_id) == 0) and (
+                    torch.sum(pred == part_id) == 0
+                ):
+                    continue
+                else:
+                    intersection = torch.sum((segment == part_id) & (pred == part_id))
+                    union = torch.sum((segment == part_id) | (pred == part_id))
+                    part_idx = int(
+                        k + self.test_loader.dataset.num_part_offset[cls_token]
+                    )
+                    sample_part_record[part_idx] = float(
+                        (intersection / (union + 1e-10)).item()
+                    )
+            record[data_name] = dict(part_iou=sample_part_record)
+            for part_idx, part_iou in sample_part_record.items():
+                local_total_iou_parts[int(part_idx)] += part_iou
+                local_total_iou_count[int(part_idx)] += 1
+
+            current_iou_count = local_total_iou_count[local_total_iou_count > 0]
+            current_iou_parts = local_total_iou_parts[local_total_iou_count > 0]
+            current_iou = current_iou_parts / current_iou_count
+            current_iou_mean = (
+                current_iou.mean() if current_iou.shape[0] > 0 else float("nan")
+            )
+            batch_time.update(time.time() - start)
+            logger.info(
+                "Test: {} [{}/{}] "
+                "Batch {batch_time.val:.3f} "
+                "({batch_time.avg:.3f}) "
+                "Mean IoU {iou:.3f}".format(
+                    data_name,
+                    idx + 1,
+                    len(self.test_loader),
+                    batch_time=batch_time,
+                    iou=current_iou_mean,
+                )
+            )
+        logger.info("Syncing ...")
+        comm.synchronize()
+        record_sync = comm.gather(record, dst=0)
+
+        if comm.is_main_process():
+            record = {}
+            for _ in range(len(record_sync)):
+                r = record_sync.pop()
+                record.update(r)
+                del r
+
+            total_iou_parts = np.zeros(num_parts_total, dtype=np.float64)
+            total_iou_count = np.zeros(num_parts_total, dtype=np.float64)
+            for _, meters in record.items():
+                for part_idx, part_iou in meters["part_iou"].items():
+                    total_iou_parts[int(part_idx)] += part_iou
+                    total_iou_count[int(part_idx)] += 1
+
+            current_iou_count = total_iou_count[total_iou_count > 0]
+            current_iou_parts = total_iou_parts[total_iou_count > 0]
+            # part-wise mIoU: average of all sample mIoUs
+            part_mIoU = (
+                (current_iou_parts / (current_iou_count + 1e-10)).mean()
+                if current_iou_count.shape[0] > 0
+                else float("nan")
+            )
+            logger.info("Val result: part mIoU {:.4f}.".format(part_mIoU))
+            for i in range(sum(self.test_loader.dataset.num_parts)):
+                part_name = self.test_loader.dataset.parts[i]
+                if total_iou_count[i] == 0:
+                    continue
+                logger.info(
+                    "Class_{idx}-{name} Result: iou_part/num_sample {iou_part:.4f}/{iou_count:.4f}".format(
+                        idx=i,
+                        name=part_name,
+                        iou_part=total_iou_parts[i] / (total_iou_count[i] + 1e-10),
+                        iou_count=int(total_iou_count[i]),
+                    )
+                )
+        logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
+
+    @staticmethod
+    def collate_fn(batch):
+        return batch
 
 
 @TESTERS.register_module()
