@@ -165,6 +165,7 @@ class SerializedAttention(PointModule):
             assert flash_attn is not None, "Make sure flash_attn is installed."
             self.patch_size = patch_size
             self.attn_drop = attn_drop
+            self.flash_dtype = None
         else:
             # when disable flash attention, we still don't want to use mask
             # consequently, patch size will auto set to the
@@ -320,8 +321,15 @@ class SerializedAttention(PointModule):
                 feat = (attn @ v).transpose(1, 2).reshape(-1, C)
             else:
                 qkv_roped = torch.stack([q, k, v], dim=1)
+                if self.flash_dtype is None:
+                    self.flash_dtype = (
+                        torch.bfloat16
+                        if torch.cuda.is_available()
+                        and torch.cuda.is_bf16_supported()
+                        else torch.float16
+                    )
                 feat = flash_attn.flash_attn_varlen_qkvpacked_func(
-                    qkv_roped.to(torch.bfloat16),
+                    qkv_roped.to(self.flash_dtype),
                     cu_seqlens,
                     max_seqlen=self.patch_size,
                     dropout_p=self.attn_drop if self.training else 0,
@@ -350,8 +358,15 @@ class SerializedAttention(PointModule):
                 attn = self.attn_drop(attn).to(qkv.dtype)
                 feat = (attn @ v).transpose(1, 2).reshape(-1, C)
             else:
+                if self.flash_dtype is None:
+                    self.flash_dtype = (
+                        torch.bfloat16
+                        if torch.cuda.is_available()
+                        and torch.cuda.is_bf16_supported()
+                        else torch.float16
+                    )
                 feat = flash_attn.flash_attn_varlen_qkvpacked_func(
-                    qkv.to(torch.bfloat16).reshape(-1, 3, H, C // H),
+                    qkv.to(self.flash_dtype).reshape(-1, 3, H, C // H),
                     cu_seqlens,
                     max_seqlen=self.patch_size,
                     dropout_p=self.attn_drop if self.training else 0,
