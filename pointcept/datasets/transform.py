@@ -64,9 +64,6 @@ class Collect(object):
 
     def __call__(self, data_dict):
         data = dict()
-        data_dict["offset"] = torch.cumsum(
-            torch.tensor([data.shape[0] for data in data_dict["coord"]]), dim=0
-        )
         if isinstance(self.keys, str):
             self.keys = [self.keys]
         for key in self.keys:
