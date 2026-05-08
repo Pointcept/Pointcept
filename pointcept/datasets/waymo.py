@@ -93,6 +93,8 @@ class WaymoDataset(DefaultDataset):
             for key in major_frame.keys():
                 major_frame[key].append(refer_frame[key])
         for key in major_frame.keys():
+            if isinstance(major_frame[key][0], str):
+                continue
             major_frame[key] = np.concatenate(major_frame[key], axis=0)
         major_frame["name"] = name
         return major_frame
@@ -242,10 +244,6 @@ class WaymoImagePointDataset(DefaultImagePointDataset):
         idx = idx % len(self.data_list)
         if self.timestamp == (0,):
             data_dict = self.get_single_frame(idx)
-            if not self.if_img:
-                data_dict.pop("img_num")
-                data_dict.pop("images")
-                data_dict.pop("correspondence")
             return data_dict
 
         sequence_index = self.sequence_index[idx]
@@ -264,9 +262,7 @@ class WaymoImagePointDataset(DefaultImagePointDataset):
         name = major_frame.pop("name")
         target_pose = major_frame.pop("pose")
         if not self.if_img:
-            major_frame.pop("img_num")
-            major_frame.pop("images")
-            major_frame.pop("correspondence")
+            pass
         elif imgs_idx == 0:
             major_frame["correspondence"] = [major_frame["correspondence"]]
         else:

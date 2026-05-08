@@ -5,16 +5,15 @@ Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com), Yujia Zhang (yujia.zhang.cs@gmai
 Please cite our work if the code is helpful to you.
 """
 
+import copy
 import random
 import numbers
 import scipy
 import scipy.ndimage
 import scipy.interpolate
-import scipy.stats
 import numpy as np
 import torch
 from torchvision import transforms
-import copy
 from collections.abc import Sequence, Mapping
 from pointcept.utils.registry import Registry
 
@@ -65,6 +64,9 @@ class Collect(object):
 
     def __call__(self, data_dict):
         data = dict()
+        data_dict["offset"] = torch.cumsum(
+            torch.tensor([data.shape[0] for data in data_dict["coord"]]), dim=0
+        )
         if isinstance(self.keys, str):
             self.keys = [self.keys]
         for key in self.keys:
@@ -237,7 +239,14 @@ class RandomDropout(object):
 
 @TRANSFORMS.register_module()
 class RandomRotate(object):
-    def __init__(self, angle=None, center=None, axis="z", always_apply=False, p=0.5):
+    def __init__(
+        self,
+        angle=None,
+        center=None,
+        axis="z",
+        always_apply=False,
+        p=0.5,
+    ):
         self.angle = [-1, 1] if angle is None else angle
         self.axis = axis
         self.always_apply = always_apply
@@ -729,6 +738,9 @@ class HueSaturationTranslation(object):
 @TRANSFORMS.register_module()
 class RandomDropColor(object):
     def __init__(self, drop_ratio=0.2, drop_application_ratio=0.5):
+        """
+        upright_axis: axis index among x,y,z, i.e. 2 for z
+        """
         self.drop_ratio = drop_ratio
         self.drop_application_ratio = drop_application_ratio
         self.drop_value = 0.0
@@ -761,23 +773,6 @@ class RandomDropNormal(object):
             idx = np.random.choice(n, num_to_drop, replace=False)
             data_dict["normal"][idx] = self.drop_value
         return data_dict
-
-
-@TRANSFORMS.register_module()
-class RandomColorDrop(object):
-    def __init__(self, p=0.2, color_augment=0.0):
-        self.p = p
-        self.color_augment = color_augment
-
-    def __call__(self, data_dict):
-        if "color" in data_dict.keys() and np.random.rand() < self.p:
-            data_dict["color"] *= self.color_augment
-        return data_dict
-
-    def __repr__(self):
-        return "RandomColorDrop(color_augment: {}, p: {})".format(
-            self.color_augment, self.p
-        )
 
 
 @TRANSFORMS.register_module()
@@ -891,12 +886,17 @@ class GridSample(object):
                 mask[data_dict["sampled_index"]] = True
                 data_dict["sampled_index"] = np.where(mask[idx_unique])[0]
             data_dict = index_operator(data_dict, idx_unique)
+            if "frame_pcd_offset" in data_dict:
+                data_dict["frame_pcd_offset"] = self._recompute_offsets(
+                    data_dict["frame_pcd_offset"], idx_unique
+                )
             if self.return_inverse:
                 data_dict["inverse"] = np.zeros_like(inverse)
                 data_dict["inverse"][idx_sort] = inverse
             if self.return_grid_coord:
                 data_dict["grid_coord"] = grid_coord[idx_unique]
                 if "grid_coord" not in data_dict["index_valid_keys"]:
+                    data_dict["index_valid_keys"] = list(data_dict["index_valid_keys"])
                     data_dict["index_valid_keys"].append("grid_coord")
             if self.return_min_coord:
                 data_dict["min_coord"] = min_coord.reshape([1, 3])
@@ -920,12 +920,19 @@ class GridSample(object):
                 idx_part = idx_sort[idx_select]
                 data_part = index_operator(data_dict, idx_part, duplicate=True)
                 data_part["index"] = idx_part
+                if "frame_pcd_offset" in data_dict:
+                    data_part["frame_pcd_offset"] = self._recompute_offsets(
+                        data_dict["frame_pcd_offset"], idx_part
+                    )
                 if self.return_inverse:
                     data_part["inverse"] = np.zeros_like(inverse)
                     data_part["inverse"][idx_sort] = inverse
                 if self.return_grid_coord:
                     data_part["grid_coord"] = grid_coord[idx_part]
                     if "grid_coord" not in data_part["index_valid_keys"]:
+                        data_part["index_valid_keys"] = list(
+                            data_part["index_valid_keys"]
+                        )
                         data_part["index_valid_keys"].append("grid_coord")
                 if self.return_min_coord:
                     data_part["min_coord"] = min_coord.reshape([1, 3])
@@ -944,6 +951,28 @@ class GridSample(object):
             return data_part_list
         else:
             raise NotImplementedError
+
+    @staticmethod
+    def _recompute_offsets(origin_offsets, sampled_indices):
+        """
+        Args:
+            origin_offsets (np.ndarray) [N1, N1+N2, ...]
+            sampled_indices (np.ndarray)
+
+        Returns:
+            np.ndarray: [C1, C1+C2, ...]。
+        """
+        if len(origin_offsets) == 0:
+            return np.array([], dtype=origin_offsets.dtype)
+
+        standard_format_offsets = np.insert(origin_offsets, 0, 0)
+        frame_assignment = np.searchsorted(
+            standard_format_offsets, sampled_indices, side="right"
+        )
+        new_offset_dict = {}
+        for frame_id in range(1, len(origin_offsets) + 1):
+            new_offset_dict[frame_id - 1] = np.where(frame_assignment == frame_id)[0]
+        return new_offset_dict
 
     @staticmethod
     def ravel_hash_vec(arr):
@@ -1091,6 +1120,7 @@ class MultiViewGenerator(object):
         shared_global_view=False,
         view_keys=("coord", "origin_coord", "color", "normal", "correspondence"),
         static_view_keys=("name", "img_num"),
+        if_frame_selected=False,
     ):
         self.global_view_num = global_view_num
         self.global_view_scale = global_view_scale
@@ -1106,9 +1136,12 @@ class MultiViewGenerator(object):
         self.shared_global_view = shared_global_view
         self.view_keys = view_keys
         self.static_view_keys = static_view_keys
+        self.if_frame_selected = if_frame_selected
         assert "coord" in view_keys
 
-    def get_view(self, point, center, scale, if_enc2d=False):
+    def get_view(
+        self, point, center, scale, if_enc2d=False, frame_num=1, if_frame_selected=False
+    ):
         coord = point["coord"]
         max_size = min(self.max_size, coord.shape[0])
         enc2d_max_size = min(self.enc2d_max_size, coord.shape[0])
@@ -1124,6 +1157,26 @@ class MultiViewGenerator(object):
             size = max(10, scale[-1] * max_size)
         assert size > 0
         index = np.argsort(np.sum(np.square(coord - center), axis=-1))[:size]
+        origin_index = copy.deepcopy(index)
+        if if_frame_selected and "frame_pcd_offset" in point:
+            input_frame_num = len(point["frame_pcd_offset"])
+            for _ in range(10):
+                if input_frame_num - frame_num == 0:
+                    frame_id = 0
+                else:
+                    frame_id = np.random.randint(0, input_frame_num)
+                single_frame_index = point["frame_pcd_offset"][frame_id]
+                index = list(set(origin_index) & set(single_frame_index))
+                if len(index) > 0:
+                    break
+            if len(index) == 0:
+                permutation = random.sample(range(input_frame_num), input_frame_num)
+                for idx in permutation:
+                    single_frame_index = point["frame_pcd_offset"][idx]
+                    index = list(set(origin_index) & set(single_frame_index))
+                    if len(index) > 0:
+                        break
+            assert len(index) > 0
         view = dict(index=index)
         for key in point.keys():
             if key in self.view_keys:
@@ -1215,6 +1268,7 @@ class MultiViewGenerator(object):
                 point=data_dict,
                 center=major_coord[np.random.choice(np.where(~cover_mask)[0])],
                 scale=self.local_view_scale,
+                if_frame_selected=self.if_frame_selected,
             )
             local_views.append(local_view)
             cover_mask[np.isin(major_view["index"], local_view["index"])] = True

@@ -120,23 +120,17 @@ def encode(locs, num_dims, num_bits):
     bitpack_mask_rev = bitpack_mask.flip(-1)
 
     if orig_shape[-1] != num_dims:
-        raise ValueError(
-            """
+        raise ValueError("""
       The shape of locs was surprising in that the last dimension was of size
       %d, but num_dims=%d.  These need to be equal.
-      """
-            % (orig_shape[-1], num_dims)
-        )
+      """ % (orig_shape[-1], num_dims))
 
     if num_dims * num_bits > 63:
-        raise ValueError(
-            """
+        raise ValueError("""
       num_dims=%d and num_bits=%d for %d bits total, which can't be encoded
       into a int64.  Are you sure you need that many points on your Hilbert
       curve?
-      """
-            % (num_dims, num_bits, num_dims * num_bits)
-        )
+      """ % (num_dims, num_bits, num_dims * num_bits))
 
     # Treat the location integers as 64-bit unsigned and then split them up into
     # a sequence of uint8s.  Preserve the association by dimension.
@@ -223,14 +217,11 @@ def decode(hilberts, num_dims, num_bits):
     """
 
     if num_dims * num_bits > 64:
-        raise ValueError(
-            """
+        raise ValueError("""
       num_dims=%d and num_bits=%d for %d bits total, which can't be encoded
       into a uint64.  Are you sure you need that many points on your Hilbert
       curve?
-      """
-            % (num_dims, num_bits)
-        )
+      """ % (num_dims, num_bits))
 
     # Handle the case where we got handed a naked integer.
     hilberts = torch.atleast_1d(hilberts)

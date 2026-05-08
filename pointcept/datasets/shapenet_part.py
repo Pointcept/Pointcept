@@ -4,7 +4,7 @@ ShapeNet Part Dataset (Unmaintained)
 get processed shapenet part dataset
 at "https://shapenet.cs.stanford.edu/media/shapenetcore_partanno_segmentation_benchmark_v0_normal.zip"
 
-Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
+Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com), Yujia Zhang (yujia.zhang.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
@@ -13,17 +13,18 @@ import json
 import torch
 import numpy as np
 from copy import deepcopy
-from torch.utils.data import Dataset
 
 from pointcept.utils.logger import get_root_logger
 from .builder import DATASETS
-from .transform import Compose
+from .transform import Compose, TRANSFORMS
+from .defaults import DefaultDataset
 
 
 @DATASETS.register_module()
-class ShapeNetPartDataset(Dataset):
+class ShapeNetPartDataset(DefaultDataset):
     def __init__(
         self,
+        if_color=False,
         split="train",
         data_root="data/shapenetcore_partanno_segmentation_benchmark_v0_normal",
         transform=None,
@@ -34,6 +35,7 @@ class ShapeNetPartDataset(Dataset):
         super(ShapeNetPartDataset, self).__init__()
         self.data_root = data_root
         self.split = split
+        self.if_color = if_color
         self.transform = Compose(transform)
         self.loop = (
             loop if not test_mode else 1
@@ -70,6 +72,10 @@ class ShapeNetPartDataset(Dataset):
                 self.categories.append(ls[0])
 
         if test_mode:
+            self.test_voxelize = TRANSFORMS.build(self.test_cfg.voxelize)
+            self.test_crop = (
+                TRANSFORMS.build(self.test_cfg.crop) if self.test_cfg.crop else None
+            )
             self.post_transform = Compose(self.test_cfg.post_transform)
             self.aug_transform = [Compose(aug) for aug in self.test_cfg.aug_transform]
 
@@ -86,7 +92,7 @@ class ShapeNetPartDataset(Dataset):
         logger = get_root_logger()
         logger.info(
             "Totally {} x {} samples in {} set.".format(
-                len(self.data_idx), self.loop, split
+                len(self.data_list), self.loop, split
             )
         )
 
@@ -106,49 +112,42 @@ class ShapeNetPartDataset(Dataset):
             ]
         return data_list
 
-    def prepare_train_data(self, idx):
-        # load data
+    def get_data(self, idx):
         data_idx = idx % len(self.data_list)
         if data_idx in self.cache:
-            coord, norm, segment, cls_token = self.cache[data_idx]
+            coord, normal, segment, cls_token = self.cache[data_idx]
         else:
             data = np.loadtxt(self.data_list[data_idx]).astype(np.float32)
             cls_token = self.token2category[
                 os.path.basename(os.path.dirname(self.data_list[data_idx]))
             ]
-            coord, norm, segment = (
+            coord, normal, segment = (
                 data[:, :3],
                 data[:, 3:6],
                 data[:, 6].astype(np.int32),
             )
-            self.cache[data_idx] = (coord, norm, segment, cls_token)
+            self.cache[data_idx] = (coord, normal, segment, cls_token)
+        name = self.get_data_name(idx)
 
-        data_dict = dict(coord=coord, norm=norm, segment=segment, cls_token=cls_token)
-        data_dict = self.transform(data_dict)
-        return data_dict
-
-    def prepare_test_data(self, idx):
-        # load data
-        data_idx = self.data_idx[idx % len(self.data_idx)]
-        data = np.loadtxt(self.data_list[data_idx]).astype(np.float32)
-        cls_token = self.token2category[
-            os.path.basename(os.path.dirname(self.data_list[data_idx]))
-        ]
-        coord, norm, segment = data[:, :3], data[:, 3:6], data[:, 6].astype(np.int32)
-
-        data_dict = dict(coord=coord, norm=norm, cls_token=cls_token)
-        data_dict = self.transform(data_dict)
-        data_dict_list = []
-        for aug in self.aug_transform:
-            data_dict_list.append(self.post_transform(aug(deepcopy(data_dict))))
-        data_dict = dict(
-            fragment_list=data_dict_list, segment=segment, name=self.get_data_name(idx)
-        )
+        if self.if_color:
+            color = np.zeros_like(coord)
+            data_dict = dict(
+                coord=coord,
+                color=color,
+                normal=normal,
+                segment=segment,
+                cls_token=cls_token,
+                name=name,
+            )
+        else:
+            data_dict = dict(coord=coord, normal=normal, cls_token=cls_token, name=name)
         return data_dict
 
     def get_data_name(self, idx):
-        data_idx = self.data_idx[idx % len(self.data_idx)]
-        return os.path.basename(self.data_list[data_idx]).split(".")[0]
+        data_idx = idx % len(self.data_list)
+        basename = os.path.basename(self.data_list[data_idx]).split(".")[0]
+        dirname = os.path.basename(os.path.dirname(self.data_list[data_idx]))
+        return dirname + "_" + basename
 
     def __getitem__(self, idx):
         if self.test_mode:
@@ -157,4 +156,4 @@ class ShapeNetPartDataset(Dataset):
             return self.prepare_train_data(idx)
 
     def __len__(self):
-        return len(self.data_idx) * self.loop
+        return len(self.data_list) * self.loop

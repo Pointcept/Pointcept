@@ -36,6 +36,7 @@ class ModelNetDataset(Dataset):
         test_mode=False,
         test_cfg=None,
         loop=1,
+        if_color=False,
     ):
         super().__init__()
         self.data_root = data_root
@@ -47,6 +48,7 @@ class ModelNetDataset(Dataset):
         self.loop = (
             loop if not test_mode else 1
         )  # force make loop = 1 while in test mode
+        self.if_color = if_color
         self.test_mode = test_mode
         self.test_cfg = test_cfg if test_mode else None
         if test_mode:
@@ -105,6 +107,9 @@ class ModelNetDataset(Dataset):
                     data = data[: self.num_point]
             coord, normal = data[:, 0:3], data[:, 3:6]
             category = np.array([self.class_names[data_shape]])
+            if self.if_color:
+                color = np.zeros_like(coord)
+                return dict(coord=coord, color=color, normal=normal, category=category)
             return dict(coord=coord, normal=normal, category=category)
 
     def get_data_list(self):
@@ -140,7 +145,7 @@ class ModelNetDataset(Dataset):
         data_dict = self.transform(data_dict)
         data_dict_list = []
         for aug in self.aug_transform:
-            data_dict_list.append(aug(deepcopy(data_dict)))
+            data_dict_list.append(aug(copy.deepcopy(data_dict)))
         for i in range(len(data_dict_list)):
             data_dict_list[i] = self.post_transform(data_dict_list[i])
         data_dict = dict(

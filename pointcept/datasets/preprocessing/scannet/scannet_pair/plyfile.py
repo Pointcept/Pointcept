@@ -21,7 +21,6 @@ from itertools import islice as _islice
 import numpy as _np
 from sys import byteorder as _byteorder
 
-
 try:
     _range = xrange
 except NameError:
@@ -273,7 +272,7 @@ class PlyData(object):
         Read PLY data from a readable file-like object or filename.
 
         """
-        (must_close, stream) = _open_stream(stream, "read")
+        must_close, stream = _open_stream(stream, "read")
         try:
             data = PlyData._parse_header(stream)
             for elt in data:
@@ -289,7 +288,7 @@ class PlyData(object):
         Write PLY data to a writeable file-like object or filename.
 
         """
-        (must_close, stream) = _open_stream(stream, "write")
+        must_close, stream = _open_stream(stream, "write")
         try:
             stream.write(self.header.encode("ascii"))
             stream.write(b"\r\n")
@@ -455,7 +454,7 @@ class PlyElement(object):
         """
         elements = []
         while header_lines:
-            (elt, header_lines) = PlyElement._parse_one(header_lines)
+            elt, header_lines = PlyElement._parse_one(header_lines)
             elements.append(elt)
 
         return elements
@@ -477,7 +476,7 @@ class PlyElement(object):
         if len(line) < 3:
             raise PlyParseError("too few fields after 'element'")
 
-        (name, count) = (line[1], int(line[2]))
+        name, count = (line[1], int(line[2]))
 
         comments = []
         properties = []
@@ -831,7 +830,7 @@ class PlyListProperty(PlyProperty):
         return (byte_order + self.len_dtype, byte_order + self.val_dtype)
 
     def _from_fields(self, fields):
-        (len_t, val_t) = self.list_dtype()
+        len_t, val_t = self.list_dtype()
 
         n = int(_np.dtype(len_t).type(next(fields)))
 
@@ -847,7 +846,7 @@ class PlyListProperty(PlyProperty):
         list data (length followed by actual data).
 
         """
-        (len_t, val_t) = self.list_dtype()
+        len_t, val_t = self.list_dtype()
 
         data = _np.asarray(data, dtype=val_t).ravel()
 
@@ -856,7 +855,7 @@ class PlyListProperty(PlyProperty):
             yield x
 
     def _read_bin(self, stream, byte_order):
-        (len_t, val_t) = self.list_dtype(byte_order)
+        len_t, val_t = self.list_dtype(byte_order)
 
         try:
             n = _np.fromfile(stream, len_t, 1)[0]
@@ -874,7 +873,7 @@ class PlyListProperty(PlyProperty):
         Write data to a binary stream.
 
         """
-        (len_t, val_t) = self.list_dtype(byte_order)
+        len_t, val_t = self.list_dtype(byte_order)
 
         data = _np.asarray(data, dtype=val_t).ravel()
 

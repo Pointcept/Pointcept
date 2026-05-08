@@ -1,7 +1,7 @@
 # Concerto
 This repo is the official training codebase of the paper **_Concerto: Joint 2D-3D Self-Supervised Learning Emerges Spatial Representations_**. Concerto steps farther from [Sonata](https://github.com/facebookresearch/sonata), leveraging the synergy of 2D images and 3D point clouds and emerging superior representations.
 
-*We recommend beginning with our inference [demo](https://github.com/Pointcept/Concerto)(not released currently), and it is also a tiny library for people who want to integrate pre-trained Concerto (as well as Sonata) into their project. This section is designed for users interested in reproducing our pre-training.*
+*We recommend beginning with our inference [demo](https://github.com/Pointcept/Concerto), and it is also a tiny library for people who want to integrate pre-trained Concerto (as well as Sonata) into their project. This section is designed for users interested in reproducing our pre-training.*
 
 
 <div align='left'>
@@ -354,6 +354,15 @@ The above configs have not been verified with one additional run. If you encount
 
 ## Citation
 If you find _Concerto_ useful to your research, please consider citing our line of works as an acknowledgment. (੭ˊ꒳​ˋ)੭✧
+```bib
+@inproceedings{zhang2025concerto,
+  title={Concerto: Joint 2D-3D Self-Supervised Learning Emerges Spatial Representations},
+  author={Zhang, Yujia and Wu, Xiaoyang and Lao, Yixing and Wang, Chengyao and Tian, Zhuotao and Wang, Naiyan and Zhao, Hengshuang},
+  booktitle={NeurIPS},
+  year={2025}
+}
+```
+
 ```bib
 @inproceedings{wu2025sonata,
     title={Sonata: Self-Supervised Learning of Reliable Point Representations},

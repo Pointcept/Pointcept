@@ -13,7 +13,12 @@
 [![Formatter](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml/badge.svg)](https://github.com/pointcept/pointcept/actions/workflows/formatter.yml)
 
 **Pointcept** is a powerful and flexible codebase for point cloud perception research. It is also an official implementation of the following paper:
-- 🚀 **Concerto: Joint 2D-3D Self-Supervised Learning Emerges Spatial Representations**  
+- 🚀 **Utonia: Toward One Encoder for All Point Clouds**  
+*Yujia Zhang, Xiaoyang Wu, Yunhan Yang, Xianzhe Fan, Han Li, Yuechen Zhang, Zehao Huang, Naiyan Wang, Hengshuang Zhao*  
+[ Pretrain ] [Utonia] - [ [Project](https://pointcept.github.io/Utonia/) ] [ [Bib](https://pointcept.github.io/Utonia/#citation) ] [ [HF Demo](https://huggingface.co/spaces/pointcept-bot/Utonia) ] [ [Inference](https://github.com/Pointcept/Utonia) ] [ [Weight](https://huggingface.co/Pointcept/Utonia) ] &rarr; [here](#utonia)
+
+
+- **Concerto: Joint 2D-3D Self-Supervised Learning Emerges Spatial Representations**  
 *Yujia Zhang, Xiaoyang Wu, Yixing Lao, Chengyao Wang, Zhuotao Tian, Naiyan Wang, Hengshuang Zhao*   
 Conference on Neural Information Processing Systems (**NeurIPS**) 2025  
 [ Pretrain ] [Concerto] - [ [Project](https://pointcept.github.io/Concerto/) ] [ [Bib](https://xywu.me/research/concerto/bib.txt) ] [ [HF Demo](https://huggingface.co/spaces/Pointcept/Concerto) ] [ [Inference](https://github.com/Pointcept/Concerto) ] [ [Weight](https://huggingface.co/Pointcept/Concerto) ] &rarr; [here](#concerto)
@@ -77,7 +82,8 @@ Backbone:
 [PTv3](https://arxiv.org/abs/2312.10035) ([here](#point-transformers)),
 [StratifiedFormer](https://github.com/dvlab-research/Stratified-Transformer) ([here](#stratified-transformer)),
 [OctFormer](https://github.com/octree-nn/octformer) ([here](#octformer)),
-[Swin3D](https://github.com/microsoft/Swin3D) ([here](#swin3d));   
+[Swin3D](https://github.com/microsoft/Swin3D) ([here](#swin3d)),
+[LitePT](https://github.com/prs-eth/LitePT) ([here](#litept));   
 Semantic Segmentation:
 [Mix3d](https://github.com/kumuji/mix3d) ([here](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-spunet-v1m1-0-base.py#L5)),
 [CAC](https://arxiv.org/abs/2303.11633) ([here](#context-aware-classifier));  
@@ -89,7 +95,8 @@ Pre-training:
 [Masked Scene Contrast](https://arxiv.org/abs/2303.14191) ([here](#masked-scene-contrast-msc)),
 [Point Prompt Training](https://arxiv.org/abs/2308.09718) ([here](#point-prompt-training-ppt)),
 [Sonata](https://arxiv.org/abs/2503.16429) ([here](#sonata)),
-[Concerto]() ([here](#concerto));  
+[Concerto](https://arxiv.org/abs/2510.23607) ([here](#concerto)),
+[Utonia](https://arxiv.org/abs/2603.03283) ([here](#utonia));  
 Datasets:
 [ScanNet](http://www.scan-net.org/) ([here](#scannet-v2)), 
 [ScanNet200](http://www.scan-net.org/) ([here](#scannet-v2)),
@@ -101,13 +108,18 @@ Datasets:
 [Structured3D](https://structured3d-dataset.org/) ([here](#structured3d)),
 [SemanticKITTI](http://www.semantic-kitti.org/) ([here](#semantickitti)),
 [nuScenes](https://www.nuscenes.org/nuscenes) ([here](#nuscenes)),
+[Waymo](https://waymo.com/open/) ([here](#waymo)),
 [ModelNet40](https://modelnet.cs.princeton.edu/) ([here](#modelnet)),
-[Waymo](https://waymo.com/open/) ([here](#waymo)).
+[ScanObjectNN](https://hkust-vgd.github.io/scanobjectnn/) ([here](#scanobjectnn)),
+[ShapeNetPart](https://shapenet.org/) ([here](#shapenetpart)),
+[PartNetE](https://colin97.github.io/PartSLIP_page/) ([here](#partnete)).
 
 
 ## Highlights
-- *Apr 2025* 🚀: We now support `wandb`, check the [Quick Start](#quick-start) training section for more information. (Thanks @Streakfull for his contribution!)
-- *Mar 2025* 🚀: **Sonata** is accepted by CVPR 2025 and selected as one of the **Highlight** presentations (3.0% submissions)! We release the code with Pointcept v1.6.0. We release the pre-training **[code](#sonata)** along with Pointcept v1.6.0 and provide an easy-to-use pre-trained model for inference, tuning, and visualization in our project **[repository](https://github.com/facebookresearch/sonata)** hosted by Meta.
+- *Mar 2026* 🚀: **Utonia** code is released with Pointcept v1.7.0 and we provide an easy-to-use pre-trained model for inference, tuning, and visualization in our project **[repository](https://github.com/Pointcept/Utonia)**.
+- *Oct 2025* : **Concerto** is accepted by NeurIPS 2025! We release the pre-training **[code](#concerto)** along with Pointcept v1.6.1 and provide an easy-to-use pre-trained model for inference, tuning, and visualization in our project **[repository](https://github.com/Pointcept/Concerto)**.
+- *Apr 2025* : We now support `wandb`, check the [Quick Start](#quick-start) training section for more information. (Thanks @Streakfull for his contribution!)
+- *Mar 2025* : **Sonata** is accepted by CVPR 2025 and selected as one of the **Highlight** presentations (3.0% submissions)! We release the code with Pointcept v1.6.0. We release the pre-training **[code](#sonata)** along with Pointcept v1.6.0 and provide an easy-to-use pre-trained model for inference, tuning, and visualization in our project **[repository](https://github.com/facebookresearch/sonata)** hosted by Meta.
 - *May 2024*: In v1.5.2, we redesigned the default structure for each dataset for better performance. Please **re-preprocess** datasets or **download** our preprocessed datasets from **[here](https://huggingface.co/Pointcept)**.
 - *Apr 2024*: **PTv3** is selected as one of the 90 **Oral** papers (3.3% accepted papers, 0.78% submissions) by CVPR'24!
 - *Mar 2024*: We release code for **OA-CNNs**, accepted by CVPR'24. Issue related to **OA-CNNs** can @Pbihao.
@@ -188,6 +200,10 @@ If you find _Pointcept_ useful to your research, please cite our work as encoura
   # PPT (clip)
   pip install ftfy regex tqdm
   pip install git+https://github.com/openai/CLIP.git
+
+  # transformers and peft
+  pip install transformers==4.50.3
+  pip install peft
 
   # PTv1 & PTv2 or precise eval
   cd libs/pointops
@@ -499,12 +515,40 @@ https://huggingface.co/datasets/Pointcept/nuscenes-compressed)] (only processed 
   ln -s ${PROCESSED_WAYMO_DIR} ${CODEBASE_DIR}/data/waymo
   ```
 
-### ModelNet
-- Download [modelnet40_normal_resampled.zip](https://huggingface.co/datasets/Pointcept/modelnet40_normal_resampled-compressed) and unzip
+### ModelNet40
+- Download [modelnet40_normal_resampled.zip](https://huggingface.co/datasets/Pointcept/modelnet40_normal_resampled-compressed) and unzip.
 - Link dataset to the codebase.
   ```bash
   mkdir -p data
   ln -s ${MODELNET_DIR} ${CODEBASE_DIR}/data/modelnet40_normal_resampled
+  ```
+
+### ScanObjectNN
+  - Download the [ScanObjectNN](https://forms.gle/ZZRnnmaUdwfRucoy7) dataset, including `h5_files.zip` and `raw/object_dataset.zip`. Unzip them to \${BENCHMARK_SCANOBJECTNN_DIR} and ${RAW_SCANOBJECTNN_DIR}.
+  ```
+  ln -s ${BENCHMARK_SCANOBJECTNN_DIR} data/scanobject_eval
+  ```
+
+### ShapeNetPart
+  - Download [ShapeNetPart](https://drive.usercontent.google.com/download?id=1W3SEE-dY1sxvlECcOwWSDYemwHEUbJIS&authuser=0).
+  - Link dataset to the codebase.
+  ```bash
+  mkdir -p data
+  ln -s ${RAW_SHAPENETPART_DIR} ${CODEBASE_DIR}/data/
+  ```
+
+### PartNetE
+ - Download [PartNetE](https://drive.google.com/drive/u/0/folders/13boiefNs2XvhoSvvDiaOATKAPB7XbE6g) (data.zip)
+ - Run preprocessing code for raw PartNetE as follows:
+
+  ```bash
+  # RAW_PARTNETE_DIR: the directory of downloaded PartNetE dataset.
+  python pointcept/datasets/preprocessing/partnete/preprocess_partnete.py --dataset_root ${RAW_PARTNETE_DIR}
+  ```
+ - Link dataset to the codebase.
+  ```bash
+  mkdir -p data
+  ln -s ${RAW_PARTNETE_DIR} ${CODEBASE_DIR}/data/
   ```
 
 ## Quick Start
@@ -667,6 +711,41 @@ sh scripts/train.sh -g 4 -d scannet -c semseg-oacnns-v1m1-0-base -n semseg-oacnn
 ```
 
 #### Point Transformers
+- **LitePT**
+
+LitePT (CVPR 2026) is a state-of-the-art point cloud backbone that delivers superior or competitive performance with significantly improved efficiency compared to prior point Transformers. 
+
+1. Additional requirements:
+
+Compile CUDA implementation of PointROPE. Otherwise, the system will automatically fall back to a slower PyTorch implementation. 
+
+```bash
+cd libs/pointrope
+python setup.py install
+cd ../..
+```
+
+2. Example running scripts:
+
+The model is registered as `LitePT-v1` and shared across small/base/large variants. In config filenames, `v1m1` refers to the lightweight decoder (no conv/attn), while `v1m2` uses a decoder with conv or attention at selected stages. See **Decoder design** in Sec 4.1 in the paper for details.
+
+```bash
+### NuScenes + LitePT-S
+sh scripts/train.sh -g 4 -d nuscenes -c semseg-litept-v1m1-0-small -n semseg-litept-v1m1-0-small
+### Waymo + LitePT-S
+sh scripts/train.sh -g 4 -d waymo -c semseg-litept-v1m1-0-small -n semseg-litept-v1m1-0-small
+### ScanNet + LitePT-S
+sh scripts/train.sh -g 4 -d scannet -c semseg-litept-v1m1-0-small -n semseg-litept-v1m1-0-small
+### Structured3D + LitePT-S
+sh scripts/train.sh -g 16 -d structured3d -c semseg-litept-v1m1-0-small -n semseg-litept-v1m1-0-small
+### Structured3D + LitePT-B
+sh scripts/train.sh -g 16 -d structured3d -c semseg-litept-v1m1-0-base -n semseg-litept-v1m1-0-base
+### Structured3D + LitePT-L
+sh scripts/train.sh -g 16 -d structured3d -c semseg-litept-v1m1-0-large -n semseg-litept-v1m1-0-large
+```
+
+Detailed instructions and weights are available in the [project repository](https://github.com/prs-eth/LitePT). 
+
 - **PTv3**
 
 [PTv3](https://arxiv.org/abs/2312.10035) is an efficient backbone model that achieves SOTA performances across indoor and outdoor scenarios. The full PTv3 relies on FlashAttention, while FlashAttention relies on CUDA 11.6 and above, make sure your local Pointcept environment satisfies the requirements.
@@ -918,6 +997,9 @@ sh scripts/train.sh -g 4 -d scannet -c insseg-pointgroup-v1m1-0-spunet-base -n i
 ```
 
 ### 3. Pre-training
+#### Utonia
+Follow the instruction [here](https://github.com/Pointcept/Pointcept/tree/main/pointcept/models/utonia).
+
 #### Concerto
 Follow the instruction [here](https://github.com/Pointcept/Pointcept/tree/main/pointcept/models/concerto).
 

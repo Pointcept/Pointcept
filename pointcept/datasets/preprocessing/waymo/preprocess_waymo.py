@@ -287,7 +287,7 @@ def handle_process(file_path, output_root, test_frame_list):
     data_group = tf.data.TFRecordDataset(file_path, compression_type="")
     for data in data_group:
         frame = open_dataset.Frame()
-        frame.ParseFromString(bytearray(data.numpy()))
+        frame.ParseFromString(bytes(data.numpy()))
         context_name = frame.context.name
         timestamp = str(frame.timestamp_micros)
 
@@ -353,10 +353,15 @@ if __name__ == "__main__":
     config = parser.parse_args()
 
     # load file list
-    file_list = glob.glob(
-        os.path.join(os.path.abspath(config.dataset_root), "*", "*.tfrecord")
-    )
-    assert len(file_list) == 1150
+    origin_splits = ["training", "validation", "testing"]
+    file_list = []
+    for split in origin_splits:
+        file_list.extend(
+            glob.glob(
+                os.path.join(os.path.abspath(config.dataset_root), split, "*.tfrecord")
+            )
+        )
+    assert len(file_list) == 1150, f"have {len(file_list)} files"
 
     # Create output directories
     for split in config.splits:

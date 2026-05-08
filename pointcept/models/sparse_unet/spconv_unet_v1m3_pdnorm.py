@@ -392,7 +392,10 @@ class SpUNetBase(nn.Module):
         grid_coord = input_dict["grid_coord"]
         feat = input_dict["feat"]
         offset = input_dict["offset"]
-        condition = input_dict["condition"][0]
+        if isinstance(input_dict["condition"], list):
+            condition = input_dict["condition"][0]
+        else:
+            condition = input_dict["condition"]
         context = input_dict["context"] if "context" in input_dict.keys() else None
 
         batch = offset2batch(offset)

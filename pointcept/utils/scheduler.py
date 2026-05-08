@@ -153,6 +153,7 @@ class OneCycleLR(lr_scheduler.OneCycleLR):
         )
 
 
+@SCHEDULERS.register_module()
 class CosineScheduler(object):
     def __init__(
         self,

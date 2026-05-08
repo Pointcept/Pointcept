@@ -18,7 +18,6 @@ from nuscenes.nuscenes import NuScenes
 from nuscenes.utils import splits
 from nuscenes.utils.geometry_utils import transform_matrix
 
-
 map_name_from_general_to_detection = {
     "human.pedestrian.adult": "pedestrian",
     "human.pedestrian.child": "pedestrian",

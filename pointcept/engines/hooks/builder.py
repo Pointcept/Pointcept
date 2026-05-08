@@ -7,7 +7,6 @@ Please cite our work if the code is helpful to you.
 
 from pointcept.utils.registry import Registry
 
-
 HOOKS = Registry("hooks")
 
 

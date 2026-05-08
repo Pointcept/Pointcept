@@ -11,6 +11,7 @@ from .stratified_transformer import *
 from .spvcnn import *
 from .octformer import *
 from .oacnns import *
+from .litept import *
 
 # from .swin3d import *
 
@@ -26,3 +27,4 @@ from .masked_scene_contrast import *
 from .point_prompt_training import *
 from .sonata import *
 from .concerto import *
+from .utonia import *

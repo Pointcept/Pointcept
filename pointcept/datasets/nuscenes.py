@@ -199,7 +199,7 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
         self.ignore_index = ignore_index
         self.learning_map = self.get_learning_map(ignore_index)
         self.img_ratio = img_num / (6 * sweeps)
-        super().__init__(ignore_index=ignore_index, **kwargs)
+        super().__init__(ignore_index=ignore_index, if_img=if_img, **kwargs)
 
     @staticmethod
     def project_lidar_to_image_with_color(
@@ -512,6 +512,14 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
         normals[flip_mask] = -normals[flip_mask]
         normals = normals / np.linalg.norm(normals, axis=-1, keepdims=True)
         return normals
+
+    # or using the vector from LiDAR to points, which is faster for data loading
+    # @staticmethod
+    # def get_normals(center, points):
+    #     normals = points - center[None, :]
+    #     norms = np.linalg.norm(normals, axis=1, keepdims=True)
+    #     normals = normals / norms
+    #     return normals
 
     @staticmethod
     def get_learning_map(ignore_index):

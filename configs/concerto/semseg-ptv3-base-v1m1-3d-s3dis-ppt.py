@@ -55,7 +55,7 @@ model = dict(
     backbone_out_channels=64,
     conditions=("Structured3D", "ScanNet", "S3DIS"),
     template="[x]",
-    clip_model="/high_perf_store3/l3_data/zhangyujia/models/clip/ViT-B-16.pt",
+    clip_model="ViT-B/16",
     class_names=[
         [
             "wall",

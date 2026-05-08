@@ -70,7 +70,6 @@ def launch(
             logger.warning(
                 "file:// is not a reliable init_method in multi-machine jobs. Prefer tcp://"
             )
-
         mp.spawn(
             _distributed_worker,
             nprocs=num_gpus_per_machine,

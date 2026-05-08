@@ -1,7 +1,7 @@
 """
 Semantic KITTI dataset
 
-Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
+Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com), Yujia Zhang (yujia.zhang.cs@gmail.com)
 Please cite our work if the code is helpful to you.
 """
 
@@ -205,7 +205,7 @@ class SemanticKITTIImagePointDataset(DefaultImagePointDataset):
             self.timestamp = tuple(range(0, sweeps * sweep_gap, sweep_gap))
         else:
             self.timestamp = (0,)
-        super().__init__(ignore_index=ignore_index, **kwargs)
+        super().__init__(ignore_index=ignore_index, if_img=if_img, **kwargs)
 
     @staticmethod
     def project_lidar_to_image_with_color(
@@ -539,6 +539,14 @@ class SemanticKITTIImagePointDataset(DefaultImagePointDataset):
         # Normalize normals a nd m
         normals = normals / np.linalg.norm(normals, axis=-1, keepdims=True)
         return normals
+
+    # or using the vector from LiDAR to points, which is faster for data loading
+    # @staticmethod
+    # def get_normals(center, points):
+    #     normals = points - center[None, :]
+    #     norms = np.linalg.norm(normals, axis=1, keepdims=True)
+    #     normals = normals / norms
+    #     return normals
 
     def get_data_name(self, idx):
         file_path = self.data_list[idx % len(self.data_list)]

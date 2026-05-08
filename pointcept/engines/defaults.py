@@ -61,8 +61,7 @@ def worker_init_fn(worker_id, num_workers, rank, seed):
 
 def default_argument_parser(epilog=None):
     parser = argparse.ArgumentParser(
-        epilog=epilog
-        or f"""
+        epilog=epilog or f"""
     Examples:
     Run on single machine:
         $ {sys.argv[0]} --num-gpus 8 --config-file cfg.yaml

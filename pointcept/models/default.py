@@ -273,11 +273,11 @@ class DINOEnhancedSegmentor(nn.Module):
             return_dict["point"] = point
         # train
         if self.training:
-            loss = self.criteria(seg_logits, input_dict["segment"])
+            loss = self.criteria(seg_logits, input_dict["origin_segment"])
             return_dict["loss"] = loss
         # eval
         elif "segment" in input_dict.keys():
-            loss = self.criteria(seg_logits, input_dict["segment"])
+            loss = self.criteria(seg_logits, input_dict["origin_segment"])
             return_dict["loss"] = loss
             return_dict["seg_logits"] = seg_logits
         # test
@@ -294,12 +294,14 @@ class DefaultClassifier(nn.Module):
         criteria=None,
         num_classes=40,
         backbone_embed_dim=256,
+        freeze_backbone=False,
     ):
         super().__init__()
         self.backbone = build_model(backbone)
         self.criteria = build_criteria(criteria)
         self.num_classes = num_classes
         self.backbone_embed_dim = backbone_embed_dim
+        self.freeze_backbone = freeze_backbone
         self.cls_head = nn.Sequential(
             nn.Linear(backbone_embed_dim, 256),
             nn.BatchNorm1d(256),
@@ -311,10 +313,18 @@ class DefaultClassifier(nn.Module):
             nn.Dropout(p=0.5),
             nn.Linear(128, num_classes),
         )
+        if self.freeze_backbone:
+            for p in self.backbone.parameters():
+                p.requires_grad = False
+            self.backbone.eval()
 
     def forward(self, input_dict):
         point = Point(input_dict)
-        point = self.backbone(point)
+        if self.freeze_backbone:
+            with torch.no_grad():
+                point = self.backbone(point)
+        else:
+            point = self.backbone(point)
         # Backbone added after v1.5.0 return Point instead of feat
         # And after v1.5.0 feature aggregation for classification operated in classifier
         # TODO: remove this part after make all backbone return Point only.
