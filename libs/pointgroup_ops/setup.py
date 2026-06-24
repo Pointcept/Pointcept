@@ -5,9 +5,10 @@ from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 from distutils.sysconfig import get_config_vars
 
 (opt,) = get_config_vars("OPT")
-os.environ["OPT"] = " ".join(
-    flag for flag in opt.split() if flag != "-Wstrict-prototypes"
-)
+if opt:
+    os.environ["OPT"] = " ".join(
+        flag for flag in opt.split() if flag != "-Wstrict-prototypes"
+    )
 
 
 def _argparse(pattern, argv, is_flag=True, is_list=False):

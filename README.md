@@ -154,7 +154,7 @@ If you find _Pointcept_ useful to your research, please cite our work as encoura
 
 ### Requirements
 - Ubuntu: 18.04 and above.
-- CUDA: 11.3 and above.
+- CUDA: 11.3 and above (NVIDIA GPUs), or ROCm 7.0 and above (AMD GPUs).
 - PyTorch: 1.10.0 and above.
 
 ### Conda Environment
@@ -213,6 +213,9 @@ If you find _Pointcept_ useful to your research, please cite our work as encoura
   TORCH_CUDA_ARCH_LIST="ARCH LIST" python  setup.py install
   # e.g. 7.5: RTX 3000; 8.0: a100 More available in: https://developer.nvidia.com/cuda-gpus
   TORCH_CUDA_ARCH_LIST="7.5 8.0" python  setup.py install
+  # on AMD GPUs (ROCm), select the target arch with PYTORCH_ROCM_ARCH instead
+  # e.g. gfx90a: MI200; gfx1100: RX 7900 More available in: https://rocm.docs.amd.com/projects/install-on-linux/en/latest/reference/system-requirements.html
+  PYTORCH_ROCM_ARCH="gfx90a;gfx1100" python setup.py install
   cd ../..
 
   # Open3D (visualization, optional)
