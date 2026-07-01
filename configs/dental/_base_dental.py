@@ -23,7 +23,8 @@ num_worker = 4
 empty_cache = False
 enable_amp = True
 clip_grad = 1.0
-enable_wandb = False  # set True and run `wandb login` to enable logging
+enable_wandb = True  # run `wandb login` (or export WANDB_API_KEY) before launching
+wandb_project = "bits2bites"
 fold_val = 1  # held-out fold (1..5); consumed by tools/dental_fold.py
 
 # ---- data ----

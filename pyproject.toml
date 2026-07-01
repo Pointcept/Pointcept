@@ -4,15 +4,24 @@ version = "0.1.0"
 description = "Bits2Bites: intra-oral scans occlusal classification (Pointcept v1.7.0 fork)"
 requires-python = "==3.10.*"
 
-# Base dependencies: pure-Python / prebuilt wheels, installable anywhere (no GPU).
 dependencies = [
+    # PyTorch CUDA 12.4 wheels
     "torch==2.5.0",
     "torchvision==0.20.0",
     "torchaudio==2.5.0",
+
+    # Build tools needed by local/native packages
+    "setuptools",
+    "wheel",
+    "packaging",
+    "ninja",
+
+    # Base Python/runtime deps
     "numpy<2",
     "scipy",
-    "pandas",           # DentalDataset label parsing
-    "scikit-learn",     # multi-task metrics (MultiClsEvaluator / MultiClsTester)
+    "pandas",
+    "scikit-learn",
+    "trimesh",
     "addict",
     "yapf",
     "pyyaml",
@@ -29,41 +38,38 @@ dependencies = [
     "tensorboardx",
     "wandb",
     "open3d",
-    "ninja",
     "black",
 ]
 
 [project.optional-dependencies]
-# GPU/build extras: require a CUDA 12.4 toolkit (nvcc) + a GPU. Install AFTER the
-# base env, with build isolation disabled (they compile against the installed
-# torch):  uv pip install -e '.[gpu]' --no-build-isolation
-# Covers everything the dental path needs (torch_scatter for pooling, spconv for
-# SpUNet, pointops for the pointcept hooks).
+# GPU dependencies that are installable as wheels.
+# Local CUDA extensions are intentionally NOT listed here.
 gpu = [
     "torch-scatter",
     "torch-cluster",
     "torch-sparse",
     "torch-geometric",
     "spconv-cu124",
-    "pointops",
-    "pointgroup-ops",
 ]
-# Optional: only needed to run PTv3 with enable_flash=True. The dental configs use
-# enable_flash=False, so this can be skipped (flash-attn is a slow, finicky build).
-flash = ["flash-attn"]
+
+# Optional: only needed to run PTv3 with enable_flash=True.
+# Dental configs use enable_flash=False, so this can usually be skipped.
+flash = [
+    "flash-attn",
+]
 
 [tool.uv]
-# These compile against the already-installed torch; never build them in isolation.
+# These packages either compile against torch or are sensitive to build isolation.
+# Local ops are installed manually with `uv pip install ... --no-build-isolation`.
 no-build-isolation-package = [
     "torch-scatter",
     "torch-cluster",
     "torch-sparse",
     "flash-attn",
-    "pointops",
-    "pointgroup-ops",
 ]
 
 # --- package indexes ---------------------------------------------------------
+
 [[tool.uv.index]]
 name = "pytorch-cu124"
 url = "https://download.pytorch.org/whl/cu124"
@@ -79,14 +85,12 @@ explicit = true
 torch = [{ index = "pytorch-cu124" }]
 torchvision = [{ index = "pytorch-cu124" }]
 torchaudio = [{ index = "pytorch-cu124" }]
+
 torch-scatter = [{ index = "pyg-cu124" }]
 torch-cluster = [{ index = "pyg-cu124" }]
 torch-sparse = [{ index = "pyg-cu124" }]
-# local compiled ops shipped in this repo
-pointops = { path = "libs/pointops", editable = false }
-pointgroup-ops = { path = "libs/pointgroup_ops", editable = false }
 
 [tool.setuptools]
-# This project is used as a source checkout (run tools/*.py in place), not
-# installed as an importable package; keep packaging a no-op.
+# This repo is used as a source checkout.
+# We run tools/scripts in place rather than installing Bits2Bites as a package.
 py-modules = []

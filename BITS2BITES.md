@@ -42,7 +42,7 @@ landmark-only dataset (mesh points dropped) and keep the same configs.
 ## Setup (uv)
 
 Dependencies are managed with [uv](https://docs.astral.sh/uv/) via `pyproject.toml`
-(no conda). Two steps: a base env (works anywhere), then GPU/compiled extras
+(no conda). Three steps: a base env (works anywhere), then GPU/compiled extras
 (need a CUDA 12.4 toolkit + GPU).
 
 ```bash
@@ -51,8 +51,10 @@ uv venv --python 3.10
 uv sync                       # installs [project.dependencies]
 
 # 2) GPU/compiled extras — on a CUDA-12.4 machine with nvcc + a GPU:
-#    torch-scatter, spconv-cu124, and the in-repo libs/pointops etc.
-uv pip install -e '.[gpu]' --no-build-isolation
+#    torch-scatter, spconv-cu124, and the in-repo libs/pointops
+uv sync --extra gpu
+uv pip install ./libs/pointops --no-build-isolation
+
 # (optional) flash-attn, only if you set enable_flash=True in a PTv3 config:
 #    uv pip install -e '.[flash]' --no-build-isolation
 ```
@@ -65,7 +67,7 @@ prerequisites first (see its upstream docs).
 
 ## Data layout
 
-Place the dataset at the config's `data_root` (default `data/dental_landmarks_mesh`):
+The config's `data_root` (default `data/dental_landmarks_mesh`) expects:
 
 ```
 data/dental_landmarks_mesh/
@@ -77,8 +79,77 @@ data/dental_landmarks_mesh/
 
 Each `dental_<id>.json` has `objects`, each with a `coord` (xyz) and a `class`
 (`"Mesh"` or one of Mesial/Distal/Cusp/FacialPoint/OuterPoint/InnerPoint).
-Mesh→point-cloud + landmark preprocessing lives in
-`pointcept/datasets/preprocessing/dental/preprocess_dentalnet.py`.
+
+### Building it from the raw download
+
+The public dataset (`datasets/Bits2Bites/`) ships 200 patients as
+`<id>/{lower,upper}.stl` plus a top-level `Annotations.csv` — **meshes only,
+no per-tooth landmarks**. Turn this into the layout above with:
+
+```bash
+python pointcept/datasets/preprocessing/dental/prepare_bits2bites.py \
+    --dataset-root <Downloaded Bits2Bites dataset> \
+    --output-dir data/dental_landmarks_mesh
+```
+
+This translates `Annotations.csv` into the Italian label vocabulary
+`pointcept/datasets/dental.py` expects, builds a `"Mesh"`-only point cloud per
+patient from the STL scans, and stratifies everything into `fold_1..fold_5` +
+`labels.csv` via `create_balanced_folds` (the same routine
+`pointcept/datasets/preprocessing/dental/preprocess_dentalnet.py` uses for
+other label sources). This mesh-only variant has no per-point landmark
+one-hot bits set (all zero) — every point is class `"Mesh"`.
+
+**Reproducing the paper's full model (mesh + landmarks).** The paper's actual
+model uses 9-D points (`coord` + a 6-D per-tooth landmark one-hot from a
+3DTeethLand-style landmark/segmentation predictor — see "Input" above); that
+predictor is external and not included in this repo. If you have landmark
+annotations for the patients, drop them in at
+`datasets/Bits2Bites/landmarks/dental_<id>.json` (one file per patient, IDs
+zero-padded to 4 digits, e.g. `dental_0001.json`) with this schema:
+
+```json
+{
+  "version": "1.1",
+  "description": "landmarks",
+  "key": "dental_0001",
+  "objects": [
+    {"key": "<any unique string>", "class": "Mesial", "coord": [x, y, z]},
+    {"key": "<any unique string>", "class": "Distal", "coord": [x, y, z]}
+  ]
+}
+```
+
+`class` must be one of `Mesial`, `Distal`, `Cusp`, `FacialPoint`,
+`OuterPoint`, `InnerPoint` (the 6 landmark types in `pointcept/datasets/
+dental.py`'s `POINT_CLASSES`), combining both jaws' landmarks into one file
+per patient. When `prepare_bits2bites.py` finds this folder it automatically
+merges the landmarks with the mesh points instead of building a mesh-only
+sample — no flags needed.
+
+### Mesh-only / landmark-only variants
+
+Once you have a complete `landmarks+mesh` data_root (e.g.
+`data/dental_landmarks_mesh`, from the step above), derive either single-
+modality variant from it — same `labels.csv`/fold split, same configs, just
+fewer points per sample. Useful for a quick smoke test: landmark-only is
+~240 points/patient vs ~198k for mesh-only, so it trains far faster.
+
+```bash
+# landmarks only (drop "Mesh" points)
+python pointcept/datasets/preprocessing/dental/filter_landmarks_only.py \
+    --input-dir data/dental_landmarks_mesh --output-dir data/dental_landmarks_only
+
+# mesh only (drop the 6 landmark classes)
+python pointcept/datasets/preprocessing/dental/filter_mesh_only.py \
+    --input-dir data/dental_landmarks_mesh --output-dir data/dental_mesh_only
+```
+
+Then point `tools/dental_fold.py --data-root` and `scripts/train.sh`/
+`test.sh` at the new folder (see `scripts/sbatch_train_fold1_landmarks_only.sh`
+/ `scripts/sbatch_train_fold1_mesh_only.sh` for ready-to-submit SLURM jobs).
+Mesh-only samples get an all-zero landmark one-hot; landmark-only samples
+have every point tagged as one of the 6 landmark classes.
 
 Class weights are already baked into `configs/dental/_base_dental.py`. To
 recompute for new data, adjust the CSV path in
