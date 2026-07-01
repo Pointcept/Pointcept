@@ -18,6 +18,9 @@ from .litept import *
 # Semantic Segmentation
 from .context_aware_classifier import *
 
+# Multi-task classification (Bits2Bites)
+from .multi_task_classifier import *
+
 # Instance Segmentation
 from .point_group import *
 from .sgiformer import *

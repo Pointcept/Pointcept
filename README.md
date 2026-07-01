@@ -1,3 +1,8 @@
+> **Bits2Bites fork.** This is the Bits2Bites occlusal-classification project,
+> rebased onto Pointcept v1.7.0. Start with [`BITS2BITES.md`](BITS2BITES.md)
+> (reproduction guide) and [`REPRODUCTION.md`](REPRODUCTION.md) (what changed).
+> The upstream Pointcept documentation follows below.
+
 <p align="center">
     <!-- pypi-strip -->
     <picture>

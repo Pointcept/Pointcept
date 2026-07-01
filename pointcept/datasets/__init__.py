@@ -37,5 +37,8 @@ from .scanobjectnn import (
 from .partnet import PartNetDataDataset
 from .partnete import PartNetEDataset
 
+# dental (Bits2Bites: multi-task occlusal classification)
+from .dental import DentalDataset
+
 # dataloader
 from .dataloader import MultiDatasetDataloader

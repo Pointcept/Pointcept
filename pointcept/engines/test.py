@@ -28,6 +28,7 @@ from pointcept.utils.misc import (
     intersection_and_union_gpu,
     make_dirs,
 )
+from .hooks.evaluator import get_task_names, compute_multicls_metrics
 
 try:
     import pointops
@@ -713,6 +714,119 @@ class ClsTester(TesterBase):
                         accuracy=accuracy_class[i],
                     )
                 )
+        logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
+
+    @staticmethod
+    def collate_fn(batch):
+        return collate_fn(batch)
+
+
+@TESTERS.register_module()
+class MultiClsTester(TesterBase):
+    """Standalone tester for the Bits2Bites multi-task classifier.
+
+    Runs the model over the (labelled) held-out fold, computes per-task and
+    task-averaged accuracy/precision/recall/macro-F1 (the paper's metrics), and
+    writes both ``metrics.json`` and per-scan ``predictions.json`` under
+    ``save_path/result``. If the test split carries no labels it degrades to
+    inference-only (predictions written, metrics skipped), replacing the former
+    ad-hoc ``tools/infer_dental.py``.
+    """
+
+    def test(self):
+        logger = get_root_logger()
+        logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
+        self.model.eval()
+
+        num_tasks = len(self.cfg.model.num_classes_list)
+        task_names = get_task_names(self.cfg, num_tasks)
+        predictions = [[] for _ in range(num_tasks)]
+        targets = [[] for _ in range(num_tasks)]
+        records = []
+        has_labels = False
+
+        save_path = os.path.join(self.cfg.save_path, "result")
+        if comm.is_main_process():
+            make_dirs(save_path)
+
+        batch_time = AverageMeter()
+        for i, input_dict in enumerate(self.test_loader):
+            names = input_dict.get("name", None)
+            if isinstance(names, str):
+                names = [names]
+            for key in input_dict:
+                if isinstance(input_dict[key], torch.Tensor):
+                    input_dict[key] = input_dict[key].cuda(non_blocking=True)
+
+            end = time.time()
+            with torch.no_grad():
+                output_dict = self.model(input_dict)
+            batch_time.update(time.time() - end)
+
+            logits_list = output_dict["logits"]
+            batch_size = logits_list[0].shape[0]
+            batch_labels_present = f"label_0" in input_dict
+            has_labels = has_labels or batch_labels_present
+
+            per_task_pred = []
+            per_task_prob = []
+            for j in range(num_tasks):
+                pred_j = logits_list[j].argmax(dim=1).cpu().numpy()
+                per_task_pred.append(pred_j)
+                per_task_prob.append(F.softmax(logits_list[j], dim=1).cpu().numpy())
+                predictions[j].extend(pred_j)
+                if batch_labels_present:
+                    targets[j].extend(input_dict[f"label_{j}"].cpu().numpy())
+
+            for b in range(batch_size):
+                rec = {"name": names[b] if names is not None else f"sample_{i}_{b}"}
+                for j in range(num_tasks):
+                    rec[task_names[j]] = {
+                        "pred": int(per_task_pred[j][b]),
+                        "prob": [round(float(p), 4) for p in per_task_prob[j][b]],
+                    }
+                    if batch_labels_present:
+                        rec[task_names[j]]["gt"] = int(
+                            input_dict[f"label_{j}"][b].item()
+                        )
+                records.append(rec)
+
+            logger.info(
+                f"Test: [{i + 1}/{len(self.test_loader)}] "
+                f"Batch {batch_time.val:.3f} ({batch_time.avg:.3f})"
+            )
+
+        if comm.is_main_process():
+            with open(os.path.join(save_path, "predictions.json"), "w") as f:
+                json.dump(records, f, indent=2)
+
+        if has_labels:
+            per_task, avg = compute_multicls_metrics(predictions, targets, num_tasks)
+            for j in range(num_tasks):
+                logger.info(
+                    f"Task {j} ({task_names[j]}): "
+                    f"Acc {per_task['accuracy'][j]:.4f} | "
+                    f"Prec {per_task['precision'][j]:.4f} | "
+                    f"Rec {per_task['recall'][j]:.4f} | "
+                    f"F1 {per_task['f1'][j]:.4f}"
+                )
+            logger.info(
+                f"Averaged: Acc {avg['accuracy']:.4f} | Prec {avg['precision']:.4f} | "
+                f"Rec {avg['recall']:.4f} | F1 {avg['f1']:.4f}"
+            )
+            if comm.is_main_process():
+                metrics = {
+                    "per_task": {
+                        task_names[j]: {m: per_task[m][j] for m in per_task}
+                        for j in range(num_tasks)
+                    },
+                    "average": avg,
+                }
+                with open(os.path.join(save_path, "metrics.json"), "w") as f:
+                    json.dump(metrics, f, indent=2)
+        else:
+            logger.info("No labels in test split; wrote predictions only.")
+
         logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
 
     @staticmethod

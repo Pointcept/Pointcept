@@ -5,18 +5,220 @@ Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com), Yujia Zhang (yujia.zhang.cs@gmai
 Please cite our work if the code is helpful to you.
 """
 
+import time
+
 import numpy as np
 import torch
 import torch.distributed as dist
 import pointops
 import wandb
 from uuid import uuid4
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+)
 
 import pointcept.utils.comm as comm
 from pointcept.utils.misc import intersection_and_union_gpu
 
 from .default import HookBase
 from .builder import HOOKS
+
+
+# Bits2Bites: default English names for the five occlusal tasks, in the order of
+# ``model.num_classes_list``. Override per config via ``data.names`` if desired.
+DEFAULT_TASK_NAMES = [
+    "right_occ",
+    "left_occ",
+    "anterior_bite",
+    "transverse_bite",
+    "midline",
+]
+
+
+def get_task_names(cfg, num_tasks):
+    """Resolve human-readable task names from the config, falling back to
+    sensible defaults for the five-task occlusal setup, then to ``task_{i}``."""
+    names = None
+    if hasattr(cfg, "data") and cfg.data.get("names", None) is not None:
+        names = cfg.data.names
+    elif cfg.model.get("task_names", None) is not None:
+        names = cfg.model.task_names
+    if names is None or len(names) != num_tasks:
+        names = (
+            DEFAULT_TASK_NAMES
+            if num_tasks == len(DEFAULT_TASK_NAMES)
+            else [f"task_{i}" for i in range(num_tasks)]
+        )
+    return names
+
+
+def compute_multicls_metrics(predictions, targets, num_tasks):
+    """Per-task macro accuracy/precision/recall/F1 (ignoring label == -1) plus
+    their averages across tasks. Shared by MultiClsEvaluator and MultiClsTester."""
+    per_task = {"accuracy": [], "precision": [], "recall": [], "f1": []}
+    for j in range(num_tasks):
+        y_pred = np.asarray(predictions[j])
+        y_true = np.asarray(targets[j])
+        valid = y_true != -1
+        y_pred, y_true = y_pred[valid], y_true[valid]
+        per_task["accuracy"].append(accuracy_score(y_true, y_pred))
+        per_task["precision"].append(
+            precision_score(y_true, y_pred, average="macro", zero_division=0)
+        )
+        per_task["recall"].append(
+            recall_score(y_true, y_pred, average="macro", zero_division=0)
+        )
+        per_task["f1"].append(
+            f1_score(y_true, y_pred, average="macro", zero_division=0)
+        )
+    avg = {k: (sum(v) / num_tasks if num_tasks else 0.0) for k, v in per_task.items()}
+    return per_task, avg
+
+
+@HOOKS.register_module()
+class MultiClsEvaluator(HookBase):
+    """Validation hook for the Bits2Bites multi-task classifier.
+
+    The model returns ``output_dict["logits"]`` (one tensor per task) and, when
+    labels are present, ``loss`` / ``loss_{j}``. This hook reports per-task and
+    task-averaged accuracy/precision/recall/macro-F1 on the validation fold and
+    logs them to tensorboard and (optionally) wandb.
+    """
+
+    def before_train(self):
+        if self.trainer.writer is not None and self.trainer.cfg.enable_wandb:
+            for metric in ("val", "inference", "accuracy", "precision", "recall", "f1"):
+                wandb.define_metric(f"{metric}/*", step_metric="Epoch")
+            wandb.define_metric("confusion_matrix/*", step_metric="Epoch")
+
+    def after_epoch(self):
+        if self.trainer.cfg.evaluate:
+            self.eval()
+
+    def eval(self):
+        self.trainer.logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
+        self.trainer.model.eval()
+
+        num_tasks = len(self.trainer.cfg.model.num_classes_list)
+        task_names = get_task_names(self.trainer.cfg, num_tasks)
+        predictions = [[] for _ in range(num_tasks)]
+        targets = [[] for _ in range(num_tasks)]
+
+        inference_times = []
+        for i, input_dict in enumerate(self.trainer.val_loader):
+            for key in input_dict:
+                if isinstance(input_dict[key], torch.Tensor):
+                    input_dict[key] = input_dict[key].cuda(non_blocking=True)
+
+            start_time = time.time()
+            with torch.no_grad():
+                output_dict = self.trainer.model(input_dict)
+            inference_times.append(time.time() - start_time)
+
+            logits_list = output_dict["logits"]
+            for j in range(num_tasks):
+                predictions[j].extend(logits_list[j].argmax(dim=1).cpu().numpy())
+                targets[j].extend(input_dict[f"label_{j}"].cpu().numpy())
+
+            self.trainer.storage.put_scalar("val_loss", output_dict["loss"].item())
+            for j in range(num_tasks):
+                self.trainer.storage.put_scalar(
+                    f"val_loss_{j}", output_dict[f"loss_{j}"].item()
+                )
+
+            self.trainer.logger.info(
+                f"Test: [{i + 1}/{len(self.trainer.val_loader)}] "
+                f"Loss: {output_dict['loss'].item():.4f} "
+                + " ".join(
+                    f"loss_{j}: {output_dict[f'loss_{j}'].item():.4f}"
+                    for j in range(num_tasks)
+                )
+            )
+
+        current_epoch = self.trainer.epoch + 1
+        val_loss_avg = self.trainer.storage.history("val_loss").avg
+        val_loss_per_task = {
+            j: self.trainer.storage.history(f"val_loss_{j}").avg
+            for j in range(num_tasks)
+        }
+
+        per_task, avg = compute_multicls_metrics(predictions, targets, num_tasks)
+        for j in range(num_tasks):
+            self.trainer.logger.info(
+                f"Task {j} ({task_names[j]}): "
+                f"Acc: {per_task['accuracy'][j]:.4f} | "
+                f"Prec: {per_task['precision'][j]:.4f} | "
+                f"Rec: {per_task['recall'][j]:.4f} | "
+                f"F1: {per_task['f1'][j]:.4f}"
+            )
+            if self.trainer.writer is not None:
+                for metric in ("accuracy", "precision", "recall", "f1"):
+                    self.trainer.writer.add_scalar(
+                        f"val/task_{j}/{metric}", per_task[metric][j], current_epoch
+                    )
+                self.trainer.writer.add_scalar(
+                    f"val/loss_{j}", val_loss_per_task[j], current_epoch
+                )
+
+        self.trainer.logger.info(
+            f"Aggregated metrics: Acc: {avg['accuracy']:.4f} | "
+            f"Prec: {avg['precision']:.4f} | Rec: {avg['recall']:.4f} | "
+            f"F1: {avg['f1']:.4f}"
+        )
+
+        if self.trainer.writer is not None:
+            for metric in ("accuracy", "precision", "recall", "f1"):
+                self.trainer.writer.add_scalar(
+                    f"val/avg/{metric}", avg[metric], current_epoch
+                )
+            self.trainer.writer.add_scalar("val/loss", val_loss_avg, current_epoch)
+
+        if self.trainer.cfg.enable_wandb:
+            wandb.log(
+                {
+                    "Epoch": current_epoch,
+                    "val/loss": val_loss_avg,
+                    **{
+                        f"val/loss_{task_names[j]}": val_loss_per_task[j]
+                        for j in range(num_tasks)
+                    },
+                    **{f"{metric}/avg": avg[metric] for metric in avg},
+                    **{
+                        f"{metric}/task_{task_names[j]}": per_task[metric][j]
+                        for metric in per_task
+                        for j in range(num_tasks)
+                    },
+                },
+                step=wandb.run.step,
+            )
+            for j in range(num_tasks):
+                y_pred = np.asarray(predictions[j])
+                y_true = np.asarray(targets[j])
+                class_count = self.trainer.cfg.model.num_classes_list[j]
+                valid = (y_true != -1) & (y_true < class_count)
+                wandb.log(
+                    {
+                        f"confusion_matrix/task_{task_names[j]}": wandb.plot.confusion_matrix(
+                            probs=None,
+                            y_true=y_true[valid],
+                            preds=y_pred[valid],
+                            class_names=[f"class_{k}" for k in range(class_count)],
+                        )
+                    },
+                    step=wandb.run.step,
+                )
+
+        mean_time = float(np.mean(inference_times))
+        self.trainer.logger.info(f"Avg. Inference Time per Batch: {mean_time:.4f}s")
+        if self.trainer.cfg.enable_wandb:
+            wandb.log({"inference/mean_time": mean_time}, step=wandb.run.step)
+
+        self.trainer.logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
+        self.trainer.comm_info["current_metric_value"] = avg["accuracy"]
+        self.trainer.comm_info["current_metric_name"] = "avg_accuracy"
 
 
 @HOOKS.register_module()
