@@ -23,8 +23,10 @@ num_worker = 4
 empty_cache = False
 enable_amp = True
 clip_grad = 1.0
-enable_wandb = True  # run `wandb login` (or export WANDB_API_KEY) before launching
-wandb_project = "bits2bites"
+enable_wandb = True  # see BITS2BITES.md "Weights & Biases (wandb) setup"
+# __import__ instead of a module-level `import os`: Config deepcopies every
+# top-level name when merging base configs, and can't deepcopy a module object.
+wandb_project = __import__("os").environ.get("WANDB_PROJECT", "bits2bites")
 fold_val = 1  # held-out fold (1..5); consumed by tools/dental_fold.py
 
 # ---- data ----

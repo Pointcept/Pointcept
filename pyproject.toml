@@ -39,6 +39,7 @@ dependencies = [
     "wandb",
     "open3d",
     "black",
+    "peft",
 ]
 
 [project.optional-dependencies]

@@ -182,6 +182,36 @@ sh scripts/run_dental_cv.sh -c cls-ptv3-base -n ptv3_mtl -g 1 \
 ```
 Swap `-c cls-spunet-base` for the SpUNet backbone, or `cls-*-base-stlN` for STL.
 
+## Weights & Biases (wandb) setup
+
+`enable_wandb` is `True` by default (`configs/_base_/default_runtime.py`). Three
+env vars control where runs are logged:
+
+| Var | Purpose | Read by |
+|---|---|---|
+| `WANDB_API_KEY` | auth token (wandb.ai account settings) | wandb SDK directly |
+| `WANDB_ENTITY` | team/user to log under, e.g. `maxillo` | wandb SDK directly |
+| `WANDB_PROJECT` | project name, e.g. `b2bv2` | `configs/dental/_base_dental.py` (`wandb_project`, falls back to `"bits2bites"` if unset) |
+
+Without `WANDB_ENTITY`, `wandb.init()` fails with `entity not specified, and
+viewer has no default entity` if the account has no default entity set.
+
+Export all three from a **shared, non-git-tracked env file** rather than
+hardcoding a key in a script — on this cluster, `/work/grana_maxillo/lborghi/env.sh`
+(already `source`d by every `scripts/sbatch_*.sh`):
+
+```bash
+export WANDB_API_KEY=<your-key>
+export WANDB_ENTITY=<your-entity>
+export WANDB_PROJECT=<your-project>
+```
+
+Alternative: run `wandb login` once on the login node (uses `$HOME/.netrc`) —
+still requires `WANDB_ENTITY` set if the account belongs to multiple teams or
+has no default.
+
+To disable wandb entirely, set `enable_wandb = False` in a config.
+
 ## Training settings (from the paper)
 
 | | PTv3 | SpUNet |
@@ -193,5 +223,3 @@ Swap `-c cls-spunet-base` for the SpUNet backbone, or `cls-*-base-stlN` for STL.
 Shared: 200 epochs, batch size 8, grid size 0.01, mixed precision, grad-clip 1.0,
 augmentations (normalize, scale, shift, z-rotate, dropout). Primary metric:
 task-averaged macro-F1. Reference: PTv3 MTL ≈ 0.63 macro-F1 (per-fold results vary).
-
-`enable_wandb=False` by default; set it `True` (and `wandb login`) to log runs.
