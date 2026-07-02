@@ -14,9 +14,10 @@ RESUME=false
 NUM_GPU=None
 NUM_MACHINE=1
 DIST_URL="auto"
+DATA_ROOT="None"
 
 
-while getopts "p:d:c:n:w:g:m:r:" opt; do
+while getopts "p:d:c:n:w:g:m:r:e:" opt; do
   case $opt in
     p)
       PYTHON=$OPTARG
@@ -41,6 +42,9 @@ while getopts "p:d:c:n:w:g:m:r:" opt; do
       ;;
     m)
       NUM_MACHINE=$OPTARG
+      ;;
+    e)
+      DATA_ROOT=$OPTARG
       ;;
     \?)
       echo "Invalid option: -$OPTARG"
@@ -92,6 +96,12 @@ export PYTHONPATH=./$CODE_DIR
 echo "Running code in: $CODE_DIR"
 
 
+DATA_ROOT_OPTS=""
+if [ "${DATA_ROOT}" != "None" ]
+then
+  DATA_ROOT_OPTS="data.train.data_root=$DATA_ROOT data.val.data_root=$DATA_ROOT data.test.data_root=$DATA_ROOT"
+fi
+
 echo " =========> RUN TASK <========="
 ulimit -n 65536
 if [ "${WEIGHT}" = "None" ]
@@ -102,7 +112,7 @@ then
     --num-machines "$NUM_MACHINE" \
     --machine-rank ${SLURM_NODEID:-0} \
     --dist-url ${DIST_URL} \
-    --options save_path="$EXP_DIR"
+    --options save_path="$EXP_DIR" $DATA_ROOT_OPTS
 else
     $PYTHON "$CODE_DIR"/tools/$TRAIN_CODE \
     --config-file "$CONFIG_DIR" \
@@ -110,5 +120,5 @@ else
     --num-machines "$NUM_MACHINE" \
     --machine-rank ${SLURM_NODEID:-0} \
     --dist-url ${DIST_URL} \
-    --options save_path="$EXP_DIR" resume="$RESUME" weight="$WEIGHT"
+    --options save_path="$EXP_DIR" resume="$RESUME" weight="$WEIGHT" $DATA_ROOT_OPTS
 fi

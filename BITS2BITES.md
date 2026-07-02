@@ -145,9 +145,13 @@ python pointcept/datasets/preprocessing/dental/filter_mesh_only.py \
     --input-dir data/dental_landmarks_mesh --output-dir data/dental_mesh_only
 ```
 
-Then point `tools/dental_fold.py --data-root` and `scripts/train.sh`/
-`test.sh` at the new folder (see `scripts/sbatch_train_fold1_landmarks_only.sh`
-/ `scripts/sbatch_train_fold1_mesh_only.sh` for ready-to-submit SLURM jobs).
+Then point `tools/dental_fold.py --data-root` at the new folder, and pass
+the same path via `scripts/train.sh -e <data_root>` (overrides
+`data.train/val/test.data_root` in the shared config through `--options`;
+`test.sh` needs no flag — it reloads the saved `config.py` snapshot, which
+already has the override baked in). See
+`scripts/sbatch_train_fold1_landmarks_only.sh` /
+`scripts/sbatch_train_fold1_mesh_only.sh` for ready-to-submit SLURM jobs.
 Mesh-only samples get an all-zero landmark one-hot; landmark-only samples
 have every point tagged as one of the 6 landmark classes.
 
