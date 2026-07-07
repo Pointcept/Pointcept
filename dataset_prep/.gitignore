@@ -1,0 +1,8 @@
+# Local dataset_prep virtualenv (see setup_env.sh)
+.venv/
+
+# Vendored model weights (~1.1 GB) — see PIPELINE.md for the source paths
+weights/
+
+__pycache__/
+*.pyc
