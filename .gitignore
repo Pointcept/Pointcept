@@ -14,3 +14,5 @@ outputs/
 */.DS_Store
 **/*.out
 Dockerfile
+*.out
+*.err
