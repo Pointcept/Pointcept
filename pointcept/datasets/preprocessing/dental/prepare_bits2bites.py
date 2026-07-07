@@ -32,18 +32,28 @@ ANTERIOR_MAP = {
     "Deep Bite": "profondo",
     "Open Bite": "aperto",
     "Inverted Bite": "inverso",
+    # "Unknown" -> a token outside dental.py's vocab, so the head is ignored (-1).
+    # A's Anterior column never has Unknown; Bits2Bites2 can (unevaluable axis).
+    "Unknown": "non valutabile",
 }
 MIDLINE_MAP = {
     "Centered": "centrata",
     "Deviated": "deviata",
+    "Unknown": "non valutabile",
 }
 
 
 def map_transverse(value: str) -> str:
-    """`Normal` / `Cross ...` / `Scissor ...` / compound `Cross ... / Scissor ...` -> vocab."""
+    """`Normal` / `Cross ...` / `Scissor ...` / compound `Cross ... / Scissor ...` -> vocab.
+
+    `Unknown` (Bits2Bites2 unevaluable axis) -> out-of-vocab token, so the head is
+    ignored (-1), matching how sagittal Unknown is already handled.
+    """
     value = value.strip()
     if value == "Normal":
         return "normale"
+    if value == "Unknown":
+        return "non valutabile"
     if "Cross" in value:
         return "cross"
     if "Scissor" in value:

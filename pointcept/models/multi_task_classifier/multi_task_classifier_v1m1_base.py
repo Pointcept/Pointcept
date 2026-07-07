@@ -72,7 +72,9 @@ class MultiTaskClassifier(nn.Module):
         # per-task logits
         logits = [head(feat) for head in self.heads]
 
-        out = {"logits": logits}
+        out = {}
+        if not self.training:
+            out["logits"] = logits
 
         # compute losses
         if any(k.startswith("label_") for k in input_dict):
