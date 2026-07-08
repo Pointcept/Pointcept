@@ -39,7 +39,11 @@ dependencies = [
     "wandb",
     "open3d",
     "black",
-    "peft",
+    # Keep the Hugging Face stack pinned; latest releases have repeatedly
+    # broken import-time compatibility with the PyTorch/CUDA stack here.
+    "transformers==4.46.3",
+    "peft==0.13.2",
+    "accelerate==1.1.1",
 ]
 
 [project.optional-dependencies]
