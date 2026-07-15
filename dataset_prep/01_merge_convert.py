@@ -77,6 +77,7 @@ MIDLINE_MAP = {
 }
 
 CSV_HEADER = ["Patient", "Right Class", "Left Class", "Anterior Bite", "Transversal Bite", "Median Lines"]
+REQUIRED_A_COLUMNS = set(CSV_HEADER)
 
 
 def parse_args():
@@ -110,7 +111,11 @@ def _invalid_stl_reason(paths: list[Path]) -> str | None:
 def copy_bits2bites(src: Path, out: Path):
     """Copy A verbatim (patient folders + landmarks/) as the first N patients."""
     with open(src / "Annotations.csv", newline="", encoding="utf-8") as f:
-        src_rows = list(csv.DictReader(f))
+        reader = csv.DictReader(f)
+        missing = REQUIRED_A_COLUMNS - set(reader.fieldnames or [])
+        if missing:
+            raise RuntimeError(f"{src / 'Annotations.csv'} missing columns: {sorted(missing)}")
+        src_rows = list(reader)
 
     rows = []
     mapping = []
@@ -120,6 +125,7 @@ def copy_bits2bites(src: Path, out: Path):
         contents = sorted(p.name for p in (out / pid).iterdir())
         if contents != ["lower.stl", "upper.stl"]:
             raise RuntimeError(f"{out / pid} unexpected contents: {contents}")
+        # Read by column name, not position: some corrected A CSVs have Left before Right.
         rows.append([pid, row["Right Class"], row["Left Class"],
                      row["Anterior Bite"], row["Transversal Bite"], row["Median Lines"]])
         mapping.append([pid, "A", pid])

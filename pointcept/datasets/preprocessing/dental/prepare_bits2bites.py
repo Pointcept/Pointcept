@@ -11,9 +11,11 @@ reproduction workflow.
 """
 
 import argparse
+import os
 import json
 import shutil
 import uuid
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
@@ -79,6 +81,11 @@ def build_labels_csv(dataset_root: Path, output_csv: Path) -> None:
     out.to_csv(output_csv, index=False)
 
 
+def patient_ids_from_annotations(dataset_root: Path) -> list[int]:
+    df = pd.read_csv(dataset_root / "Annotations.csv")
+    return [int(patient_id) for patient_id in df["Patient"].tolist()]
+
+
 def merge_patient(patient_id: int, dataset_root: Path, merged_dir: Path) -> None:
     """Merge per-tooth landmarks (if available) with mesh points into one sample.
 
@@ -121,7 +128,13 @@ def main():
         default="data/dental_landmarks_mesh",
         help="Destination data_root matching configs/dental/_base_dental.py",
     )
-    parser.add_argument("--num-patients", type=int, default=200)
+    parser.add_argument("--num-patients", type=int, help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=min(8, max(1, os.cpu_count() or 1)),
+        help="Number of parallel workers for mesh/landmark merging",
+    )
     args = parser.parse_args()
 
     dataset_root = Path(args.dataset_root)
@@ -144,9 +157,26 @@ def main():
     labels_csv = output_dir / "labels.csv"
     build_labels_csv(dataset_root, labels_csv)
 
-    for patient_id in range(1, args.num_patients + 1):
-        print(f"Merging patient {patient_id}/{args.num_patients}")
-        merge_patient(patient_id, dataset_root, merged_dir)
+    patient_ids = patient_ids_from_annotations(dataset_root)
+    if args.workers < 1:
+        raise ValueError("--workers must be >= 1")
+
+    total = len(patient_ids)
+    if args.workers == 1:
+        for idx, patient_id in enumerate(patient_ids, 1):
+            print(f"Merging patient {idx}/{total} (id {patient_id})")
+            merge_patient(patient_id, dataset_root, merged_dir)
+    else:
+        print(f"Merging {total} patients with {args.workers} workers ...")
+        with ProcessPoolExecutor(max_workers=args.workers) as executor:
+            futures = {
+                executor.submit(merge_patient, patient_id, dataset_root, merged_dir): patient_id
+                for patient_id in patient_ids
+            }
+            for idx, future in enumerate(as_completed(futures), 1):
+                patient_id = futures[future]
+                future.result()
+                print(f"Merged patient {idx}/{total} (id {patient_id})")
 
     print("Stratifying into folds ...")
     create_balanced_folds(merged_dir, labels_csv, output_dir, n_folds=5)

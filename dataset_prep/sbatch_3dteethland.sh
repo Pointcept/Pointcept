@@ -6,7 +6,7 @@
 #SBATCH --job-name=b2b_landmarks
 #SBATCH --output=b2b_landmarks_%j.out
 #SBATCH --error=b2b_landmarks_%j.err
-#SBATCH --mem=70G
+#SBATCH --mem=200G
 #SBATCH --cpus-per-task=4
 #SBATCH --ntasks=1
 #SBATCH --time=24:00:00
@@ -45,6 +45,7 @@ SEG_CONFIG=${SEG_CONFIG:-application/app_configs/Pt_semseg_teeth3ds_app.py}
 SEG_WEIGHT=${SEG_WEIGHT:-$PREP_DIR/weights/segmentator_best.pth}
 BOND_CONFIG=${BOND_CONFIG:-application/app_configs/Pt_landmarks_app.py}
 BOND_WEIGHT=${BOND_WEIGHT:-$PREP_DIR/weights/heatmap_landmarks.pth}
+PREPROCESSING=${PREPROCESSING:-3dteethland_preprocessing.yaml}
 
 python main.py \
     --samples "$LM_IN/testing_lower.txt" "$LM_IN/testing_upper.txt" \
@@ -54,6 +55,7 @@ python main.py \
     --seg-weight  "$SEG_WEIGHT" \
     --bond-config "$BOND_CONFIG" \
     --bond-weight "$BOND_WEIGHT" \
+    --preprocessing "$PREPROCESSING" \
     --cache --save-ply
 
 echo "predictions.csv written under $LM_OUT/<timestamp>_<hex>/ — ingest with 05_landmarks_ingest.py"

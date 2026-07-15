@@ -163,7 +163,10 @@ checkout) with the shared `dataset_prep/.venv` from `setup_env.sh` — no separa
 BracketPrediction venv needed anymore. The seg + bond weights default to the
 **local** copies in `weights/` (`segmentator_best.pth`, `heatmap_landmarks.pth`),
 so no access to anyone else's home is needed at run time; the seg/bond
-*configs* are in the BracketPrediction repo.
+*configs* are in the BracketPrediction repo. The script also passes
+`--preprocessing 3dteethland_preprocessing.yaml`, `--cache`, and `--save-ply`
+for the creator-recommended inference path; override the preprocessing file with
+`PREPROCESSING=/path/to/file.yaml` if needed.
 
 **3c. Ingest** (`05_landmarks_ingest.py`, CPU) — parse `predictions.csv` into
 `landmarks/dental_<id:04d>.json`, keeping only the six DentalDataset classes

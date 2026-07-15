@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=boost_usr_prod
-# # #SBATCH --constraint="gpu_L40S_45G"
+#SBATCH --constraint="gpu_L40S_45G"
 #SBATCH --account=grana_maxillo
 #SBATCH --gres=gpu:1
 #SBATCH --job-name=b2b_orient
@@ -27,5 +27,5 @@ python 03_orient.py \
     --dataset "$MERGED" \
     --output "$ORIENTED" \
     --checkpoint "$CKPT" \
-    --qa 10 # \
-    # --force
+    --qa 10 \
+    --force
