@@ -45,13 +45,11 @@ def project_vehicle_to_image(vehicle_pose, calibration, points):
     Returns:
       Array of shape [N, 3], with the latter dimension composed of (u, v, ok).
     """
-    # Transform points from vehicle to world coordinate system (can be
-    # vectorized).
+    # Transform points from vehicle to world coordinate system.
     pose_matrix = np.array(vehicle_pose.transform).reshape(4, 4)
-    world_points = np.zeros_like(points)
-    for i, point in enumerate(points):
-        cx, cy, cz, _ = np.matmul(pose_matrix, [*point, 1])
-        world_points[i] = (cx, cy, cz)
+    world_points = (points @ pose_matrix[:3, :3].T + pose_matrix[:3, 3]).astype(
+        points.dtype
+    )
 
     # Populate camera image metadata. Velocity and latency stats are filled with
     # zeroes.
