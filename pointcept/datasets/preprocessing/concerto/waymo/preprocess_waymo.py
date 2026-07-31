@@ -93,6 +93,22 @@ def get_normals(cam_center, coords):
 
 
 def create_lidar_and_normals(frame):
+    """Points plus per-point normals, in the SAME point order as create_lidar/create_label.
+
+    Point order matters here. This file builds the same points two ways:
+
+        per return (create_lidar, create_label):  [s0r0, s1r0 ... snr0, s0r1 ... snr1]
+        per sensor (what this used to do):        [s0r0, s0r1, s1r0, s1r1, ...]
+
+    They are permutations of each other, so mixing them lines up two arrays against different
+    points without any length or shape error. `strength` below comes from create_lidar, which is
+    per return, and handle_process pairs this function's coord with create_label's labels, which
+    is also per return. Building per sensor here therefore misaligned both.
+
+    Normals are still estimated per sensor, because they need that sensor's origin to be oriented
+    and estimate_normals should see both returns of a sensor together. They are then placed back
+    into their per return slots.
+    """
     (
         range_images,
         camera_projections,
@@ -100,56 +116,61 @@ def create_lidar_and_normals(frame):
         range_image_top_pose,
     ) = frame_utils.parse_range_image_and_camera_projection(frame)
 
-    all_points_vehicle_frame = []
-    all_normals_vehicle_frame = []
-    all_valid_masks = []
+    # These return every sensor at once, so calling them inside the per sensor loop recomputed the
+    # whole frame once per sensor.
+    points_0, _, valid_masks_0 = convert_range_image_to_point_cloud(
+        frame,
+        range_images,
+        camera_projections,
+        range_image_top_pose,
+        ri_index=0,
+        keep_polar_features=False,
+    )
+    points_1, _, valid_masks_1 = convert_range_image_to_point_cloud(
+        frame,
+        range_images,
+        camera_projections,
+        range_image_top_pose,
+        ri_index=1,
+        keep_polar_features=False,
+    )
 
+    # Same sort convert_range_image_to_point_cloud uses to index the lists it returns.
     calibrations = sorted(frame.context.laser_calibrations, key=lambda c: c.name)
 
-    for c in calibrations:
-        points_0, _, valid_masks_0 = convert_range_image_to_point_cloud(
-            frame,
-            range_images,
-            camera_projections,
-            range_image_top_pose,
-            ri_index=0,
-            keep_polar_features=False,
-        )
-
-        points_1, _, valid_masks_1 = convert_range_image_to_point_cloud(
-            frame,
-            range_images,
-            camera_projections,
-            range_image_top_pose,
-            ri_index=1,
-            keep_polar_features=False,
-        )
-
-        sensor_index = calibrations.index(c)
+    normals_0, normals_1 = [], []
+    for sensor_index, c in enumerate(calibrations):
         sensor_points_0 = points_0[sensor_index]
         sensor_points_1 = points_1[sensor_index]
-
         sensor_points_all = np.concatenate([sensor_points_0, sensor_points_1], axis=0)
 
         if sensor_points_all.shape[0] == 0:
+            # Append empty blocks rather than `continue`: the point lists still carry this
+            # sensor's empty slots, so skipping would desync normals from points.
+            normals_0.append(np.zeros((len(sensor_points_0), 3)))
+            normals_1.append(np.zeros((len(sensor_points_1), 3)))
             continue
 
         extrinsic = np.array(c.extrinsic.transform).reshape(4, 4)
         lidar_center_vehicle_frame = extrinsic[:3, 3]
 
         normals = get_normals(lidar_center_vehicle_frame, sensor_points_all)
+        normals_0.append(normals[: len(sensor_points_0)])
+        normals_1.append(normals[len(sensor_points_0) :])
 
-        all_points_vehicle_frame.append(sensor_points_all)
-        all_normals_vehicle_frame.append(normals)
-        all_valid_masks.append(valid_masks_0[sensor_index])
-        all_valid_masks.append(valid_masks_1[sensor_index])
+    # List concatenation, not array: [all ri0 blocks] + [all ri1 blocks] is create_lidar's order.
+    final_points = np.concatenate(points_0 + points_1, axis=0)
+    final_normals = np.concatenate(normals_0 + normals_1, axis=0)
 
-    final_points = np.concatenate(all_points_vehicle_frame, axis=0)
-    final_normals = np.concatenate(all_normals_vehicle_frame, axis=0)
     velodyne, _ = create_lidar(frame)
     strength = np.tanh(velodyne.reshape(-1, 4)[:, -1].reshape([-1, 1]))
+    assert len(final_points) == len(strength) == len(final_normals), (
+        f"point/strength/normal length mismatch ({len(final_points)}/{len(strength)}/"
+        f"{len(final_normals)}) -- the two orderings have diverged again"
+    )
     point_cloud_with_strength = np.c_[final_points, strength]
-    return point_cloud_with_strength, final_normals, all_valid_masks
+    # Mirrors create_lidar's [ri0, ri1] shape.
+    return point_cloud_with_strength, final_normals, [valid_masks_0, valid_masks_1]
 
 
 def create_lidar(frame):
