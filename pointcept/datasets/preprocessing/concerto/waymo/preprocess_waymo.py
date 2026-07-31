@@ -162,8 +162,9 @@ def create_lidar_and_normals(frame):
     final_points = np.concatenate(points_0 + points_1, axis=0)
     final_normals = np.concatenate(normals_0 + normals_1, axis=0)
 
+    # Raw intensity: handle_process applies the tanh, as the standard Waymo script does.
     velodyne, _ = create_lidar(frame)
-    strength = np.tanh(velodyne.reshape(-1, 4)[:, -1].reshape([-1, 1]))
+    strength = velodyne.reshape(-1, 4)[:, -1].reshape([-1, 1])
     assert len(final_points) == len(strength) == len(final_normals), (
         f"point/strength/normal length mismatch ({len(final_points)}/{len(strength)}/"
         f"{len(final_normals)}) -- the two orderings have diverged again"
