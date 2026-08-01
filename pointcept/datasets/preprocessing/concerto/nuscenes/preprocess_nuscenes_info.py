@@ -307,6 +307,35 @@ def obtain_sensor2top(
     return sweep
 
 
+def find_closest_cam_sd_token(nusc, start_cam_sd_token, target_timestamp):
+    """Find the camera sample_data closest in time to a LiDAR sweep."""
+    start_cam_sd = nusc.get("sample_data", start_cam_sd_token)
+    closest_cam_sd = start_cam_sd
+    closest_time_diff = abs(start_cam_sd["timestamp"] - target_timestamp)
+
+    current_cam_sd = start_cam_sd
+    while current_cam_sd["next"]:
+        next_cam_sd = nusc.get("sample_data", current_cam_sd["next"])
+        time_diff = abs(next_cam_sd["timestamp"] - target_timestamp)
+        if time_diff >= closest_time_diff:
+            break
+        closest_cam_sd = next_cam_sd
+        closest_time_diff = time_diff
+        current_cam_sd = next_cam_sd
+
+    current_cam_sd = start_cam_sd
+    while current_cam_sd["prev"]:
+        prev_cam_sd = nusc.get("sample_data", current_cam_sd["prev"])
+        time_diff = abs(prev_cam_sd["timestamp"] - target_timestamp)
+        if time_diff >= closest_time_diff:
+            break
+        closest_cam_sd = prev_cam_sd
+        closest_time_diff = time_diff
+        current_cam_sd = prev_cam_sd
+
+    return closest_cam_sd["token"]
+
+
 def fill_trainval_infos(
     data_path, nusc, train_scenes, test=False, max_sweeps=10, with_camera=False
 ):
@@ -409,7 +438,11 @@ def fill_trainval_infos(
                         )
                         cam_infos = dict()
                         for cam in camera_types:
-                            cam_token = sweep_sample["data"][cam]
+                            cam_token = find_closest_cam_sd_token(
+                                nusc,
+                                sweep_sample["data"][cam],
+                                curr_sd_rec["timestamp"],
+                            )
                             cam_path, _, camera_intrinsics = nusc.get_sample_data(
                                 cam_token
                             )
@@ -439,7 +472,11 @@ def fill_trainval_infos(
                     sweep_sample = nusc.get("sample", curr_sd_rec["sample_token"])
                     cam_infos = dict()
                     for cam in camera_types:
-                        cam_token = sweep_sample["data"][cam]
+                        cam_token = find_closest_cam_sd_token(
+                            nusc,
+                            sweep_sample["data"][cam],
+                            curr_sd_rec["timestamp"],
+                        )
                         cam_path, _, camera_intrinsics = nusc.get_sample_data(cam_token)
                         cam_info = obtain_sensor2top(
                             nusc, cam_token, l2e_t, l2e_r_mat, e2g_t, e2g_r_mat, cam
