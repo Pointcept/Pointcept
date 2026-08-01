@@ -198,7 +198,8 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
         self.if_img = if_img
         self.ignore_index = ignore_index
         self.learning_map = self.get_learning_map(ignore_index)
-        self.img_ratio = img_num / (6 * sweeps)
+        frame_count = sweeps + 1 if if_sweep else 1
+        self.img_ratio = img_num / (6 * frame_count)
         super().__init__(ignore_index=ignore_index, if_img=if_img, **kwargs)
 
     @staticmethod
@@ -372,8 +373,7 @@ class NuScenesImagePointDataset(DefaultImagePointDataset):
                     sensor2lidar = np.eye(4)
                     sensor2lidar[:3, :3] = cam_info["sensor2lidar_rotation"]
                     sensor2lidar[:3, 3] = cam_info["sensor2lidar_translation"]
-                    # sensor2lidar = cam_lidar_tm @ sensor2lidar
-                    lidar2sensor = np.linalg.inv(sensor2lidar)
+                    lidar2sensor = np.linalg.inv(sensor2lidar) @ cam_lidar_tm
                     lidar_colors, correspondence_info, _ = (
                         self.project_lidar_to_image_with_color(
                             points,
