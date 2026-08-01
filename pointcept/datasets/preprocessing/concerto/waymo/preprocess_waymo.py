@@ -453,7 +453,8 @@ def project_lidar_to_image_with_color(
     v_filtered = v_rounded[valid_mask]
     ok = ok & valid_mask
     lidar_colors[ok] = image[v_filtered, u_filtered, :]
-    lidar_uv_coords = lidar_uv_coords[:, :2]
+    lidar_uv_coords = lidar_uv_coords[:, :2].copy()
+    lidar_uv_coords[~valid_mask] = -1
     return lidar_colors, lidar_uv_coords, valid_mask
 
 
@@ -530,7 +531,7 @@ def handle_process(file_path, output_root, test_frame_list):
                 open_dataset.CameraName.Name.Name(calib.name), 999
             ),
         )
-        valid_mask = np.full((coord.shape[0],), False, dtype=bool)
+        cam_mask = np.full((coord.shape[0],), False, dtype=bool)
         for c in cam_sorted_calibrations:
             camera_name = open_dataset.CameraName.Name.Name(c.name)
             cam2ego = np.array(c.extrinsic.transform).reshape(4, 4)
@@ -547,14 +548,14 @@ def handle_process(file_path, output_root, test_frame_list):
             color, uv_correspondence, mask = project_lidar_to_image_with_color(
                 frame.pose, coord, img_DLC[camera_name], c, color
             )
-            valid_mask = np.logical_or(valid_mask, mask)
+            cam_mask = np.logical_or(cam_mask, mask)
             correspondence_point_id = np.array(
                 range(uv_correspondence.shape[0])
             ).reshape((-1, 1))
             uv_correspondence = np.hstack([uv_correspondence, correspondence_point_id])
             np.save(correspondence_save_path / f"{camera_name}.npy", uv_correspondence)
         np.save(save_path / timestamp / "color.npy", color)
-        np.save(save_path / timestamp / "mask.npy", valid_mask)
+        np.save(save_path / timestamp / "cam_mask.npy", cam_mask)
 
 
 if __name__ == "__main__":

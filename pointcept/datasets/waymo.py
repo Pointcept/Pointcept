@@ -14,6 +14,13 @@ from .builder import DATASETS
 from .defaults import DefaultDataset, DefaultImagePointDataset
 
 
+def _append_timing_embedding(strength, timestamp):
+    if strength.ndim == 1:
+        strength = strength.reshape(-1, 1)
+    timing = np.full((strength.shape[0], 1), timestamp, dtype=strength.dtype)
+    return np.hstack((strength, timing))
+
+
 @DATASETS.register_module()
 class WaymoDataset(DefaultDataset):
     def __init__(
@@ -62,13 +69,22 @@ class WaymoDataset(DefaultDataset):
     def get_data(self, idx):
         idx = idx % len(self.data_list)
         if self.timestamp == (0,):
-            return self.get_single_frame(idx)
+            data_dict = self.get_single_frame(idx)
+            if self.timing_embedding:
+                data_dict["strength"] = _append_timing_embedding(
+                    data_dict["strength"], 0
+                )
+            return data_dict
 
         sequence_index = self.sequence_index[idx]
         lower, upper = self.sequence_offset[[sequence_index, sequence_index + 1]]
         major_frame = self.get_single_frame(idx)
         name = major_frame.pop("name")
         target_pose = major_frame.pop("pose")
+        if self.timing_embedding:
+            major_frame["strength"] = _append_timing_embedding(
+                major_frame["strength"], 0
+            )
         for key in major_frame.keys():
             major_frame[key] = [major_frame[key]]
 
@@ -92,11 +108,8 @@ class WaymoDataset(DefaultDataset):
                 )
 
             if self.timing_embedding:
-                refer_frame["strength"] = np.hstack(
-                    (
-                        refer_frame["strength"],
-                        np.ones_like(refer_frame["strength"]) * timestamp,
-                    )
+                refer_frame["strength"] = _append_timing_embedding(
+                    refer_frame["strength"], timestamp
                 )
 
             for key in major_frame.keys():
@@ -169,13 +182,22 @@ class WaymoColorNormalDataset(WaymoDataset):
     def get_data(self, idx):
         idx = idx % len(self.data_list)
         if self.timestamp == (0,):
-            return self.get_single_frame(idx)
+            data_dict = self.get_single_frame(idx)
+            if self.timing_embedding:
+                data_dict["strength"] = _append_timing_embedding(
+                    data_dict["strength"], 0
+                )
+            return data_dict
 
         sequence_index = self.sequence_index[idx]
         lower, upper = self.sequence_offset[[sequence_index, sequence_index + 1]]
         major_frame = self.get_single_frame(idx)
         name = major_frame.pop("name")
         target_pose = major_frame.pop("pose")
+        if self.timing_embedding:
+            major_frame["strength"] = _append_timing_embedding(
+                major_frame["strength"], 0
+            )
         for key in major_frame.keys():
             major_frame[key] = [major_frame[key]]
 
@@ -199,16 +221,16 @@ class WaymoColorNormalDataset(WaymoDataset):
                 )
 
             if self.timing_embedding:
-                refer_frame["strength"] = np.hstack(
-                    (
-                        refer_frame["strength"],
-                        np.ones_like(refer_frame["strength"]) * timestamp,
-                    )
+                refer_frame["strength"] = _append_timing_embedding(
+                    refer_frame["strength"], timestamp
                 )
 
             for key in major_frame.keys():
                 major_frame[key].append(refer_frame[key])
         for key in major_frame.keys():
+            if isinstance(major_frame[key][0], str):
+                major_frame[key] = major_frame[key][0]
+                continue
             major_frame[key] = np.concatenate(major_frame[key], axis=0)
         major_frame["name"] = name
         return major_frame
@@ -236,12 +258,13 @@ class WaymoImagePointDataset(DefaultImagePointDataset):
         self.reference_label = reference_label
         self.timing_embedding = timing_embedding
         self.sweeps = sweeps
+        self.data_name = sorted(self.data_name)
         _, self.sequence_offset, self.sequence_index = np.unique(
-            [data.split("_with_camera_labels_")[0] for data in self.data_list.keys()],
+            [data.split("_with_camera_labels_")[0] for data in self.data_name],
             return_index=True,
             return_inverse=True,
         )
-        self.sequence_offset = np.append(self.sequence_offset, len(self.data_list))
+        self.sequence_offset = np.append(self.sequence_offset, len(self.data_name))
 
     @staticmethod
     def align_pose(coord, pose, target_pose):
@@ -262,6 +285,10 @@ class WaymoImagePointDataset(DefaultImagePointDataset):
         idx = idx % len(self.data_list)
         if self.timestamp == (0,):
             data_dict = self.get_single_frame(idx)
+            if self.timing_embedding:
+                data_dict["strength"] = _append_timing_embedding(
+                    data_dict["strength"], 0
+                )
             return data_dict
 
         sequence_index = self.sequence_index[idx]
@@ -275,6 +302,10 @@ class WaymoImagePointDataset(DefaultImagePointDataset):
         major_frame = self.get_single_frame(idx)
         name = major_frame.pop("name")
         target_pose = major_frame.pop("pose")
+        if self.timing_embedding:
+            major_frame["strength"] = _append_timing_embedding(
+                major_frame["strength"], 0
+            )
         if not self.if_img:
             pass
         elif imgs_idx == 0:
@@ -307,11 +338,8 @@ class WaymoImagePointDataset(DefaultImagePointDataset):
                 )
 
             if self.timing_embedding:
-                refer_frame["strength"] = np.hstack(
-                    (
-                        refer_frame["strength"],
-                        np.ones_like(refer_frame["strength"]) * timestamp,
-                    )
+                refer_frame["strength"] = _append_timing_embedding(
+                    refer_frame["strength"], timestamp
                 )
 
             for key in major_frame.keys():

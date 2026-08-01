@@ -469,7 +469,12 @@ class SemanticKITTIImagePointDataset(DefaultImagePointDataset):
         sequence_index = self.sequence_index[idx]
         lower, upper = self.sequence_offset[[sequence_index, sequence_index + 1]]
         assert lower <= idx and idx < upper
-        imgs_idx = random.sample(self.timestamp, 1)[0]
+        valid_timestamps = [0] + [
+            timestamp
+            for timestamp in self.timestamp[1:]
+            if lower <= timestamp + idx < upper
+        ]
+        imgs_idx = random.sample(valid_timestamps, 1)[0]
         major_frame = self.get_single_frame(idx)
         poses_file_path = os.path.dirname(os.path.dirname(self.data_list[idx]))
         poses_file_path = os.path.join(poses_file_path, "poses.txt")
@@ -487,10 +492,8 @@ class SemanticKITTIImagePointDataset(DefaultImagePointDataset):
             if key in self.PC_VALID_ASSETS:
                 major_frame[key] = [major_frame[key]]
 
-        for timestamp in self.timestamp[1:]:
+        for timestamp in valid_timestamps[1:]:
             refer_idx = timestamp + idx
-            if refer_idx < lower or upper <= refer_idx:
-                continue
             refer_frame = self.get_single_frame(refer_idx)
             refer_frame.pop("name")
             Tr = refer_frame.pop("Tr")
