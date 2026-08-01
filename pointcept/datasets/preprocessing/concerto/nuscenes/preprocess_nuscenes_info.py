@@ -403,6 +403,39 @@ def fill_trainval_infos(
                         "time_lag": curr_sd_rec["timestamp"] * 0,
                         "is_key_frame": curr_sd_rec["is_key_frame"],
                     }
+                    if with_camera:
+                        sweep_sample = nusc.get(
+                            "sample", curr_sd_rec["sample_token"]
+                        )
+                        cam_infos = dict()
+                        for cam in camera_types:
+                            cam_token = sweep_sample["data"][cam]
+                            cam_path, _, camera_intrinsics = nusc.get_sample_data(
+                                cam_token
+                            )
+                            cam_info = obtain_sensor2top(
+                                nusc,
+                                cam_token,
+                                l2e_t,
+                                l2e_r_mat,
+                                e2g_t,
+                                e2g_r_mat,
+                                cam,
+                            )
+                            cam_info["data_path"] = (
+                                Path(cam_info["data_path"])
+                                .relative_to(data_path)
+                                .__str__()
+                            )
+                            cam_info.update(camera_intrinsics=camera_intrinsics)
+                            cam_infos.update({cam: cam_info})
+                        sweep.update({"cams": cam_infos})
+                    sweeps.append(sweep)
+                else:
+                    sweeps.append(sweeps[-1])
+            else:
+                curr_sd_rec = nusc.get("sample_data", curr_sd_rec["prev"])
+                if with_camera:
                     sweep_sample = nusc.get("sample", curr_sd_rec["sample_token"])
                     cam_infos = dict()
                     for cam in camera_types:
@@ -412,29 +445,12 @@ def fill_trainval_infos(
                             nusc, cam_token, l2e_t, l2e_r_mat, e2g_t, e2g_r_mat, cam
                         )
                         cam_info["data_path"] = (
-                            Path(cam_info["data_path"]).relative_to(data_path).__str__()
+                            Path(cam_info["data_path"])
+                            .relative_to(data_path)
+                            .__str__()
                         )
                         cam_info.update(camera_intrinsics=camera_intrinsics)
                         cam_infos.update({cam: cam_info})
-                    sweep.update({"cams": cam_infos})
-                    sweeps.append(sweep)
-                else:
-                    sweeps.append(sweeps[-1])
-            else:
-                curr_sd_rec = nusc.get("sample_data", curr_sd_rec["prev"])
-                sweep_sample = nusc.get("sample", curr_sd_rec["sample_token"])
-                cam_infos = dict()
-                for cam in camera_types:
-                    cam_token = sweep_sample["data"][cam]
-                    cam_path, _, camera_intrinsics = nusc.get_sample_data(cam_token)
-                    cam_info = obtain_sensor2top(
-                        nusc, cam_token, l2e_t, l2e_r_mat, e2g_t, e2g_r_mat, cam
-                    )
-                    cam_info["data_path"] = (
-                        Path(cam_info["data_path"]).relative_to(data_path).__str__()
-                    )
-                    cam_info.update(camera_intrinsics=camera_intrinsics)
-                    cam_infos.update({cam: cam_info})
                 # Get past pose
                 current_pose_rec = nusc.get("ego_pose", curr_sd_rec["ego_pose_token"])
                 global_from_car = transform_matrix(
@@ -471,7 +487,8 @@ def fill_trainval_infos(
                     "time_lag": time_lag,
                     "is_key_frame": curr_sd_rec["is_key_frame"],
                 }
-                sweep.update({"cams": cam_infos})
+                if with_camera:
+                    sweep.update({"cams": cam_infos})
 
                 sweeps.append(sweep)
 
