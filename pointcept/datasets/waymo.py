@@ -51,6 +51,11 @@ class WaymoDataset(DefaultDataset):
         coord = (pose_align @ coord.T).T[:, :3]
         return coord
 
+    @staticmethod
+    def align_normal(normal, pose, target_pose):
+        pose_align = np.matmul(np.linalg.inv(target_pose), pose)
+        return (pose_align[:3, :3] @ normal.T).T
+
     def get_single_frame(self, idx):
         return super().get_data(idx)
 
@@ -77,6 +82,10 @@ class WaymoDataset(DefaultDataset):
             refer_frame["coord"] = self.align_pose(
                 refer_frame["coord"], pose, target_pose
             )
+            if "normal" in refer_frame:
+                refer_frame["normal"] = self.align_normal(
+                    refer_frame["normal"], pose, target_pose
+                )
             if not self.reference_label:
                 refer_frame["segment"] = (
                     np.ones_like(refer_frame["segment"]) * self.ignore_index
@@ -180,6 +189,10 @@ class WaymoColorNormalDataset(WaymoDataset):
             refer_frame["coord"] = self.align_pose(
                 refer_frame["coord"], pose, target_pose
             )
+            if "normal" in refer_frame:
+                refer_frame["normal"] = self.align_normal(
+                    refer_frame["normal"], pose, target_pose
+                )
             if not self.reference_label:
                 refer_frame["segment"] = (
                     np.ones_like(refer_frame["segment"]) * self.ignore_index
@@ -237,6 +250,11 @@ class WaymoImagePointDataset(DefaultImagePointDataset):
         coord = (pose_align @ coord.T).T[:, :3]
         return coord
 
+    @staticmethod
+    def align_normal(normal, pose, target_pose):
+        pose_align = np.matmul(np.linalg.inv(target_pose), pose)
+        return (pose_align[:3, :3] @ normal.T).T
+
     def get_single_frame(self, idx):
         return super().get_data(idx)
 
@@ -285,6 +303,10 @@ class WaymoImagePointDataset(DefaultImagePointDataset):
             refer_frame["coord"] = self.align_pose(
                 refer_frame["coord"], pose, target_pose
             )
+            if "normal" in refer_frame:
+                refer_frame["normal"] = self.align_normal(
+                    refer_frame["normal"], pose, target_pose
+                )
             if not self.reference_label:
                 refer_frame["segment"] = (
                     np.ones_like(refer_frame["segment"]) * self.ignore_index

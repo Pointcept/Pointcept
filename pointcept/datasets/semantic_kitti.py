@@ -281,13 +281,14 @@ class SemanticKITTIImagePointDataset(DefaultImagePointDataset):
     @staticmethod
     def align_pose(coord, pose, target_pose):
         coord = np.hstack((coord, np.ones_like(coord[:, :1])))
-        try:
-            pose_align = np.matmul(np.linalg.inv(target_pose), pose)
-        except:
-            print(target_pose)
-            exit()
+        pose_align = np.matmul(np.linalg.inv(target_pose), pose)
         coord = (pose_align @ coord.T).T[:, :3]
         return coord
+
+    @staticmethod
+    def align_normal(normal, pose, target_pose):
+        pose_align = np.matmul(np.linalg.inv(target_pose), pose)
+        return (pose_align[:3, :3] @ normal.T).T
 
     @staticmethod
     def get_pose(poses_file_path, frame_index, Tr):
@@ -496,6 +497,9 @@ class SemanticKITTIImagePointDataset(DefaultImagePointDataset):
             pose = self.get_pose(poses_file_path, idx - lower + timestamp, Tr)
             refer_frame["coord"] = self.align_pose(
                 refer_frame["coord"], pose, target_pose
+            )
+            refer_frame["normal"] = self.align_normal(
+                refer_frame["normal"], pose, target_pose
             )
             for key in major_frame.keys():
                 if key in self.PC_VALID_ASSETS:
