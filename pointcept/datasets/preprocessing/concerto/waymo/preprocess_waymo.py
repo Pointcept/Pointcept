@@ -453,7 +453,7 @@ def project_lidar_to_image_with_color(
     v_filtered = v_rounded[valid_mask]
     ok = ok & valid_mask
     lidar_colors[ok] = image[v_filtered, u_filtered, :]
-    lidar_uv_coords = lidar_uv_coords[:, :2].copy()
+    lidar_uv_coords = np.stack((u_rounded, v_rounded), axis=1).astype(np.int32)
     lidar_uv_coords[~valid_mask] = -1
     return lidar_colors, lidar_uv_coords, valid_mask
 
