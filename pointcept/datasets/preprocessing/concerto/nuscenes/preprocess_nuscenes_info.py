@@ -433,9 +433,7 @@ def fill_trainval_infos(
                         "is_key_frame": curr_sd_rec["is_key_frame"],
                     }
                     if with_camera:
-                        sweep_sample = nusc.get(
-                            "sample", curr_sd_rec["sample_token"]
-                        )
+                        sweep_sample = nusc.get("sample", curr_sd_rec["sample_token"])
                         cam_infos = dict()
                         for cam in camera_types:
                             cam_token = find_closest_cam_sd_token(
@@ -482,9 +480,7 @@ def fill_trainval_infos(
                             nusc, cam_token, l2e_t, l2e_r_mat, e2g_t, e2g_r_mat, cam
                         )
                         cam_info["data_path"] = (
-                            Path(cam_info["data_path"])
-                            .relative_to(data_path)
-                            .__str__()
+                            Path(cam_info["data_path"]).relative_to(data_path).__str__()
                         )
                         cam_info.update(camera_intrinsics=camera_intrinsics)
                         cam_infos.update({cam: cam_info})

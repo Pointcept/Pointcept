@@ -184,7 +184,7 @@ Follow the instructions below to processe the outdoor datasets.
     # PROCESSED_NUSCENES_DIR: the directory of processed nuScenes dataset (output dir).
     # MAX_SWEEPS: Max number of sweeps. Default: 10.
     pip install nuscenes-devkit pyquaternion
-    python pointcept/datasets/preprocessing/nuscenes/preprocess_nuscenes_info.py --dataset_root ${NUSCENES_DIR} --output_root ${PROCESSED_NUSCENES_DIR} --max_sweeps ${MAX_SWEEPS} --with_camera
+    python pointcept/datasets/preprocessing/concerto/nuscenes/preprocess_nuscenes_info.py --dataset_root ${NUSCENES_DIR} --output_root ${PROCESSED_NUSCENES_DIR} --max_sweeps ${MAX_SWEEPS} --with_camera
     ```
 
     - Link raw dataset to processed NuScene dataset folder:
@@ -225,7 +225,7 @@ Follow the instructions below to processe the outdoor datasets.
     # WAYMO_DIR: the directory of the downloaded Waymo dataset.
     # PROCESSED_WAYMO_DIR: the directory of the processed Waymo dataset (output dir).
     # NUM_WORKERS: num workers for preprocessing
-    python pointcept/datasets/preprocessing/waymo/preprocess_waymo.py --dataset_root ${WAYMO_DIR} --output_root ${PROCESSED_WAYMO_DIR} --splits training validation --num_workers ${NUM_WORKERS}
+    bash pointcept/datasets/preprocessing/concerto/waymo/preprocess_waymo.sh -d ${WAYMO_DIR} -o ${PROCESSED_WAYMO_DIR} -n ${NUM_WORKERS} -s "training validation"
     # To generate the JSON file for the Concerto dataloader
     python pointcept/datasets/preprocessing/concerto/waymo/splits.py --dataset_root ${PROCESSED_WAYMO_DIR}
     ```
