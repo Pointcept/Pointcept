@@ -68,6 +68,7 @@ class BasicBlock(nn.Module):
                 padding=1,
                 indice_key=indice_key,
                 bias=bias,
+                algo=spconv.ConvAlgo.Native
             ),
             norm_fn(embed_channels),
             nn.ReLU(),
@@ -79,6 +80,7 @@ class BasicBlock(nn.Module):
                 padding=1,
                 indice_key=indice_key,
                 bias=bias,
+                algo=spconv.ConvAlgo.Native
             ),
             norm_fn(embed_channels),
         )
@@ -135,6 +137,8 @@ class DonwBlock(nn.Module):
                 stride=2,
                 indice_key=sp_indice_key,
                 bias=False,
+                algo=spconv.ConvAlgo.Native
+
             ),
             norm_fn(embed_channels),
             nn.ReLU(),
@@ -188,6 +192,8 @@ class UpBlock(nn.Module):
                 kernel_size=down_ratio,
                 indice_key=sp_indice_key,
                 bias=False,
+                algo=spconv.ConvAlgo.Native
+
             ),
             norm_fn(embed_channels),
             nn.ReLU(),
@@ -241,6 +247,8 @@ class OACNNs(nn.Module):
                 padding=1,
                 indice_key="stem",
                 bias=False,
+                algo=spconv.ConvAlgo.Native
+
             ),
             norm_fn(embed_channels),
             nn.ReLU(),
@@ -251,6 +259,8 @@ class OACNNs(nn.Module):
                 padding=1,
                 indice_key="stem",
                 bias=False,
+                algo=spconv.ConvAlgo.Native
+
             ),
             norm_fn(embed_channels),
             nn.ReLU(),
@@ -261,6 +271,8 @@ class OACNNs(nn.Module):
                 padding=1,
                 indice_key="stem",
                 bias=False,
+                algo=spconv.ConvAlgo.Native
+
             ),
             norm_fn(embed_channels),
             nn.ReLU(),
@@ -329,16 +341,40 @@ class OACNNs(nn.Module):
         x = self.final(x)
         return x.features
 
+    # @staticmethod
+    # def _init_weights(m):
+    #     print("********************",type(m), type(spconv.SubMConv3d))
+
+    #     if isinstance(m, nn.Linear):
+    #         trunc_normal_(m.weight, std=0.02)
+    #         if m.bias is not None:
+    #             nn.init.constant_(m.bias, 0)
+    #     elif isinstance(m, spconv.SubMConv3d):
+    #         trunc_normal_(m.weight, std=0.02)
+    #         if m.bias is not None:
+    #             nn.init.constant_(m.bias, 0)
+    #     elif isinstance(m, nn.BatchNorm1d):
+    #         nn.init.constant_(m.bias, 0)
+    #         nn.init.constant_(m.weight, 1.0)
+
     @staticmethod
     def _init_weights(m):
+        # Determine the correct type to check against for SubMConv3d
+        subm_conv_type = spconv.SubMConv3d
+        if isinstance(subm_conv_type, partial):
+            # If it's a partial, get the original class from the .func attribute
+            subm_conv_type = subm_conv_type.func
+
         if isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=0.02)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
-        elif isinstance(m, spconv.SubMConv3d):
+        # Use the corrected type for the isinstance check
+        elif isinstance(m, subm_conv_type):
             trunc_normal_(m.weight, std=0.02)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
         elif isinstance(m, nn.BatchNorm1d):
-            nn.init.constant_(m.bias, 0)
+            # Corrected initialization for BatchNorm1d
             nn.init.constant_(m.weight, 1.0)
+            nn.init.constant_(m.bias, 0)
