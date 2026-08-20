@@ -83,6 +83,7 @@ data = dict(
         split="train_grid1mm_chunk6x6_stride3x3",
         data_root=data_root,
         transform=[
+            dict(type="RandomScale", scale=[0.5, 0.5]),
             dict(type="CenterShift", apply_z=True),
             dict(
                 type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=1.0
@@ -126,6 +127,7 @@ data = dict(
         split="val",
         data_root=data_root,
         transform=[
+            dict(type="RandomScale", scale=[0.5, 0.5]),
             dict(type="CenterShift", apply_z=True),
             dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             dict(
@@ -152,6 +154,7 @@ data = dict(
         split="val",
         data_root=data_root,
         transform=[
+            dict(type="RandomScale", scale=[0.5, 0.5]),
             dict(type="CenterShift", apply_z=True),
             dict(type="NormalizeColor"),
             dict(type="Copy", keys_dict={"segment": "origin_segment"}),
