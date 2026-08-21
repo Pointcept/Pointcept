@@ -79,6 +79,7 @@ data = dict(
         split="train_grid1mm_chunk6x6_stride3x3",
         data_root=data_root,
         transform=[
+            dict(type="RandomScale", scale=[0.5, 0.5]),
             dict(type="CenterShift", apply_z=True),
             dict(
                 type="RandomDropout", dropout_ratio=0.2, dropout_application_ratio=1.0
@@ -90,8 +91,8 @@ data = dict(
             dict(type="RandomScale", scale=[0.9, 1.1]),
             # dict(type="RandomShift", shift=[0.2, 0.2, 0.2]),
             dict(type="RandomFlip", p=0.5),
-            dict(type="RandomJitter", sigma=0.005, clip=0.02),
-            dict(type="ElasticDistortion", distortion_params=[[0.2, 0.4], [0.8, 1.6]]),
+            dict(type="RandomJitter", sigma=0.0025, clip=0.01),
+            dict(type="ElasticDistortion", distortion_params=[[0.1, 0.2], [0.4, 0.8]]),
             dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
             dict(type="ChromaticTranslation", p=0.95, ratio=0.05),
             dict(type="ChromaticJitter", p=0.95, std=0.05),
@@ -99,7 +100,7 @@ data = dict(
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
             dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.01,
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
@@ -122,11 +123,12 @@ data = dict(
         split="val",
         data_root=data_root,
         transform=[
+            dict(type="RandomScale", scale=[0.5, 0.5]),
             dict(type="CenterShift", apply_z=True),
             dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.01,
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
@@ -148,12 +150,13 @@ data = dict(
         split="val",
         data_root=data_root,
         transform=[
+            dict(type="RandomScale", scale=[0.5, 0.5]),
             dict(type="CenterShift", apply_z=True),
             dict(type="NormalizeColor"),
             dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             dict(
                 type="GridSample",
-                grid_size=0.01,
+                grid_size=0.005,
                 hash_type="fnv",
                 mode="train",
                 return_inverse=True,
@@ -163,7 +166,7 @@ data = dict(
         test_cfg=dict(
             voxelize=dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.01,
                 hash_type="fnv",
                 mode="test",
                 return_grid_coord=True,
