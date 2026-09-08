@@ -62,7 +62,9 @@ class LaunchScriptTestCase(unittest.TestCase):
         )
 
     def launch_argv(self, result):
-        lines = [l for l in result.stdout.splitlines() if l.startswith("STUB_ARGV ")]
+        lines = [
+            line for line in result.stdout.splitlines() if line.startswith("STUB_ARGV ")
+        ]
         self.assertEqual(len(lines), 1, result.stdout + result.stderr)
         return lines[0]
 
@@ -99,6 +101,14 @@ class LaunchScriptTestCase(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("--machine-rank 3", self.launch_argv(result))
 
+    def check_slurm_explicit_url_wins(self, name):
+        env = {"SLURM_NODELIST": "node[1-2]", "SLURM_NODEID": "1"}
+        result = self.run_script(name, "-m", "2", "-u", "tcp://10.0.0.1:29500", env=env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        argv = self.launch_argv(result)
+        self.assertIn("--machine-rank 1", argv)
+        self.assertIn("--dist-url tcp://10.0.0.1:29500", argv)
+
     def check_multi_machine_without_url_fails(self, name):
         result = self.run_script(name, "-m", "2")
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -119,6 +129,9 @@ class LaunchScriptTestCase(unittest.TestCase):
     def test_train_slurm_node_id_rank(self):
         self.check_slurm_node_id_rank("train.sh")
 
+    def test_train_slurm_explicit_url_wins(self):
+        self.check_slurm_explicit_url_wins("train.sh")
+
     def test_train_multi_machine_without_url_fails(self):
         self.check_multi_machine_without_url_fails("train.sh")
 
@@ -133,6 +146,9 @@ class LaunchScriptTestCase(unittest.TestCase):
 
     def test_test_slurm_node_id_rank(self):
         self.check_slurm_node_id_rank("test.sh")
+
+    def test_test_slurm_explicit_url_wins(self):
+        self.check_slurm_explicit_url_wins("test.sh")
 
     def test_test_multi_machine_without_url_fails(self):
         self.check_multi_machine_without_url_fails("test.sh")
