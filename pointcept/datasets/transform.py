@@ -877,6 +877,12 @@ class GridSample(object):
                 + np.random.randint(0, count.max(), count.size) % count
             )
             idx_unique = idx_sort[idx_select]
+
+            # cell number of each point, then its cell's chosen representative
+            point_to_cell = np.zeros_like(inverse)
+            point_to_cell[idx_sort] = inverse
+            point_to_representative = idx_unique[point_to_cell]
+
             if "sampled_index" in data_dict:
                 # for ScanNet data efficient, we need to make sure labeled point is sampled.
                 idx_unique = np.unique(
@@ -891,8 +897,32 @@ class GridSample(object):
                     data_dict["frame_pcd_offset"], idx_unique
                 )
             if self.return_inverse:
-                data_dict["inverse"] = np.zeros_like(inverse)
-                data_dict["inverse"][idx_sort] = inverse
+                # Build mapping from original points to their representative points in the sampled set.
+                representative_to_row = np.empty(
+                    point_to_representative.shape[0], dtype=np.int64
+                )
+                representative_to_row[idx_unique] = np.arange(idx_unique.shape[0])
+
+                # Update representative to account for potentially added sampled indices that were not originally in idx_unique.
+                is_representative = np.zeros(
+                    point_to_representative.shape[0], dtype=bool
+                )
+                is_representative[idx_unique] = True
+                updated_point_to_representative = np.where(
+                    is_representative,
+                    np.arange(point_to_representative.shape[0]),
+                    point_to_representative,
+                )
+
+                # Map each original point to its representative in the sampled set.
+                data_dict["inverse"] = representative_to_row[
+                    updated_point_to_representative
+                ]
+
+                # Ensure that the representative of a representative point is itself.
+                assert np.all(
+                    data_dict["inverse"][idx_unique] == np.arange(len(idx_unique))
+                ), "Inverse mapping of representative points should map to themselves."
             if self.return_grid_coord:
                 data_dict["grid_coord"] = grid_coord[idx_unique]
                 if "grid_coord" not in data_dict["index_valid_keys"]:
