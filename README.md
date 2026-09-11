@@ -588,6 +588,13 @@ sh scripts/train.sh -p ${INTERPRETER_PATH} -g ${NUM_GPU} -d ${DATASET_NAME} -c $
 export PYTHONPATH=./
 python tools/train.py --config-file ${CONFIG_PATH} --num-gpus ${NUM_GPU} --options save_path=${SAVE_PATH} resume=True weight=${CHECKPOINT_PATH}
 ```
+**Train on multiple machines.** Run the script on every machine with the same number of machines (`-m`) and the same init URL (`-u`, `tcp://MASTER_ADDR:MASTER_PORT` of machine 0), and a distinct machine rank (`-k`) per machine. Under Slurm both values are derived from `SLURM_NODELIST` / `SLURM_NODEID` automatically; the `DIST_URL` and `MACHINE_RANK` environment variables are honored as well.
+```bash
+# machine 0
+sh scripts/train.sh -p ${INTERPRETER_PATH} -g ${NUM_GPU} -m 2 -k 0 -u tcp://${MASTER_ADDR}:${MASTER_PORT} -d ${DATASET_NAME} -c ${CONFIG_NAME} -n ${EXP_NAME}
+# machine 1
+sh scripts/train.sh -p ${INTERPRETER_PATH} -g ${NUM_GPU} -m 2 -k 1 -u tcp://${MASTER_ADDR}:${MASTER_PORT} -d ${DATASET_NAME} -c ${CONFIG_NAME} -n ${EXP_NAME}
+```
 **Weights and Biases.**
 Pointcept by default enables both `tensorboard` and `wandb`. There are some usage notes related to `wandb`:
 1. Disable by set `enable_wandb=False`;
