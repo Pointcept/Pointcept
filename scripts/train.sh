@@ -77,12 +77,22 @@ CONFIG_DIR=configs/${DATASET}/${CONFIG}.py
 
 echo " =========> CREATE EXP DIR <========="
 echo "Experiment dir: $ROOT_DIR/$EXP_DIR"
-if [ "${RESUME}" = true ] && [ -d "$EXP_DIR" ]
+# Multi-machine runs share the exp dir (#618). It exists as soon as the first
+# machine has created it, so they resume only from a checkpoint, and every
+# machine but 0 copies the code into its own code_machine<rank>, so no machine
+# imports a file that another one is still copying. Single-machine runs are
+# unchanged.
+if [ "${RESUME}" = true ] && [ -d "$EXP_DIR" ] \
+  && { [ "$NUM_MACHINE" -le 1 ] || [ -f "$MODEL_DIR/model_last.pth" ]; }
 then
   CONFIG_DIR=${EXP_DIR}/config.py
   WEIGHT=$MODEL_DIR/model_last.pth
 else
   RESUME=false
+  if [ "$NUM_MACHINE" -gt 1 ] && [ "${SLURM_NODEID:-0}" != 0 ]
+  then
+    CODE_DIR=${CODE_DIR}_machine${SLURM_NODEID}
+  fi
   mkdir -p "$MODEL_DIR" "$CODE_DIR"
   cp -r scripts tools pointcept "$CODE_DIR"
 fi
