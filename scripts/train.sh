@@ -102,9 +102,9 @@ then
   WEIGHT=$MODEL_DIR/model_last.pth
 else
   RESUME=false
-  if [ "$NUM_MACHINE" -gt 1 ] && [ "${SLURM_NODEID:-0}" != 0 ]
+  if [ "$NUM_MACHINE" -gt 1 ] && [ "$MACHINE_RANK" != 0 ]
   then
-    CODE_DIR=${CODE_DIR}_machine${SLURM_NODEID}
+    CODE_DIR=${CODE_DIR}_machine${MACHINE_RANK}
   fi
   mkdir -p "$MODEL_DIR" "$CODE_DIR"
   cp -r scripts tools pointcept "$CODE_DIR"
