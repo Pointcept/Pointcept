@@ -11,9 +11,10 @@ EXP_NAME=debug
 WEIGHT=model_best
 NUM_GPU=None
 NUM_MACHINE=1
-DIST_URL="auto"
+MACHINE_RANK=${MACHINE_RANK:-${SLURM_NODEID:-0}}
+DIST_URL=${DIST_URL:-auto}
 
-while getopts "p:d:c:n:w:g:m:" opt; do
+while getopts "p:d:c:n:w:g:m:k:u:" opt; do
   case $opt in
     p)
       PYTHON=$OPTARG
@@ -36,6 +37,12 @@ while getopts "p:d:c:n:w:g:m:" opt; do
     m)
       NUM_MACHINE=$OPTARG
       ;;
+    k)
+      MACHINE_RANK=$OPTARG
+      ;;
+    u)
+      DIST_URL=$OPTARG
+      ;;
     \?)
       echo "Invalid option: -$OPTARG"
       ;;
@@ -52,8 +59,9 @@ echo "Python interpreter dir: $PYTHON"
 echo "Dataset: $DATASET"
 echo "GPU Num: $NUM_GPU"
 echo "Machine Num: $NUM_MACHINE"
+echo "Machine Rank: $MACHINE_RANK"
 
-if [ -n "$SLURM_NODELIST" ]; then
+if [ -n "$SLURM_NODELIST" ] && [ "$DIST_URL" = "auto" ]; then
   MASTER_HOSTNAME=$(scontrol show hostname "$SLURM_NODELIST" | head -n 1)
   MASTER_ADDR=$(getent hosts "$MASTER_HOSTNAME" | awk '{ print $1 }')
   MASTER_PORT=$((10000 + 0x$(echo -n "${DATASET}/${EXP_NAME}" | md5sum | cut -c 1-4 | awk '{print $1}') % 20000))
@@ -61,6 +69,11 @@ if [ -n "$SLURM_NODELIST" ]; then
 fi
 
 echo "Dist URL: $DIST_URL"
+
+if [ "$NUM_MACHINE" -gt 1 ] && [ "$DIST_URL" = "auto" ]; then
+  echo "Error: dist url auto only works on a single machine; for -m $NUM_MACHINE pass -u tcp://MASTER_ADDR:MASTER_PORT (or set DIST_URL) on every machine" >&2
+  exit 1
+fi
 
 EXP_DIR=exp/${DATASET}/${EXP_NAME}
 MODEL_DIR=${EXP_DIR}/model
@@ -87,6 +100,6 @@ $PYTHON -u tools/$TEST_CODE \
   --config-file "$CONFIG_DIR" \
   --num-gpus "$NUM_GPU" \
   --num-machines "$NUM_MACHINE" \
-  --machine-rank ${SLURM_NODEID:-0} \
+  --machine-rank "$MACHINE_RANK" \
   --dist-url ${DIST_URL} \
   --options save_path="$EXP_DIR" weight="${MODEL_DIR}"/"${WEIGHT}".pth
