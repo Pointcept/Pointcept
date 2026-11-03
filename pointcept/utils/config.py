@@ -537,8 +537,15 @@ class Config:
             if file is None:
                 return self.pretty_text
             else:
-                with open(file, "w", encoding="utf-8") as f:
-                    f.write(self.pretty_text)
+                # On multi-machine runs every machine dumps the shared
+                # config.py, while another may be reading it (test.sh). Write
+                # a temporary file and rename it over the target, so the file
+                # is never seen empty or half written.
+                text = self.pretty_text
+                tmp_file = f"{file}.{uuid.uuid4().hex}.tmp"
+                with open(tmp_file, "w", encoding="utf-8") as f:
+                    f.write(text)
+                os.replace(tmp_file, file)
         else:
             import mmcv
 
