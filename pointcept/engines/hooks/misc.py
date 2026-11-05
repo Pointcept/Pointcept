@@ -256,6 +256,24 @@ class CheckpointLoader(HookBase):
                 if comm.get_world_size() == 1:
                     key = key[7:]  # module.xxx.xxx -> xxx.xxx
                 weight[key] = value
+
+            print('self.strict in misc.py ', self.strict)
+            # If not strict, filter out weights with shape mismatches
+            if not self.strict:
+                model_state = self.trainer.model.state_dict()
+                filtered_weight = OrderedDict()
+                for key, value in weight.items():
+                    if key in model_state:
+                        if model_state[key].shape == value.shape:
+                            filtered_weight[key] = value
+                        else:
+                            self.trainer.logger.info(f"Skipping {key} due to shape mismatch: "
+                                                f"checkpoint shape {value.shape} vs model shape {model_state[key].shape}")
+                    else:
+                        # Key doesn't exist in current model, skip it
+                        self.trainer.logger.info(f"Skipping {key} as it doesn't exist in current model")
+                weight = filtered_weight
+
             load_state_info = self.trainer.model.load_state_dict(
                 weight, strict=self.strict
             )
