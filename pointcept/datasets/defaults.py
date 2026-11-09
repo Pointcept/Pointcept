@@ -97,7 +97,7 @@ class DefaultDataset(Dataset):
                     ]
             else:
                 data_list += glob.glob(os.path.join(self.data_root, split, "*"))
-        return data_list
+        return sorted(data_list)
 
     def get_data(self, idx):
         data_path = self.data_list[idx % len(self.data_list)]
