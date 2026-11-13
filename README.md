@@ -783,7 +783,7 @@ sh scripts/train.sh -g 4 -d s3dis -c semseg-pt-v3m1-0-base -n semseg-pt-v3m1-0-b
 # an example for disbale flash_attention and enable rpe.
 sh scripts/train.sh -g 4 -d s3dis -c semseg-pt-v3m1-1-rpe -n semseg-pt-v3m1-0-rpe
 # PPT joint training (ScanNet + S3DIS + Structured3D) and evaluate in ScanNet
-sh scripts/train.sh -g 8 -d s3dis -c semseg-pt-v3m1-1-ppt-extreme -n semseg-pt-v3m1-1-ppt-extreme
+sh scripts/train.sh -g 8 -d s3dis -c semseg-pt-v3m1-2-ppt-extreme -n semseg-pt-v3m1-1-ppt-extreme
 # S3DIS 6-fold cross validation
 # 1. The default configs are evaluated on Area_5, modify the "data.train.split", "data.val.split", and "data.test.split" to make the config evaluated on Area_1 ~ Area_6 respectively.
 # 2. Train and evaluate the model on each split of areas and gather result files located in "exp/s3dis/EXP_NAME/result/Area_x.pth" in one single folder, noted as RECORD_FOLDER.
@@ -805,8 +805,8 @@ Indoor semantic segmentation
 | PTv3 | ScanNet |     &cross;     | 4 | 77.6% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-pt-v3m1-0-base.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/scannet-semseg-pt-v3m1-0-base) |
 | PTv3 + PPT | ScanNet |     &check;     | 8 | 78.5% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet/semseg-pt-v3m1-1-ppt-extreme.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/scannet-semseg-pt-v3m1-1-ppt-extreme) |
 | PTv3 | ScanNet200 |     &cross;     | 4 | 35.3% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/scannet200/semseg-pt-v3m1-0-base.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) |[link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/scannet200-semseg-pt-v3m1-0-base)|
-| PTv3 | S3DIS (Area5) |     &cross;     | 4 | 73.6% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/s3dis/semseg-pt-v3m1-0-rpe.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/s3dis-semseg-pt-v3m1-0-rpe) |
-| PTv3 + PPT | S3DIS (Area5) |     &check;     | 8 | 75.4% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/s3dis/semseg-pt-v3m1-1-ppt-extreme.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/s3dis-semseg-pt-v3m1-1-ppt-extreme) |
+| PTv3 | S3DIS (Area5) |     &cross;     | 4 | 73.6% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/s3dis/semseg-pt-v3m1-1-rpe.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/s3dis-semseg-pt-v3m1-0-rpe) |
+| PTv3 + PPT | S3DIS (Area5) |     &check;     | 8 | 75.4% | [link](https://github.com/Pointcept/Pointcept/blob/main/configs/s3dis/semseg-pt-v3m1-2-ppt-extreme.py) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tensorboard) | [link](https://huggingface.co/Pointcept/PointTransformerV3/tree/main/s3dis-semseg-pt-v3m1-1-ppt-extreme) |
 _**\*Released model weights are trained for v1.5.1, weights for v1.5.2 and later is still ongoing.**_
 
 - **PTv2 mode2**
